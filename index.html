@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Quoridor</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
@@ -150,11 +153,6 @@ body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;backg
 #btn-close-skins{width:100%;padding:12px;border:none;border-radius:14px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;font-size:13px;cursor:pointer;margin-top:4px}
 .skin-raridade{font-size:8px;color:#facc15;font-weight:700;text-transform:uppercase}
 
-/* SKINS TABS */
-.skins-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;justify-content:center}
-.skin-tab{flex:1;min-width:60px;padding:8px 4px;border:1px solid rgba(255,215,140,0.06);border-radius:8px;background:rgba(255,215,140,0.03);color:#b8a99a;font-weight:700;font-size:9px;cursor:pointer;transition:all 0.2s}
-.skin-tab.active{border-color:#d4a373;color:#d4a373;background:rgba(212,163,115,0.08)}
-
 /* INSPECT OVERLAY */
 #inspect-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
 #inspect-overlay.show{display:flex}
@@ -274,7 +272,7 @@ canvas{display:block;touch-action:none;max-width:100%}
   <h1>♞ QUORIDOR</h1>
   <div class="sub">Crie sua conta e comece a jogar</div>
   <form id="login-form">
-    <input type="text" id="login-username" placeholder="Nome de usuário" required>
+    <input type="email" id="login-username" placeholder="E-mail" required>
     <input type="password" id="login-password" placeholder="Senha" required>
     <input type="password" id="login-confirm" placeholder="Confirmar senha">
     <div id="login-error"></div>
@@ -391,6 +389,20 @@ canvas{display:block;touch-action:none;max-width:100%}
 var ACCOUNTS_KEY = 'quoridor_accounts_v2';
 var currentUser = null;
 
+// Firebase
+var firebaseConfig = {
+  apiKey: "AIzaSyBJJZtzkaUoP0swjNrN6Rt0Qm-trzsw4lM",
+  authDomain: "quoridor-online-2823d.firebaseapp.com",
+  databaseURL: "https://quoridor-online-2823d-default-rtdb.firebaseio.com",
+  projectId: "quoridor-online-2823d",
+  storageBucket: "quoridor-online-2823d.firebasestorage.app",
+  messagingSenderId: "652289533045",
+  appId: "1:652289533045:web:043558b29f02c51256443c"
+};
+firebase.initializeApp(firebaseConfig);
+var auth = firebase.auth();
+var database = firebase.database();
+
 // ============================================================
 // SKINS PRÉ-DEFINIDAS (com categorias)
 // ============================================================
@@ -450,23 +462,26 @@ function hashPassword(pass){ return btoa(unescape(encodeURIComponent(pass))); }
 function getAccounts(){ try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY)) || {}; } catch(e){ return {}; } }
 function saveAccounts(accounts){ localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts)); }
 function createUser(username, password){
-  var accounts = getAccounts();
-  if(accounts[username]) return false;
-  accounts[username] = { passwordHash: hashPassword(password), stats: { games:0, wins:0, losses:0, streak:0, maxStreak:0, level:1, points:200, rankPoints:0, maxRankPoints:0, rank:'Bronze V', history:[], totalWalls:0, totalTurns:0, sumPointsVictories:0, opponentEloSum:0, opponentCount:0, xp:0, equippedTitle:'Recruta', ownedSkins:['classic'], equippedSkin:'classic', localGames:0, expertWins:0, medals:[] } };
-  saveAccounts(accounts); return true;
+  return auth.createUserWithEmailAndPassword(username, password)
+    .then(function(userCredential) {
+      currentUser = userCredential.user.email;
+      return true;
+    })
+    .catch(function(error) {
+      console.error(error.message);
+      return false;
+    });
 }
 function loginUser(username, password){
-  var accounts = getAccounts();
-  if(!accounts[username]) return false;
-  if(accounts[username].passwordHash){
-    if(accounts[username].passwordHash === hashPassword(password)){ currentUser = username; return true; }
-  } else if(accounts[username].password === password){
-    accounts[username].passwordHash = hashPassword(password);
-    delete accounts[username].password;
-    saveAccounts(accounts);
-    currentUser = username; return true;
-  }
-  return false;
+  return auth.signInWithEmailAndPassword(username, password)
+    .then(function(userCredential) {
+      currentUser = userCredential.user.email;
+      return true;
+    })
+    .catch(function(error) {
+      console.error(error.message);
+      return false;
+    });
 }
 function getUserStats(username){
   var accounts = getAccounts();
@@ -1167,7 +1182,6 @@ function drawSkinPreview(canvas, skin){
   canvas.width = 36; canvas.height = 36;
   ctx.clearRect(0,0,36,36);
   var x = 18, y = 18, rad = 12;
-  // Desenha a forma
   ctx.save();
   var grad = ctx.createRadialGradient(x - rad*0.3, y - rad*0.35, rad*0.05, x, y, rad);
   grad.addColorStop(0, skin.cor1);
@@ -1180,7 +1194,6 @@ function drawSkinPreview(canvas, skin){
     ctx.ellipse(x, y + rad*0.1, rad*0.75, rad*0.9, 0, 0, Math.PI*2);
     ctx.fill();
     ctx.stroke();
-    // Adiciona chifres
     ctx.fillStyle = skin.cor2;
     ctx.beginPath();
     ctx.moveTo(x - rad*0.3, y);
@@ -1218,7 +1231,6 @@ function drawSkinPreview(canvas, skin){
     ctx.fill();
     ctx.stroke();
   }
-  // Número do peão (opcional)
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 8px Arial';
   ctx.textAlign = 'center';
@@ -1251,7 +1263,6 @@ function renderSkinsList(){
     var equipped = stats.equippedSkin === skin.id;
     var item = document.createElement('div');
     item.className = 'skin-item' + (owned ? ' owned' : '');
-    // Cria preview canvas
     var previewCanvas = document.createElement('canvas');
     previewCanvas.className = 'skin-preview-canvas';
     previewCanvas.style.width = '36px';
@@ -1312,7 +1323,7 @@ function equipSkin(skinId){
 }
 
 // ============================================================
-// INSPECT OVERLAY (CORRIGIDO PARA AMBOS OS JOGADORES)
+// INSPECT OVERLAY
 // ============================================================
 function openInspect(playerIndex, viewer){
   var content = document.getElementById('inspect-content');
@@ -1484,12 +1495,16 @@ loginForm.addEventListener('submit', function(e){
   var confirm = document.getElementById('login-confirm').value;
   if(!username || !password){ loginError.textContent = 'Preencha todos os campos'; return; }
   if(isLoginMode){
-    if(loginUser(username, password)){ loginError.textContent=''; goToModeScreen(username); }
-    else loginError.textContent = 'Usuário ou senha inválidos';
+    loginUser(username, password).then(function(success){
+      if(success){ loginError.textContent=''; goToModeScreen(username); }
+      else loginError.textContent = 'Usuário ou senha inválidos';
+    });
   } else {
     if(password !== confirm){ loginError.textContent = 'As senhas não coincidem'; return; }
-    if(createUser(username, password)){ loginUser(username, password); loginError.textContent=''; goToModeScreen(username); }
-    else loginError.textContent = 'Usuário já existe';
+    createUser(username, password).then(function(success){
+      if(success){ loginError.textContent=''; goToModeScreen(username); }
+      else loginError.textContent = 'Erro ao criar conta';
+    });
   }
 });
 function goToModeScreen(username){
@@ -1544,7 +1559,7 @@ document.getElementById('btn-close-profile').addEventListener('click', closeProf
 document.getElementById('profile-overlay').addEventListener('click', function(e){ if(e.target === e.currentTarget) closeProfile(); });
 document.getElementById('btn-vs-ia').addEventListener('click', function(){ prepararConfiguracao(true); });
 document.getElementById('btn-2p').addEventListener('click', function(){ prepararConfiguracao(false); });
-document.getElementById('btn-online').addEventListener('click', function(){ alert('Modo Online em breve!'); });
+document.getElementById('btn-online').addEventListener('click', entrarFilaOnline);
 document.getElementById('btn-ranking').addEventListener('click', function(){ alert('Classificação em breve!'); });
 document.getElementById('btn-titulos').addEventListener('click', openTitles);
 document.getElementById('btn-medalhas').addEventListener('click', openMedals);
@@ -1608,6 +1623,105 @@ document.getElementById('btnBackMenu').addEventListener('click', function(){
 });
 
 // ============================================================
+// MATCHMAKING ONLINE
+// ============================================================
+var matchmakingRef = null;
+var currentRoomRef = null;
+var roomId = null;
+var playerNumber = null;
+
+function entrarFilaOnline() {
+  if (!auth.currentUser) {
+    alert('Faça login primeiro.');
+    showScreen('login-screen');
+    return;
+  }
+  alert('Procurando partida...');
+  var queueRef = database.ref('matchmaking_queue');
+  var playerRef = queueRef.push();
+  playerRef.set({
+    uid: auth.currentUser.uid,
+    email: auth.currentUser.email
+  }).then(function() {
+    playerRef.onDisconnect().remove();
+    queueRef.once('value', function(snapshot) {
+      var players = [];
+      snapshot.forEach(function(child) {
+        if (child.key !== playerRef.key) {
+          players.push({key: child.key, uid: child.val().uid});
+        }
+      });
+      if (players.length > 0) {
+        var opponent = players[0];
+        queueRef.child(playerRef.key).remove();
+        queueRef.child(opponent.key).remove();
+        criarSala(auth.currentUser.uid, opponent.uid);
+      }
+    });
+  });
+}
+
+function criarSala(uid1, uid2) {
+  var roomsRef = database.ref('rooms');
+  var newRoomRef = roomsRef.push();
+  newRoomRef.set({
+    player1: uid1,
+    player2: uid2,
+    status: 'playing',
+    state: {
+      turn: 0,
+      positions: [[8,4],[0,4]],
+      walls: [10,10],
+      pH: [],
+      pV: [],
+      wallOwnerH: [],
+      wallOwnerV: [],
+      over: false
+    }
+  });
+  currentRoomRef = newRoomRef;
+  roomId = newRoomRef.key;
+  playerNumber = uid1 === auth.currentUser.uid ? 1 : 2;
+  currentRoomRef.child('state').on('value', function(snapshot) {
+    if (snapshot.val()) {
+      G = snapshot.val();
+      G.vsIA = false;
+      G.p1Name = 'Você';
+      G.p2Name = 'Oponente';
+      gameActive = true;
+      matchFinished = false;
+      resize();
+      updateWallIndicators();
+      syncBtn();
+      draw();
+    }
+  });
+  showScreen('game-screen');
+  gameActive = true;
+  matchFinished = false;
+  resetGame();
+  atualizarPlacar();
+}
+
+function enviarEstado() {
+  if (currentRoomRef) {
+    currentRoomRef.child('state').set(G);
+  }
+}
+
+// Modificar doMove e placeWall para incluir enviarEstado
+var originalDoMove = doMove;
+doMove = function(r,c) {
+  originalDoMove(r,c);
+  enviarEstado();
+};
+var originalPlaceWall = placeWall;
+placeWall = function(ni,nj,ori) {
+  originalPlaceWall(ni,nj,ori);
+  enviarEstado();
+};
+
+// ============================================================
 // LÓGICA DO JOGO (TABULEIRO, IA, TIMER, ETC.)
 // ============================================================
 var N=9, WALLS=10, WIN=[0,8], SCALE=2;
@@ -1650,7 +1764,7 @@ function saveStats(stats){
   updateUserStats(currentUser, userStats);
 }
 
-/* DRAW PAWN COM EFEITOS LENDÁRIOS E RAROS */
+/* DRAW PAWN COM EFEITOS */
 function drawPawn(p, x, y, rad, active, rotateText){
   var skinId = null;
   if(p === 0 && currentUser){
@@ -2180,9 +2294,7 @@ function canWinNext(player, pH, pV, positions) {
   }
   return false;
 }
-// ============================================================
-// IA EXPERT APRIMORADA (INVENCIBLE)
-// ============================================================
+// IA Expert
 function evaluateExpert(pos, pH, pV, walls) {
   var d0 = bfsDist(0, pH, pV, pos);
   var d1 = bfsDist(1, pH, pV, pos);
@@ -2192,25 +2304,19 @@ function evaluateExpert(pos, pH, pV, walls) {
   var mob1 = legalMoves(1, pH, pV, pos).length;
   var threat0 = canWinNext(0, pH, pV, pos) ? 5000 : 0;
   var threat1 = canWinNext(1, pH, pV, pos) ? 5000 : 0;
-  
-  // Penalidade extra se o jogador estiver no centro do tabuleiro
   var playerCol = pos[0][1];
   var playerRow = pos[0][0];
   var centerPenalty = 0;
   if (playerRow >= 2 && playerRow <= 6 && playerCol >= 2 && playerCol <= 6) {
-    centerPenalty = 1000; // jogador no centro é muito perigoso
+    centerPenalty = 1000;
   }
   var centerDist = Math.abs(playerCol - 4) + Math.abs(playerRow - 4);
   centerPenalty += Math.max(0, 8 - centerDist) * 80;
-  
   var blockadeBonus = mob1 <= 2 ? 400 : mob1 <= 3 ? 200 : 0;
   var wallAdvantage = (walls[1] - walls[0]) * 45;
   var progressPenalty = pos[0][0] * 25;
   var progressBonus = (8 - pos[1][0]) * 20;
-  
-  // Penalidade por gastar paredes desnecessariamente (quanto mais paredes a IA tiver, melhor)
   var wallHoardingBonus = walls[1] * 30;
-  
   return (d0 - d1) * 100 + (mob0 - mob1) * 20 + wallAdvantage + threat1 - threat0 + blockadeBonus - progressPenalty + progressBonus - centerPenalty + wallHoardingBonus;
 }
 function wallCandidatesExpert(pH, pV, walls, pos, iaIdx) {
@@ -2219,7 +2325,7 @@ function wallCandidatesExpert(pH, pV, walls, pos, iaIdx) {
   var opp = 1 - iaIdx;
   var or = pos[opp][0], oc = pos[opp][1];
   var playerCenter = (or >= 2 && or <= 6 && oc >= 2 && oc <= 6);
-  var minGain = playerCenter ? 1 : 2; // no centro, aceita ganho 1; fora, exige 2
+  var minGain = playerCenter ? 1 : 2;
   for (var r = 0; r < N - 1; r++) {
     for (var c = 0; c < N - 1; c++) {
       if (canPlaceIA(r, c, 'H', pH, pV, walls[iaIdx], pos)) {
@@ -2285,24 +2391,19 @@ function iaJogarExpert() {
   var pH = G.pH.slice(), pV = G.pV.slice(), walls = G.walls.slice();
   var startTime = Date.now();
   transpositionTable.clear();
-  
-  // Determina fase do jogo baseado na posição do jogador
   var playerRow = pos[0][0], playerCol = pos[0][1];
   var playerCenter = (playerRow >= 2 && playerRow <= 6 && playerCol >= 2 && playerCol <= 6);
   var wallsUsed = WALLS - walls[iaIdx];
-  var maxWallsToUse = playerCenter ? 10 : 4; // no centro, pode usar mais; antes, economizar
-  
+  var maxWallsToUse = playerCenter ? 10 : 4;
   var bestAction = null, bestScore = -Infinity;
   for (var depth = 2; depth <= cfg.depth; depth += 2) {
     if (Date.now() - startTime > cfg.timeLimit) break;
     var moves = legalMoves(iaIdx, pH, pV, pos);
     var wCands = wallCandidatesExpert(pH, pV, walls, pos, iaIdx).slice(0, cfg.wallLimit);
-    // Limita número de paredes se não está no centro
     if (!playerCenter && wallsUsed >= maxWallsToUse) {
       wCands = [];
     }
     var actions = [];
-    // Se o jogador pode vencer, defesa imediata
     if (canWinNext(0, pH, pV, pos)) {
       for (var i = 0; i < wCands.length; i++) {
         var w = wCands[i];
@@ -2312,11 +2413,8 @@ function iaJogarExpert() {
       }
       if (bestAction) break;
     }
-    // Adiciona movimentos
     for (var i = 0; i < moves.length; i++) actions.push({type:'move', r:moves[i][0], c:moves[i][1]});
-    // Adiciona paredes (ordenadas por ganho)
     for (var j = 0; j < wCands.length; j++) actions.push({type:'wall', r:wCands[j].r, c:wCands[j].c, ori:wCands[j].ori});
-    // Ordena ações: paredes com alto ganho primeiro, depois movimentos
     actions.sort(function(a,b){
       if (a.type === 'wall' && b.type === 'move') return -1;
       if (a.type === 'move' && b.type === 'wall') return 1;
@@ -2340,7 +2438,6 @@ function iaJogarExpert() {
     var moves = legalMoves(iaIdx, pH, pV, pos);
     if (moves.length) {
       moves.sort(function(a,b){ return Math.abs(a[0]-WIN[iaIdx]) - Math.abs(b[0]-WIN[iaIdx]); });
-      // Pequena aleatoriedade entre as 2 melhores para evitar repetição
       var topMoves = moves.slice(0, Math.min(2, moves.length));
       bestAction = {type:'move', r:topMoves[Math.floor(Math.random()*topMoves.length)][0], c:topMoves[Math.floor(Math.random()*topMoves.length)][1]};
     }
@@ -2356,9 +2453,6 @@ function iaJogarExpert() {
   }
   return bestAction;
 }
-// ============================================================
-// FIM DA IA EXPERT APRIMORADA
-// ============================================================
 function nivelConfig() {
   switch (G.nivelIA) {
     case 'facil': return {depth:1, wallChance:0.15, mistakes:0.45, wallLimit:6, timeLimit:200};
@@ -2711,7 +2805,6 @@ function nextTurn(){
     document.getElementById('game-screen').classList.toggle('p2-active', G.turn === 1);
     document.getElementById('hud-wrapper').classList.toggle('rotated', G.turn === 1);
   } else {
-    // GARANTE QUE NO MODO IA O HUD NUNCA ROTACIONE
     document.getElementById('game-screen').classList.remove('p2-active');
     document.getElementById('hud-wrapper').classList.remove('rotated');
   }
