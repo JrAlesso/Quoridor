@@ -4,9 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Quoridor</title>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
@@ -16,15 +13,6 @@ html,body{width:100%;height:100%;overflow:hidden;position:fixed;background:#1a14
 .screen>*{position:relative;z-index:1}
 body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at 20% 50%,rgba(212,163,115,0.08),transparent 70%),radial-gradient(ellipse at 80% 20%,rgba(77,171,247,0.05),transparent 60%);pointer-events:none;z-index:0}
 
-/* SEARCH OVERLAY */
-#search-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
-#search-overlay.show{display:flex}
-#search-card{background:rgba(26,20,16,0.97);border:1px solid rgba(255,215,140,0.2);border-radius:24px;padding:25px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 60px rgba(0,0,0,0.8),0 0 40px rgba(212,163,115,0.2);animation:pulseSearch 1.5s infinite alternate}
-#search-card h2{color:#d4a373;font-size:20px;margin-bottom:15px;display:flex;align-items:center;justify-content:center;gap:10px}
-#search-card .loader{width:60px;height:60px;border-radius:50%;border:4px solid rgba(255,215,140,0.1);border-top-color:#d4a373;margin:15px auto;animation:spin 1s linear infinite}
-#search-card p{color:#b8a99a;font-size:13px;line-height:1.5;margin-bottom:10px}
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes pulseSearch{from{transform:scale(1)}to{transform:scale(1.02)}}
 /* LOGIN */
 #login-screen{background:linear-gradient(145deg,#1a1410,#0d0a08);justify-content:center}
 #login-screen h1{font-size:44px;font-family:'Playfair Display',serif;font-weight:900;background:linear-gradient(135deg,#d4a373,#b8860b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
@@ -281,15 +269,6 @@ canvas{display:block;touch-action:none;max-width:100%}
 </style>
 </head>
 <body>
-<!-- SEARCH OVERLAY -->
-<div id="search-overlay">
-  <div id="search-card">
-    <h2>🔍 Buscando partida...</h2>
-    <div class="loader"></div>
-    <p>Aguarde enquanto encontramos um oponente para você.</p>
-    <button id="btn-cancel-search">Cancelar</button>
-  </div>
-</div>
 <!-- TELA DE LOGIN -->
 <div id="login-screen" class="screen active">
   <h1>♞ QUORIDOR</h1>
@@ -410,19 +389,6 @@ canvas{display:block;touch-action:none;max-width:100%}
 // SISTEMA DE CONTAS + RANQUE + HISTÓRICO
 // ============================================================
 var ACCOUNTS_KEY = 'quoridor_accounts_v2';
-// Firebase
-var firebaseConfig = {
-  apiKey: "AIzaSyBJJZtzkaUoP0swjNrN6Rt0Qm-trzsw4lM",
-  authDomain: "quoridor-online-2823d.firebaseapp.com",
-  databaseURL: "https://quoridor-online-2823d-default-rtdb.firebaseio.com",
-  projectId: "quoridor-online-2823d",
-  storageBucket: "quoridor-online-2823d.firebasestorage.app",
-  messagingSenderId: "652289533045",
-  appId: "1:652289533045:web:043558b29f02c51256443c"
-};
-firebase.initializeApp(firebaseConfig);
-var auth = firebase.auth();
-var database = firebase.database();
 var currentUser = null;
 
 // ============================================================
@@ -1622,128 +1588,6 @@ document.getElementById('btn-close-win').addEventListener('click', function(){
   goToLobby();
 });
 
-// ============================================================
-// MATCHMAKING ONLINE
-// ============================================================
-var currentRoomRef = null;
-var playerNumber = null;
-var queueRef = null;
-var searchOverlay = document.getElementById("search-overlay");
-var btnCancelSearch = document.getElementById("btn-cancel-search");
-
-function showSearchOverlay(show) {
-  if (show) {
-    searchOverlay.classList.add("show");
-  } else {
-    searchOverlay.classList.remove("show");
-  }
-}
-
-function entrarFilaOnline() {
-  if (!auth.currentUser) {
-    alert("Faça login primeiro.");
-    showScreen("login-screen");
-    return;
-  }
-  showSearchOverlay(true);
-  queueRef = database.ref("matchmaking_queue");
-  var playerRef = queueRef.push();
-  playerRef.set({
-    uid: auth.currentUser.uid,
-    email: auth.currentUser.email
-  }).then(function() {
-    playerRef.onDisconnect().remove();
-    queueRef.on("value", function(snapshot) {
-      var players = [];
-      snapshot.forEach(function(child) {
-        if (child.key !== playerRef.key && child.val().uid !== auth.currentUser.uid) {
-          players.push({ key: child.key, uid: child.val().uid });
-        }
-      });
-      if (players.length > 0) {
-        queueRef.child(playerRef.key).remove();
-        queueRef.child(players[0].key).remove();
-        queueRef.off("value");
-        criarSala(auth.currentUser.uid, players[0].uid);
-      }
-    });
-  });
-}
-
-btnCancelSearch.addEventListener("click", function() {
-  if (queueRef) {
-    queueRef.off("value");
-    database.ref("matchmaking_queue").orderByChild("uid").equalTo(auth.currentUser.uid).once("value", function(snapshot) {
-      snapshot.forEach(function(child) {
-        child.ref.remove();
-      });
-    });
-  }
-  showSearchOverlay(false);
-});
-
-function criarSala(uid1, uid2) {
-  showSearchOverlay(false);
-  var roomsRef = database.ref("rooms");
-  var newRoomRef = roomsRef.push();
-  newRoomRef.set({
-    player1: uid1,
-    player2: uid2,
-    status: "playing",
-    state: {
-      turn: 0,
-      positions: [[8,4],[0,4]],
-      walls: [10,10],
-      pH: [],
-      pV: [],
-      wallOwnerH: [],
-      wallOwnerV: [],
-      over: false
-    }
-  });
-  currentRoomRef = newRoomRef;
-  playerNumber = uid1 === auth.currentUser.uid ? 1 : 2;
-
-  currentRoomRef.child("state").on("value", function(snapshot) {
-    var state = snapshot.val();
-    if (state) {
-      G = state;
-      G.vsIA = false;
-      G.p1Name = "Você";
-      G.p2Name = "Oponente";
-      gameActive = true;
-      matchFinished = false;
-      resize();
-      updateWallIndicators();
-      syncBtn();
-      draw();
-    }
-  });
-
-  showScreen("game-screen");
-  gameActive = true;
-  matchFinished = false;
-  resetGame();
-  atualizarPlacar();
-}
-
-function enviarEstado() {
-  if (currentRoomRef) {
-    currentRoomRef.child("state").set(G);
-  }
-}
-
-var originalDoMove = doMove;
-doMove = function(r,c) {
-  originalDoMove(r,c);
-  if (currentRoomRef) enviarEstado();
-};
-
-var originalPlaceWall = placeWall;
-placeWall = function(ni,nj,ori) {
-  originalPlaceWall(ni,nj,ori);
-  if (currentRoomRef) enviarEstado();
-};
 function prepararConfiguracao(vsIA){
   resetAllGameState();
   G.vsIA = vsIA;
