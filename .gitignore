@@ -1,0 +1,13 @@
+*.py
+*.bak
+*.txt
+index_backup.html
+index.html.bak_online_rotacao
+index.html_completo.txt
+quoridor_refatorado.html
+botao_limpeza.html
+parte_*
+public/
+.firebase/
+.firebaserc
+firebase.json
