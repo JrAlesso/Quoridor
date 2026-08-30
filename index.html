@@ -1409,6 +1409,28 @@
       document.querySelectorAll('.profile-item').forEach(function(el) { el.classList.remove('active'); });
     }
 
+
+    function renderMedalsInProfile(listElement, stats) {
+      var container = document.createElement('div');
+      container.style.cssText = 'padding:12px;border-top:1px solid rgba(255,215,140,0.06);border-bottom:1px solid rgba(255,215,140,0.06);margin:10px 0;';
+      container.innerHTML = '<div style="font-weight:700;color:#d4a373;margin-bottom:8px;font-size:11px;">MEDALHAS</div>';
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;';
+      for (var i = 0; i < MEDALS.length; i++) {
+        var medal = MEDALS[i];
+        var unlocked = medal.check(stats);
+        var medalDiv = document.createElement('div');
+        medalDiv.style.cssText = 'display:flex;flex-direction:column;align-items:center;cursor:pointer;';
+        medalDiv.innerHTML = '<span class="medal-svg">' + medal.svg(unlocked) + '</span>';
+        (function(m) {
+          medalDiv.addEventListener('click', function() { alert(m.nome + ': ' + m.desc); });
+        })(medal);
+        row.appendChild(medalDiv);
+      }
+      container.appendChild(row);
+      listElement.appendChild(container);
+    }
+    
     function getTitleRequirement(title) {
       if (title === 'Recruta') return 'Título inicial.';
       var arrays = [TITLES, SEQUENCE_TITLES, GAMES_PLAYED_TITLES, LEVEL_TITLES, LOCAL_GAMES_TITLES, IA_WINS_TITLES];
@@ -3255,5 +3277,26 @@
     }
     requestAnimationFrame(loop);
   </script>
+
+<script id="VinculoPerfilCorrigido">
+(function(){
+  var userInfo = document.getElementById('user-info-profile');
+  if (userInfo) {
+    userInfo.addEventListener('click', function() {
+      if (typeof openProfile === 'function') openProfile();
+      else alert('Função openProfile não encontrada.');
+    });
+  }
+  var closeBtn = document.getElementById('profile-close');
+  if (closeBtn) closeBtn.addEventListener('click', function() { closeProfile(); });
+  var closeBtn2 = document.getElementById('btn-close-profile');
+  if (closeBtn2) closeBtn2.addEventListener('click', function() { closeProfile(); });
+  var overlay = document.getElementById('profile-overlay');
+  if (overlay) overlay.addEventListener('click', function(e) {
+    if (e.target === e.currentTarget) closeProfile();
+  });
+})();
+</script>
+
 </body>
 </html>
