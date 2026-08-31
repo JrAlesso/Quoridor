@@ -3352,3 +3352,361 @@
   </script>
 </body>
 </html>
+<script>
+  // ============================================================
+  // CORREÇÃO COMPLETA – OVERLAY JOGAR ONLINE
+  // ============================================================
+  (function() {
+    console.log('🔧 Aplicando correção do overlay online...');
+
+    // ============================================================
+    // 1. FUNÇÕES DE SALA (sobrescrevem as existentes)
+    // ============================================================
+
+    // Cria uma nova sala no Firestore
+    window.criarSala = function(nomeJogador, senha) {
+      if (!nomeJogador) { alert('Nome do jogador não definido.'); return; }
+      var salaRef = db.collection('salas').doc();
+      var salald = salaRef.id;
+      var dados = {
+        jogador1: nomeJogador,
+        jogador2: '',
+        status: 'esperando',
+        turno: 0,
+        posicoes: [[8,4],[0,4]],
+        paredesH: [],
+        paredesV: [],
+        paredesRestantes: [10,10],
+        vencedor: '',
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        senha: senha || ''
+      };
+      salaRef.set(dados).then(function() {
+        var statusEl = document.getElementById('sala-status');
+        if (statusEl) statusEl.innerHTML = '✅ Sala criada! ID: <strong>' + salald + '</strong><br>Aguardando oponente...';
+        window.salaAtual = salald;
+        window.isOnlineMode = true;
+        G.online = true;
+        G.salald = salald;
+        G.p1Name = nomeJogador;
+        G.p2Name = 'Aguardando...';
+        // Listener da sala
+        if (window.salaUnsubscribe) {
+          try { window.salaUnsubscribe(); } catch(e) {}
+        }
+        window.salaUnsubscribe = salaRef.onSnapshot(function(doc) {
+          if (!doc.exists) return;
+          var data = doc.data();
+          if (data.status === 'em_andamento' && data.jogador2) {
+            document.getElementById('sala-overlay').classList.remove('show');
+            window.iniciarJogoOnline(salald, nomeJogador, data);
+          } else if (data.status === 'esperando') {
+            document.getElementById('sala-status').textContent = '⏳ Aguardando oponente entrar...';
+          }
+        });
+        // Atualiza lista de salas
+        window.listarSalasAbertas();
+      }).catch(function(err) {
+        document.getElementById('sala-status').textContent = '❌ Erro: ' + err.message;
+      });
+    };
+
+    // Lista salas abertas
+    window.listarSalasAbertas = function() {
+      if (window.listaSalasUnsubscribe) {
+        try { window.listaSalasUnsubscribe(); } catch(e) {}
+        window.listaSalasUnsubscribe = null;
+      }
+      var statusEl = document.getElementById('sala-status');
+      if (statusEl) statusEl.textContent = '🔄 Carregando salas...';
+      window.listaSalasUnsubscribe = db.collection('salas')
+        .where('status', '==', 'esperando')
+        .onSnapshot(function(snapshot) {
+          var lista = document.getElementById('sala-lista');
+          if (!lista) return;
+          lista.innerHTML = '';
+          if (snapshot.empty) {
+            lista.innerHTML = '<div class="history-empty">📭 Nenhuma sala aberta.<br>Crie uma para começar!</div>';
+            if (statusEl) statusEl.textContent = '💡 Nenhuma sala disponível.';
+            return;
+          }
+          if (statusEl) statusEl.textContent = '📋 ' + snapshot.size + ' sala(s) disponível(eis)';
+          snapshot.forEach(function(doc) {
+            var data = doc.data();
+            var el = document.createElement('div');
+            el.className = 'sala-item';
+            el.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid rgba(255,215,140,0.06);';
+            var cadeado = data.senha ? '🔒' : '🔓';
+            var jogador = data.jogador1 || 'Anônimo';
+            el.innerHTML =
+              '<span style="color:#f0e6d3;font-weight:bold;">' + jogador + ' ' + cadeado + '</span>' +
+              '<span style="color:#b8a99a;font-size:12px;">1/2</span>' +
+              '<button class="sala-btn" data-id="' + doc.id + '" style="background:rgba(212,163,115,0.15);border:1px solid #d4a373;color:#d4a373;border-radius:8px;padding:6px 16px;font-weight:bold;cursor:pointer;">Entrar</button>';
+            lista.appendChild(el);
+          });
+          lista.querySelectorAll('.sala-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              var id = this.getAttribute('data-id');
+              if (!currentUser) { alert('Faça login primeiro.'); return; }
+              // Verifica se tem senha
+              db.collection('salas').doc(id).get().then(function(doc) {
+                if (!doc.exists) return;
+                var data = doc.data();
+                if (data.senha) {
+                  var senhaDigitada = prompt('Digite a senha da sala:');
+                  if (senhaDigitada === null) return;
+                  window.entrarSala(id, currentUser, senhaDigitada);
+                } else {
+                  window.entrarSala(id, currentUser, '');
+                }
+              });
+            });
+          });
+        }, function(error) {
+          console.error('Erro ao listar salas:', error);
+          if (statusEl) statusEl.textContent = '❌ Erro ao carregar salas.';
+        });
+    };
+
+    // Entrar em uma sala existente
+    window.entrarSala = function(salald, nomeJogador, senhaFornecida) {
+      var salaRef = db.collection('salas').doc(salald);
+      salaRef.get().then(function(doc) {
+        if (!doc.exists) {
+          document.getElementById('sala-status').textContent = '❌ Sala não encontrada.';
+          return;
+        }
+        var data = doc.data();
+        if (data.status === 'finalizada') {
+          document.getElementById('sala-status').textContent = '❌ Sala já finalizada.';
+          return;
+        }
+        if (data.senha && data.senha !== '' && senhaFornecida !== data.senha) {
+          document.getElementById('sala-status').textContent = '❌ Senha incorreta.';
+          return;
+        }
+        if (data.jogador1 === nomeJogador || data.jogador2 === nomeJogador) {
+          document.getElementById('sala-overlay').classList.remove('show');
+          window.iniciarJogoOnline(salald, nomeJogador, data);
+          return;
+        }
+        if (data.jogador2 && data.jogador2 !== '') {
+          document.getElementById('sala-status').textContent = '❌ Sala cheia.';
+          return;
+        }
+        // Entra como jogador 2
+        salaRef.update({ jogador2: nomeJogador, status: 'em_andamento' })
+          .then(function() { return salaRef.get(); })
+          .then(function(doc2) {
+            document.getElementById('sala-overlay').classList.remove('show');
+            window.iniciarJogoOnline(salald, nomeJogador, doc2.data());
+          })
+          .catch(function(err) {
+            document.getElementById('sala-status').textContent = '❌ Erro ao entrar: ' + err.message;
+          });
+      }).catch(function(err) {
+        document.getElementById('sala-status').textContent = '❌ Erro ao buscar sala: ' + err.message;
+      });
+    };
+
+    // Iniciar jogo online (entra na tela de jogo)
+    window.iniciarJogoOnline = function(salald, nomeJogador, data) {
+      window.isOnlineMode = true;
+      window.salaAtual = salald;
+      G.online = true;
+      G.salald = salald;
+      G.vsIA = false;
+      G.over = false;
+      G.mode = 'move';
+      G.sel = null;
+      G.moves = [];
+      gameActive = true;
+      matchFinished = false;
+      window.aplicarEstadoSala(data);
+      showScreen('game-screen');
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          if (typeof resize === 'function') resize();
+          window.aplicarEstadoSala(data);
+          if (window.euSouJogadorDaVez() && typeof selectPawn === 'function') {
+            selectPawn(G.pos[G.turn][0], G.pos[G.turn][1]);
+          }
+        });
+      });
+      // Listener da sala para sincronizar
+      if (window.salaUnsubscribe) {
+        try { window.salaUnsubscribe(); } catch(e) {}
+      }
+      window.salaUnsubscribe = db.collection('salas').doc(salald).onSnapshot(function(doc) {
+        if (!doc.exists) return;
+        var novoData = doc.data();
+        if (novoData.status === 'finalizada') {
+          if (!G.over) {
+            G.over = true;
+            var vencedor = novoData.vencedor === G.p1Name ? 0 : (novoData.vencedor === G.p2Name ? 1 : -1);
+            if (vencedor !== -1 && typeof showWinOverlay === 'function') {
+              showWinOverlay('🏆 ' + novoData.vencedor + ' venceu!', vencedor);
+            }
+          }
+          return;
+        }
+        window.aplicarEstadoSala(novoData);
+        if (window.euSouJogadorDaVez() && !G.over && typeof selectPawn === 'function') {
+          selectPawn(G.pos[G.turn][0], G.pos[G.turn][1]);
+        }
+      });
+    };
+
+    // Aplicar estado da sala ao jogo local
+    window.aplicarEstadoSala = function(data) {
+      if (!data) return;
+      G.p1Name = data.jogador1 || G.p1Name;
+      G.p2Name = data.jogador2 || G.p2Name || 'Aguardando...';
+      if (data.posicoes && data.posicoes.length === 2) {
+        G.pos = [[data.posicoes[0][0], data.posicoes[0][1]], [data.posicoes[1][0], data.posicoes[1][1]]];
+      }
+      // Limpa paredes atuais e recria
+      G.pH = [];
+      G.pV = [];
+      G.wallOwnerH = [];
+      G.wallOwnerV = [];
+      (data.paredesH || []).forEach(function(w) {
+        if (Array.isArray(w)) { G.pH.push([w[0], w[1]]); G.wallOwnerH.push(0); }
+        else if (w && typeof w.r === 'number') { G.pH.push([w.r, w.c]); G.wallOwnerH.push(typeof w.dono === 'number' ? w.dono : 0); }
+      });
+      (data.paredesV || []).forEach(function(w) {
+        if (Array.isArray(w)) { G.pV.push([w[0], w[1]]); G.wallOwnerV.push(0); }
+        else if (w && typeof w.r === 'number') { G.pV.push([w.r, w.c]); G.wallOwnerV.push(typeof w.dono === 'number' ? w.dono : 0); }
+      });
+      G.walls = data.paredesRestantes ? data.paredesRestantes.slice() : [10,10];
+      G.turn = typeof data.turno === 'number' ? data.turno : 0;
+      G.vsIA = false;
+      G.online = true;
+      // Atualiza UI
+      document.getElementById('p1-nome').textContent = G.p1Name;
+      document.getElementById('nomeJ2').textContent = G.p2Name;
+      document.getElementById('placar-p1').textContent = G.p1Name;
+      document.getElementById('placar-p2').textContent = G.p2Name;
+      var p2c = document.getElementById('p2-controls');
+      if (p2c) p2c.style.display = 'none';
+      document.getElementById('game-screen').classList.remove('p2-active', 'modo-2p');
+      document.getElementById('hud-wrapper').classList.remove('rotated');
+      if (typeof updateWallIndicators === 'function') updateWallIndicators();
+      if (typeof syncBtn === 'function') syncBtn();
+      if (typeof draw === 'function') draw();
+      if (typeof st === 'function') {
+        if (G.over) return;
+        if (window.euSouJogadorDaVez()) {
+          st('Sua vez: ' + (G.turn === 0 ? G.p1Name : G.p2Name));
+        } else {
+          st('Aguardando oponente...');
+        }
+      }
+    };
+
+    // Verifica se o jogador atual é o dono da vez
+    window.euSouJogadorDaVez = function() {
+      if (!window.isOnlineMode) return true;
+      if (G.turn === 0) return currentUser === G.p1Name;
+      return currentUser === G.p2Name;
+    };
+
+    // Envia jogada para o Firestore
+    window.enviarJogadaOnline = function(jogada) {
+      if (!window.salaAtual || !window.isOnlineMode) return;
+      if (!window.euSouJogadorDaVez()) return;
+      var salaRef = db.collection('salas').doc(window.salaAtual);
+      var paredes = window.paredesLocalParaFirestore();
+      var posicoes = [[G.pos[0][0], G.pos[0][1]], [G.pos[1][0], G.pos[1][1]]];
+      var paredesRestantes = [G.walls[0], G.walls[1]];
+      var turno = G.turn;
+      var update = {
+        posicoes: posicoes,
+        paredesH: paredes.paredesH,
+        paredesV: paredes.paredesV,
+        paredesRestantes: paredesRestantes,
+        turno: turno
+      };
+      if (G.over || G.pos[0][0] === 0 || G.pos[1][0] === 8) {
+        update.status = 'finalizada';
+        update.vencedor = (G.pos[0][0] === 0) ? G.p1Name : G.p2Name;
+      }
+      salaRef.update(update).catch(function(err) {
+        console.error('Erro ao enviar jogada:', err);
+        if (typeof st === 'function') st('Erro de sincronização.');
+      });
+    };
+
+    // Converte paredes locais para formato Firestore
+    window.paredesLocalParaFirestore = function() {
+      var paredesH = [], paredesV = [];
+      for (var i = 0; i < G.pH.length; i++) {
+        paredesH.push({ r: G.pH[i][0], c: G.pH[i][1], dono: G.wallOwnerH[i] != null ? G.wallOwnerH[i] : 0 });
+      }
+      for (var j = 0; j < G.pV.length; j++) {
+        paredesV.push({ r: G.pV[j][0], c: G.pV[j][1], dono: G.wallOwnerV[j] != null ? G.wallOwnerV[j] : 0 });
+      }
+      return { paredesH: paredesH, paredesV: paredesV };
+    };
+
+    // Limpa listeners e estado online
+    window.limparOnline = function() {
+      if (window.salaUnsubscribe) { try { window.salaUnsubscribe(); } catch(e) {} window.salaUnsubscribe = null; }
+      if (window.listaSalasUnsubscribe) { try { window.listaSalasUnsubscribe(); } catch(e) {} window.listaSalasUnsubscribe = null; }
+      window.isOnlineMode = false;
+      window.salaAtual = null;
+      if (G) { G.online = false; G.salald = null; }
+    };
+
+    // ============================================================
+    // 2. VINCULA OS BOTÕES DO OVERLAY
+    // ============================================================
+
+    function vincularBotao(id, fn) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var clone = el.cloneNode(true);
+      el.parentNode.replaceChild(clone, el);
+      clone.addEventListener('click', fn);
+    }
+
+    // Criar Sala
+    vincularBotao('btn-criar-sala', function() {
+      if (!currentUser) { alert('Faça login primeiro.'); return; }
+      var nome = document.getElementById('sala-nome-input').value.trim();
+      var senha = document.getElementById('sala-senha-input').value.trim();
+      if (!nome) nome = currentUser + ' game';
+      window.criarSala(currentUser, senha);
+    });
+
+    // Listar Salas (já existe, mas vamos garantir)
+    vincularBotao('btn-listar-salas', function() {
+      window.listarSalasAbertas();
+    });
+
+    // Fechar overlay (X e botão FECHAR)
+    function fecharOverlay() {
+      document.getElementById('sala-overlay').classList.remove('show');
+      window.limparOnline();
+    }
+    vincularBotao('sala-close', fecharOverlay);
+    vincularBotao('btn-close-sala', fecharOverlay);
+
+    // Fechar ao clicar fora do card
+    var overlay = document.getElementById('sala-overlay');
+    if (overlay) {
+      overlay.addEventListener('click', function(e) {
+        if (e.target === e.currentTarget) fecharOverlay();
+      });
+    }
+
+    // ============================================================
+    // 3. CORRIGE OS EVENTOS DE MOVIMENTO PARA ENVIAR JOGADA ONLINE
+    // ============================================================
+
+    // As funções doMove e placeWall já devem chamar enviarJogadaOnline
+    // Se não chamarem, sobrescrevemos aqui (já feito no patch anterior)
+
+    console.log('✅ Correção do overlay online aplicada com sucesso!');
+  })();
+</script>
