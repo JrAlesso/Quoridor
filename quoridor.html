@@ -8,7 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <style>
-        /* ===== ESTILOS COMPLETOS (MANTIDOS SEM ALTERAÇÕES) ===== */
+        /* ===== ESTILOS COMPLETOS ===== */
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap');
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
         html,body{width:100%;height:100%;overflow:hidden;position:fixed;background:#1a1410;font-family:'Inter',sans-serif;color:#f0e6d3}
@@ -418,7 +418,7 @@ var G = {
     p2Name: 'Player 2',
     online: false,
     salald: null,
-    offlineMode: false  // NOVO: flag para modo offline (não salva estatísticas)
+    offlineMode: false
 };
 var C = [
     { main: '#d4a373', dot: '#d4a373', dotHov: '#f0d5b0', wallFill: '#d4a373', wallShadow: 'rgba(212,163,115,0.5)' },
@@ -444,7 +444,7 @@ var PATENTES = [
 ];
 
 // ============================================================
-// SKINS (lista completa do PDF - mantida intacta)
+// SKINS
 // ============================================================
 var SKINS = [
     { id: 'classic', nome: 'Clássico', forma: 'circle', cor1: '#d4a373', cor2: '#b8860b', preco: 0, categoria: 'simples' },
@@ -483,7 +483,7 @@ var SKINS = [
 ];
 
 // ============================================================
-// TÍTULOS (listas completas - mantidas intactas)
+// TÍTULOS
 // ============================================================
 var TITLES = [
     { minWins: 1, title: 'Primeiro Passo' },
@@ -684,7 +684,7 @@ var MEDALS = [
 ];
 
 // ============================================================
-// FUNÇÕES DE CONTA (Firestore)
+// FUNÇÕES DE CONTA
 // ============================================================
 var currentUser = null;
 function createUser(username, password) {
@@ -717,7 +717,7 @@ function saveStats(stats) {
 }
 
 // ============================================================
-// FUNÇÕES DE RANK (mantidas intactas)
+// FUNÇÕES DE RANK
 // ============================================================
 function getRank(points) {
     var total = 0;
@@ -822,7 +822,7 @@ function calcularPontosPartida(winner, playerIndex, wallsPlaced, moveCount, tota
 }
 
 // ============================================================
-// LÓGICA DO JOGO (BFS, movimentos, paredes) - mantidas intactas
+// LÓGICA DO JOGO (BFS, movimentos, paredes)
 // ============================================================
 function isBlocked(r, c, dr, dc, pH, pV) {
     if (dr === -1) return pH.some(function(w){ return w[0] === r-1 && (w[1] === c || w[1] === c-1); });
@@ -957,7 +957,7 @@ function nodeXY(ni, nj) {
 }
 
 // ============================================================
-// IA (MINIMAX COM TRANSPOSIÇÃO) - mantida intacta
+// IA (MINIMAX COM TRANSPOSIÇÃO)
 // ============================================================
 var transpositionTable = new Map();
 function hashState(pos, pH, pV) {
@@ -1501,7 +1501,7 @@ function draw() {
 }
 
 // ============================================================
-// FUNÇÕES DE CONTROLE DO JOGO (MODIFICADO PARA MODO OFFLINE)
+// FUNÇÕES DE CONTROLE DO JOGO
 // ============================================================
 var gameActive = true, matchFinished = false;
 var scores = [0,0], currentRound = 1;
@@ -1731,9 +1731,6 @@ function showWinOverlay(msg, vencedor) {
     }, 3500);
 }
 
-// ============================================================
-// DEMAIS FUNÇÕES DE CONTROLE (selectPawn, doMove, placeWall, etc.)
-// ============================================================
 function selectPawn(r,c) {
     if (!gameActive || G.over || matchFinished) return;
     var pr = G.pos[G.turn][0], pc = G.pos[G.turn][1];
@@ -2388,7 +2385,7 @@ function closeInspect() {
 }
 
 // ============================================================
-// SALA ONLINE (Firestore e RTDB) - mantida intacta
+// SALA ONLINE (Firestore e RTDB)
 // ============================================================
 var isOnlineMode = false;
 var salaAtual = null;
@@ -2667,7 +2664,7 @@ function listarSalasAbertas() {
 }
 
 // ============================================================
-// EVENTOS E INICIALIZAÇÃO (MODIFICADO para abrir config corretamente)
+// EVENTOS E INICIALIZAÇÃO (CORRIGIDO)
 // ============================================================
 document.addEventListener('DOMContentLoaded', function() {
     // Login
@@ -2752,15 +2749,21 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('btn-close-profile').addEventListener('click', closeProfile);
     document.getElementById('profile-overlay').addEventListener('click', function(e){ if (e.target===e.currentTarget) closeProfile(); });
 
-    // ===== CORREÇÃO: função prepararConfiguracao agora abre o overlay corretamente =====
+    // ===== FUNÇÃO CORRIGIDA =====
     function prepararConfiguracao(vsIA) {
         resetAllGameState();
         isOnlineMode = false;
         salaAtual = null;
-        if (salaUnsubscribe) { salaUnsubscribe(); salaUnsubscribe = null; }
-        if (listaSalasUnsubscribe) { listaSalasUnsubscribe(); listaSalasUnsubscribe = null; }
+        if (salaUnsubscribe) { 
+            try { salaUnsubscribe(); } catch(e){} 
+            salaUnsubscribe = null; 
+        }
+        if (listaSalasUnsubscribe) { 
+            try { listaSalasUnsubscribe(); } catch(e){} 
+            listaSalasUnsubscribe = null; 
+        }
         G.vsIA = vsIA;
-        G.offlineMode = true;  // Marca como offline
+        G.offlineMode = true;
         G.p1Name = currentUser || 'Player 1';
         G.p2Name = vsIA ? ('IA (' + (G.nivelIA || 'medio').toUpperCase() + ')') : 'Player 2';
         document.getElementById('p1-name-input').value = G.p1Name;
@@ -2771,12 +2774,17 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelector('#nivel-options button[data-nivel="medio"]').classList.add('selected');
         }
         updateUndoButtonVisibility();
-        // ===== CORREÇÃO AQUI: usa o overlay de configuração diretamente =====
         document.getElementById('config-overlay').classList.add('show');
     }
 
-    document.getElementById('btn-vs-ia').addEventListener('click', function(){ prepararConfiguracao(true); });
-    document.getElementById('btn-2p').addEventListener('click', function(){ prepararConfiguracao(false); });
+    // ===== CORREÇÃO: event listeners dos botões =====
+    document.getElementById('btn-vs-ia').addEventListener('click', function(){ 
+        prepararConfiguracao(true); 
+    });
+
+    document.getElementById('btn-2p').addEventListener('click', function(){ 
+        prepararConfiguracao(false); 
+    });
 
     document.getElementById('btn-online').addEventListener('click', function(){
         if (!currentUser) { alert('Faça login primeiro.'); return; }
@@ -3041,7 +3049,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================================================
-// PATCH RTDB (código extra do PDF para salas em Realtime Database)
+// PATCH RTDB
 // ============================================================
 (function() {
     function getRtdb() {
@@ -3282,7 +3290,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 })();
 
-console.log("Código corrigido: Modos offline não salvam estatísticas e config overlay abre corretamente.");
+console.log("Código completo com correção: overlay de configuração funciona!");
 </script>
 </body>
 </html>
