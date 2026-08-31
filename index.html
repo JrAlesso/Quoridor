@@ -5844,3 +5844,84 @@ document.addEventListener("DOMContentLoaded", function() {
     console.log('✅ Patch do modo online aplicado com sucesso!');
   })();
 </script>
+<script>
+  // ============================================================
+  // SIMPLIFICAÇÃO DO MODO ONLINE
+  // ============================================================
+  (function() {
+    console.log('🔧 Simplificando modo online...');
+
+    // ============================================================
+    // 1. GARANTE QUE O BOTÃO "JOGAR ONLINE" ABRA O OVERLAY E LISTE SALAS
+    // ============================================================
+    var btnOnline = document.getElementById('btn-online');
+    if (btnOnline) {
+      var clone = btnOnline.cloneNode(true);
+      btnOnline.parentNode.replaceChild(clone, btnOnline);
+      clone.addEventListener('click', function() {
+        if (!currentUser) { alert('Faça login primeiro.'); return; }
+        document.getElementById('sala-overlay').classList.add('show');
+        document.getElementById('sala-status').textContent = '🔄 Carregando salas...';
+        document.getElementById('sala-lista').innerHTML = '';
+        if (typeof window.listarSalasAbertas === 'function') {
+          window.listarSalasAbertas();
+        } else {
+          // Se a função não existir, cria ela aqui
+          window.listarSalasAbertas();
+        }
+      });
+    }
+
+    // ============================================================
+    // 2. GARANTE QUE O BOTÃO "CRIAR SALA" FUNCIONE
+    // ============================================================
+    var btnCriar = document.getElementById('btn-criar-sala');
+    if (btnCriar) {
+      var cloneCriar = btnCriar.cloneNode(true);
+      btnCriar.parentNode.replaceChild(cloneCriar, btnCriar);
+      cloneCriar.addEventListener('click', function() {
+        if (!currentUser) { alert('Faça login primeiro.'); return; }
+        var nome = document.getElementById('sala-nome-input').value.trim();
+        var senha = document.getElementById('sala-senha-input').value.trim();
+        if (!nome) nome = currentUser + ' game';
+        if (typeof window.criarSala === 'function') {
+          window.criarSala(currentUser, senha);
+        } else {
+          alert('Erro: função criarSala não definida.');
+        }
+      });
+    }
+
+    // ============================================================
+    // 3. GARANTE QUE O BOTÃO "FECHAR" FUNCIONE
+    // ============================================================
+    function fechar() {
+      document.getElementById('sala-overlay').classList.remove('show');
+      if (typeof window.limparOnline === 'function') window.limparOnline();
+    }
+
+    var btnClose = document.getElementById('btn-close-sala');
+    if (btnClose) {
+      var cloneClose = btnClose.cloneNode(true);
+      btnClose.parentNode.replaceChild(cloneClose, btnClose);
+      cloneClose.addEventListener('click', fechar);
+    }
+
+    var salaClose = document.getElementById('sala-close');
+    if (salaClose) {
+      var cloneSalaClose = salaClose.cloneNode(true);
+      salaClose.parentNode.replaceChild(cloneSalaClose, salaClose);
+      cloneSalaClose.addEventListener('click', fechar);
+    }
+
+    // Fechar ao clicar fora do card
+    var overlay = document.getElementById('sala-overlay');
+    if (overlay) {
+      overlay.addEventListener('click', function(e) {
+        if (e.target === e.currentTarget) fechar();
+      });
+    }
+
+    console.log('✅ Simplificação aplicada!');
+  })();
+</script>
