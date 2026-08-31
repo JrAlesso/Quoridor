@@ -1107,7 +1107,6 @@ document.addEventListener("DOMContentLoaded", function() {
     html,body{width:100%;height:100%;overflow:hidden;position:fixed;background:#1a1410;font-family:'Inter',sans-serif;color:#f0e6d3}
     .screen{display:none;width:100%;height:100%;flex-direction:column;align-items:center;padding:20px;position:absolute;top:0;left:0;background:#1a1410;transition:all 0.5s;overflow-y:auto}
     .screen.active{display:flex}
-    .screen>*{position:relative;z-index:1}
     body:before{content:"";position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at 20% 50%,rgba(212,163,115,0.08),transparent 70%),radial-gradient(ellipse at 80% 20%,rgba(77,171,247,0.05),transparent 60%);pointer-events:none;z-index:0}
     #login-screen{background:linear-gradient(145deg,#1a1410,#0d0a08);justify-content:center}
     #login-screen h1{font-size:44px;font-family:'Playfair Display',serif;font-weight:900;background:linear-gradient(135deg,#d4a373,#b8860b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
@@ -1150,7 +1149,6 @@ document.addEventListener("DOMContentLoaded", function() {
     /* RANKS OVERLAY */
     #ranks-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
     #ranks-overlay.show{display:flex}
-    #ranks-card{background:rgba(26,20,16,0.97);border:1px solid rgba(255,215,140,0.12);border-radius:24px;padding:20px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 60px rgba(0,0,0,0.8);position:relative;z-index:2}
     #ranks-card h2{color:#d4a373;font-size:16px;text-align:center;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
     #ranks-card h2 .close-btn{background:none;border:none;color:#b8a99a;font-size:20px;cursor:pointer}
     #ranks-progress{background:rgba(255,215,140,0.04);border-radius:12px;padding:10px;margin-bottom:12px;border:1px solid rgba(255,215,140,0.06)}
@@ -1168,15 +1166,12 @@ document.addEventListener("DOMContentLoaded", function() {
     #profile-overlay.show,#history-overlay.show,#win-overlay.show,#config-overlay.show,#stats-overlay.show,#titles-overlay.show,#skins-overlay.show,#medals-overlay.show,#sala-overlay.show{display:flex}
         #amigos-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
         #amigos-overlay.show{display:flex}
-        #amigos-card{background:rgba(26,20,16,0.97);border:1px solid rgba(255,215,140,0.12);border-radius:24px;padding:20px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 60px rgba(0,0,0,0.8);position:relative;z-index:2}
         #amigos-card h2{color:#d4a373;font-size:16px;text-align:center;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
         #amigos-card h2 .close-btn{background:none;border:none;color:#b8a99a;font-size:20px;cursor:pointer}
         .tab-btn.active{background:rgba(212,163,115,0.08);border-color:#d4a373;color:#d4a373}
-    #profile-card,#history-card,#win-card,#config-card,#stats-card,#titles-card,#skins-card,#medals-card,#sala-card{background:rgba(26,20,16,0.97);border:1px solid rgba(255,215,140,0.12);border-radius:24px;padding:20px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 60px rgba(0,0,0,0.8);position:relative;z-index:2}
     #profile-card h2,#history-card h2,#config-card h2,#stats-card h2,#titles-card h2,#skins-card h2,#medals-card h2,#sala-card h2{color:#d4a373;font-size:16px;text-align:center;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
     #profile-card h2 .close-btn,#history-card h2 .close-btn,#titles-card h2 .close-btn,#skins-card h2 .close-btn,#medals-card h2 .close-btn,#sala-card h2 .close-btn{background:none;border:none;color:#b8a99a;font-size:20px;cursor:pointer}
     #profile-card .profile-list,#history-card .history-list,#titles-list,#skins-list,#medals-list,#sala-content{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;padding-right:4px}
-    .profile-item{display:flex;justify-content:space-between;align-items:center;padding:12px 12px;border-bottom:1px solid rgba(255,215,140,0.04);font-size:13px;color:#b8a99a;position:relative;cursor:pointer}
     .profile-item .stat-label{flex:1;display:flex;align-items:center;gap:6px}
     .profile-item .stat-label .info-icon{font-size:11px;opacity:0.5;width:16px;height:16px;border-radius:50%;border:1px solid rgba(255,215,140,0.3);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
     .profile-item .stat-value{font-weight:700;color:#f0e6d3;min-width:70px;text-align:right;font-size:15px}
@@ -1206,7 +1201,6 @@ document.addEventListener("DOMContentLoaded", function() {
     /* TITLES OVERLAY */
     #titles-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
     #titles-overlay.show{display:flex}
-    #titles-card{background:rgba(26,20,16,0.97);border:1px solid rgba(255,215,140,0.12);border-radius:24px;padding:20px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 60px rgba(0,0,0,0.8);position:relative;z-index:2}
     #titles-card h2{color:#d4a373;font-size:16px;text-align:center;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
     #titles-card h2 .close-btn{background:none;border:none;color:#b8a99a;font-size:20px;cursor:pointer}
     .title-search{width:100%;padding:10px 14px;border-radius:12px;border:1px solid rgba(255,215,140,0.15);background:rgba(255,215,140,0.05);color:#f0e6d3;font-size:13px;outline:none;margin-bottom:12px}
@@ -1252,7 +1246,6 @@ document.addEventListener("DOMContentLoaded", function() {
     /* INSPECT OVERLAY */
     #inspect-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
     #inspect-overlay.show{display:flex}
-    #inspect-card{background:rgba(26,20,16,0.97);border:1px solid rgba(255,215,140,0.12);border-radius:24px;padding:20px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 60px rgba(0,0,0,0.8);position:relative;z-index:2;transition:transform 0.2s}
     #inspect-card.rotated{transform:rotate(180deg)}
     #inspect-card h2{color:#d4a373;font-size:16px;text-align:center;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
     #inspect-card h2 .close-btn{background:none;border:none;color:#b8a99a;font-size:20px;cursor:pointer}
@@ -1270,7 +1263,6 @@ document.addEventListener("DOMContentLoaded", function() {
       background: linear-gradient(180deg, rgba(26,20,16,0.75) 0%, rgba(26,20,16,0.55) 100%), repeating-linear-gradient(90deg, #3d2b1f 0px, #4a3426 2px, #5c4030 4px, #4a3426 6px, #3d2b1f 8px), linear-gradient(0deg, #2c1e14 0%, #1a120c 100%);
     }
     #game-screen #app{max-width:600px;width:100%;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;margin:auto}
-    #menu-container{width:100%;display:flex;justify-content:center;margin-bottom:4px;position:relative;order:10}
     #menu-toggle{padding:8px 22px;background:rgba(255,215,140,0.06);border:1px solid rgba(255,215,140,0.12);border-radius:30px;color:#e8d5b5;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px}
     #menu-toggle .arrow{transition:transform 0.3s;font-size:10px}
     #menu-toggle .arrow.open{transform:rotate(180deg)}
@@ -1323,7 +1315,6 @@ document.addEventListener("DOMContentLoaded", function() {
     .wall-icon-v{width:6px;height:28px;border-radius:3px;background:currentColor}
     /* WIN */
     #win-overlay{z-index:1000}
-    #win-card{z-index:1002;animation:winCardIn 0.5s cubic-bezier(0.34,1.56,0.64,1);background:rgba(26,20,16,0.98);border:2px solid rgba(212,163,115,0.35);box-shadow:0 0 60px rgba(212,163,115,0.25),0 20px 60px rgba(0,0,0,0.8);position:relative}
     #win-message{font-size:22px;font-weight:900;color:#f0e6d3;text-align:center;animation:winTextPulse 1.2s ease-in-out infinite alternate}
     #win-message .sub{font-size:14px;font-weight:500;display:block;margin-top:8px;opacity:0.85;color:#d4a373}
     #win-message.win-p1{color:#d4a373;text-shadow:0 0 20px rgba(212,163,115,0.5)}
@@ -1354,7 +1345,6 @@ document.addEventListener("DOMContentLoaded", function() {
     /* MEDALS OVERLAY */
     #medals-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
     #medals-overlay.show{display:flex}
-    #medals-card{background:rgba(26,20,16,0.97);border:1px solid rgba(255,215,140,0.12);border-radius:24px;padding:20px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 60px rgba(0,0,0,0.8);position:relative;z-index:2}
     #medals-card h2{color:#d4a373;font-size:16px;text-align:center;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
     #medals-card h2 .close-btn{background:none;border:none;color:#b8a99a;font-size:20px;cursor:pointer}
     #medals-list{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;padding-right:4px}
@@ -1406,8 +1396,21 @@ document.addEventListener("DOMContentLoaded", function() {
   <div id="inspect-overlay"><div id="inspect-card"><h2>INSPECIONAR <button class="close-btn" id="inspect-close">✕</button></h2><div id="inspect-content"></div><button id="btn-close-inspect">FECHAR</button></div></div>
   <div id="ranks-overlay"><div id="ranks-card"><h2>PATENTES <button class="close-btn" id="ranks-close">✕</button></h2><div id="ranks-progress"></div><div class="ranks-list" id="ranks-list"></div><button id="btn-close-ranks">FECHAR</button></div></div>
   <div id="medals-overlay"><div id="medals-card"><h2>MEDALHAS <button class="close-btn" id="medals-close">✕</button></h2><div class="medals-list" id="medals-list"></div><button id="btn-close-medals">FECHAR</button></div></div>
-  <div id="sala-overlay"><div id="sala-card"><h2>SALA ONLINE <button class="close-btn" id="sala-close">✕</button></h2><div id="sala-content"><div class="sala-opcao"><button id="btn-criar-sala">Criar Sala</button><button id="btn-listar-salas">Listar Salas</button></div><input type="text" id="sala-id-input" class="sala-input" placeholder="Código da sala para entrar"><button id="btn-entrar-sala" style="width:100%;padding:10px;border-radius:12px;border:1px solid rgba(255,215,140,0.12);background:rgba(255,215,140,0.05);color:#f0e6d3;font-weight:700;cursor:pointer;margin-bottom:8px;">Entrar na Sala</button><div class="sala-status" id="sala-status">Escolha uma opção</div><div class="sala-lista" id="sala-lista"></div><input type="text" id="sala-senha-input" class="sala-input" placeholder="Senha (opcional)" style="margin-top:8px;"><button id="btn-close-sala">FECHAR</button></div></div></div>
-  <div id="config-overlay"><div id="config-card"><h2>CONFIGURAÇÕES</h2><div class="config-group"><label>TEMPO</label><div class="options" id="time-options"><button data-time="30">30s</button><button data-time="45">45s</button><button data-time="60">60s</button></div></div><div class="config-group"><label>RODADAS</label><div class="options" id="rounds-options"><button data-rounds="1">1</button><button data-rounds="3">3</button><button data-rounds="5">5</button></div></div><div class="config-group" id="nivel-config" style="display:none;"><label>DIFICULDADE</label><div class="options" id="nivel-options"><button data-nivel="facil">FÁCIL</button><button data-nivel="medio">MÉDIO</button><button data-nivel="dificil">DIFÍCIL</button><button data-nivel="expert">EXPERT</button></div></div><div class="config-group" id="names-config" style="display:none;"><label>NOMES</label><input type="text" id="p1-name-input" placeholder="Player 1" maxlength="12" readonly><input type="text" id="p2-name-input" placeholder="Player 2" maxlength="12"></div><button id="btn-start-game">INICIAR</button><button id="btn-voltar">VOLTAR</button></div></div>
+<div id="sala-overlay" class="overlay">
+  <div id="sala-card" class="overlay-card">
+    <h2>JOGAR ONLINE <button class="close-btn" id="sala-close">✕</button></h2>
+    <div id="sala-content">
+      <div style="display:flex;gap:10px;margin-bottom:12px;">
+        <input type="text" id="sala-nome-input" class="sala-input" placeholder="Nome da sala" style="flex:2;">
+        <input type="text" id="sala-senha-input" class="sala-input" placeholder="Senha (opcional)" style="flex:1;">
+      </div>
+      <button id="btn-criar-sala" style="width:100%;padding:12px;border:none;border-radius:12px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;cursor:pointer;margin-bottom:12px;">🔨 CRIAR SALA</button>
+      <div id="sala-status" style="font-size:12px;color:#b8a99a;padding:8px;background:rgba(255,215,140,0.03);border-radius:10px;text-align:center;margin-bottom:8px;">Salas abertas aparecem abaixo</div>
+      <div id="sala-lista" style="max-height:200px;overflow-y:auto;"></div>
+      <button id="btn-close-sala" style="width:100%;padding:12px;border:none;border-radius:14px;background:rgba(255,255,255,0.05);color:#b8a99a;font-weight:700;cursor:pointer;margin-top:12px;">FECHAR</button>
+    </div>
+  </div>
+</div>
   <script>
     // ============================================================
     // FIREBASE INIT
@@ -5923,5 +5926,338 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     console.log('✅ Simplificação aplicada!');
+  })();
+</script>
+<script>
+  // ============================================================
+  // MODO ONLINE SIMPLIFICADO - FUNCIONAL
+  // ============================================================
+  (function() {
+    console.log('🚀 Inicializando modo online simplificado...');
+
+    // ============================================================
+    // 1. FUNÇÃO PARA CRIAR SALA
+    // ============================================================
+    window.criarSala = function(nomeJogador, senha) {
+      if (!nomeJogador) { alert('Nome do jogador não definido.'); return; }
+      var salaRef = db.collection('salas').doc();
+      var salald = salaRef.id;
+      var dados = {
+        jogador1: nomeJogador,
+        jogador2: '',
+        status: 'esperando',
+        turno: 0,
+        posicoes: [[8,4],[0,4]],
+        paredesH: [],
+        paredesV: [],
+        paredesRestantes: [10,10],
+        vencedor: '',
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        senha: senha || ''
+      };
+      salaRef.set(dados).then(function() {
+        var statusEl = document.getElementById('sala-status');
+        if (statusEl) statusEl.innerHTML = '✅ Sala criada! ID: <strong>' + salald + '</strong><br>Aguardando oponente...';
+        window.salaAtual = salald;
+        window.isOnlineMode = true;
+        G.online = true;
+        G.salald = salald;
+        G.p1Name = nomeJogador;
+        G.p2Name = 'Aguardando...';
+        if (window.salaUnsubscribe) { try { window.salaUnsubscribe(); } catch(e) {} }
+        window.salaUnsubscribe = salaRef.onSnapshot(function(doc) {
+          if (!doc.exists) return;
+          var data = doc.data();
+          if (data.status === 'em_andamento' && data.jogador2) {
+            document.getElementById('sala-overlay').classList.remove('show');
+            window.iniciarJogoOnline(salald, nomeJogador, data);
+          }
+        });
+        window.listarSalasAbertas();
+      }).catch(function(err) {
+        document.getElementById('sala-status').textContent = '❌ Erro: ' + err.message;
+      });
+    };
+
+    // ============================================================
+    // 2. FUNÇÃO PARA LISTAR SALAS
+    // ============================================================
+    window.listarSalasAbertas = function() {
+      if (window.listaSalasUnsubscribe) {
+        try { window.listaSalasUnsubscribe(); } catch(e) {}
+        window.listaSalasUnsubscribe = null;
+      }
+      var statusEl = document.getElementById('sala-status');
+      if (statusEl) statusEl.textContent = '🔄 Carregando salas...';
+      window.listaSalasUnsubscribe = db.collection('salas')
+        .where('status', '==', 'esperando')
+        .onSnapshot(function(snapshot) {
+          var lista = document.getElementById('sala-lista');
+          if (!lista) return;
+          lista.innerHTML = '';
+          if (snapshot.empty) {
+            lista.innerHTML = '<div style="color:#666;text-align:center;padding:20px;">📭 Nenhuma sala aberta.<br>Crie uma!</div>';
+            if (statusEl) statusEl.textContent = '💡 Nenhuma sala disponível.';
+            return;
+          }
+          if (statusEl) statusEl.textContent = '📋 ' + snapshot.size + ' sala(s)';
+          snapshot.forEach(function(doc) {
+            var data = doc.data();
+            var el = document.createElement('div');
+            el.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid rgba(255,215,140,0.06);';
+            var cadeado = data.senha ? '🔒' : '🔓';
+            el.innerHTML =
+              '<span style="color:#f0e6d3;font-weight:bold;">' + (data.jogador1 || 'Anônimo') + ' ' + cadeado + '</span>' +
+              '<span style="color:#b8a99a;font-size:12px;">1/2</span>' +
+              '<button class="sala-btn" data-id="' + doc.id + '" style="background:rgba(212,163,115,0.15);border:1px solid #d4a373;color:#d4a373;border-radius:8px;padding:4px 12px;font-weight:bold;cursor:pointer;">Entrar</button>';
+            lista.appendChild(el);
+          });
+          lista.querySelectorAll('.sala-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              var id = this.getAttribute('data-id');
+              if (!currentUser) { alert('Faça login primeiro.'); return; }
+              db.collection('salas').doc(id).get().then(function(doc) {
+                if (!doc.exists) return;
+                var data = doc.data();
+                if (data.senha) {
+                  var s = prompt('Digite a senha:');
+                  if (s === null) return;
+                  window.entrarSala(id, currentUser, s);
+                } else {
+                  window.entrarSala(id, currentUser, '');
+                }
+              });
+            });
+          });
+        });
+    };
+
+    // ============================================================
+    // 3. FUNÇÃO PARA ENTRAR NA SALA
+    // ============================================================
+    window.entrarSala = function(salald, nomeJogador, senha) {
+      var salaRef = db.collection('salas').doc(salald);
+      salaRef.get().then(function(doc) {
+        if (!doc.exists) { alert('Sala não encontrada.'); return; }
+        var data = doc.data();
+        if (data.senha && data.senha !== '' && senha !== data.senha) {
+          alert('Senha incorreta!');
+          return;
+        }
+        if (data.jogador2 && data.jogador2 !== '') {
+          alert('Sala cheia!');
+          return;
+        }
+        salaRef.update({ jogador2: nomeJogador, status: 'em_andamento' })
+          .then(function() { return salaRef.get(); })
+          .then(function(doc2) {
+            document.getElementById('sala-overlay').classList.remove('show');
+            window.iniciarJogoOnline(salald, nomeJogador, doc2.data());
+          });
+      });
+    };
+
+    // ============================================================
+    // 4. FUNÇÃO PARA INICIAR O JOGO
+    // ============================================================
+    window.iniciarJogoOnline = function(salald, nomeJogador, data) {
+      window.isOnlineMode = true;
+      window.salaAtual = salald;
+      G.online = true;
+      G.salald = salald;
+      G.vsIA = false;
+      G.over = false;
+      G.mode = 'move';
+      G.sel = null;
+      G.moves = [];
+      gameActive = true;
+      matchFinished = false;
+      window.aplicarEstadoSala(data);
+      showScreen('game-screen');
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          if (typeof resize === 'function') resize();
+          window.aplicarEstadoSala(data);
+          if (window.euSouJogadorDaVez() && typeof selectPawn === 'function') {
+            selectPawn(G.pos[G.turn][0], G.pos[G.turn][1]);
+          }
+        });
+      });
+      if (window.salaUnsubscribe) { try { window.salaUnsubscribe(); } catch(e) {} }
+      window.salaUnsubscribe = db.collection('salas').doc(salald).onSnapshot(function(doc) {
+        if (!doc.exists) return;
+        var novoData = doc.data();
+        if (novoData.status === 'finalizada') {
+          if (!G.over) {
+            G.over = true;
+            var vencedor = novoData.vencedor === G.p1Name ? 0 : (novoData.vencedor === G.p2Name ? 1 : -1);
+            if (vencedor !== -1 && typeof showWinOverlay === 'function') {
+              showWinOverlay('🏆 ' + novoData.vencedor + ' venceu!', vencedor);
+            }
+          }
+          return;
+        }
+        window.aplicarEstadoSala(novoData);
+        if (window.euSouJogadorDaVez() && !G.over && typeof selectPawn === 'function') {
+          selectPawn(G.pos[G.turn][0], G.pos[G.turn][1]);
+        }
+      });
+    };
+
+    // ============================================================
+    // 5. FUNÇÕES AUXILIARES
+    // ============================================================
+    window.aplicarEstadoSala = function(data) {
+      if (!data) return;
+      G.p1Name = data.jogador1 || G.p1Name;
+      G.p2Name = data.jogador2 || G.p2Name || 'Aguardando...';
+      if (data.posicoes && data.posicoes.length === 2) {
+        G.pos = [[data.posicoes[0][0], data.posicoes[0][1]], [data.posicoes[1][0], data.posicoes[1][1]]];
+      }
+      G.pH = []; G.pV = []; G.wallOwnerH = []; G.wallOwnerV = [];
+      (data.paredesH || []).forEach(function(w) {
+        if (Array.isArray(w)) { G.pH.push([w[0], w[1]]); G.wallOwnerH.push(0); }
+        else if (w && typeof w.r === 'number') { G.pH.push([w.r, w.c]); G.wallOwnerH.push(typeof w.dono === 'number' ? w.dono : 0); }
+      });
+      (data.paredesV || []).forEach(function(w) {
+        if (Array.isArray(w)) { G.pV.push([w[0], w[1]]); G.wallOwnerV.push(0); }
+        else if (w && typeof w.r === 'number') { G.pV.push([w.r, w.c]); G.wallOwnerV.push(typeof w.dono === 'number' ? w.dono : 0); }
+      });
+      G.walls = data.paredesRestantes ? data.paredesRestantes.slice() : [10,10];
+      G.turn = typeof data.turno === 'number' ? data.turno : 0;
+      G.vsIA = false;
+      G.online = true;
+      document.getElementById('p1-nome').textContent = G.p1Name;
+      document.getElementById('nomeJ2').textContent = G.p2Name;
+      document.getElementById('placar-p1').textContent = G.p1Name;
+      document.getElementById('placar-p2').textContent = G.p2Name;
+      var p2c = document.getElementById('p2-controls');
+      if (p2c) p2c.style.display = 'none';
+      document.getElementById('game-screen').classList.remove('p2-active', 'modo-2p');
+      document.getElementById('hud-wrapper').classList.remove('rotated');
+      if (typeof updateWallIndicators === 'function') updateWallIndicators();
+      if (typeof syncBtn === 'function') syncBtn();
+      if (typeof draw === 'function') draw();
+      if (typeof st === 'function') {
+        if (G.over) return;
+        if (window.euSouJogadorDaVez()) st('Sua vez: ' + (G.turn === 0 ? G.p1Name : G.p2Name));
+        else st('Aguardando oponente...');
+      }
+    };
+
+    window.euSouJogadorDaVez = function() {
+      if (!window.isOnlineMode) return true;
+      if (G.turn === 0) return currentUser === G.p1Name;
+      return currentUser === G.p2Name;
+    };
+
+    window.enviarJogadaOnline = function(jogada) {
+      if (!window.salaAtual || !window.isOnlineMode) return;
+      if (!window.euSouJogadorDaVez()) return;
+      var salaRef = db.collection('salas').doc(window.salaAtual);
+      var paredes = window.paredesLocalParaFirestore();
+      var posicoes = [[G.pos[0][0], G.pos[0][1]], [G.pos[1][0], G.pos[1][1]]];
+      var paredesRestantes = [G.walls[0], G.walls[1]];
+      var turno = G.turn;
+      var update = {
+        posicoes: posicoes,
+        paredesH: paredes.paredesH,
+        paredesV: paredes.paredesV,
+        paredesRestantes: paredesRestantes,
+        turno: turno
+      };
+      if (G.over || G.pos[0][0] === 0 || G.pos[1][0] === 8) {
+        update.status = 'finalizada';
+        update.vencedor = (G.pos[0][0] === 0) ? G.p1Name : G.p2Name;
+      }
+      salaRef.update(update).catch(function(err) {
+        console.error('Erro ao enviar jogada:', err);
+      });
+    };
+
+    window.paredesLocalParaFirestore = function() {
+      var paredesH = [], paredesV = [];
+      for (var i = 0; i < G.pH.length; i++) {
+        paredesH.push({ r: G.pH[i][0], c: G.pH[i][1], dono: G.wallOwnerH[i] != null ? G.wallOwnerH[i] : 0 });
+      }
+      for (var j = 0; j < G.pV.length; j++) {
+        paredesV.push({ r: G.pV[j][0], c: G.pV[j][1], dono: G.wallOwnerV[j] != null ? G.wallOwnerV[j] : 0 });
+      }
+      return { paredesH: paredesH, paredesV: paredesV };
+    };
+
+    window.limparOnline = function() {
+      if (window.salaUnsubscribe) { try { window.salaUnsubscribe(); } catch(e) {} window.salaUnsubscribe = null; }
+      if (window.listaSalasUnsubscribe) { try { window.listaSalasUnsubscribe(); } catch(e) {} window.listaSalasUnsubscribe = null; }
+      window.isOnlineMode = false;
+      window.salaAtual = null;
+      if (G) { G.online = false; G.salald = null; }
+    };
+
+    // ============================================================
+    // 6. VINCULA OS BOTÕES
+    // ============================================================
+    function vincular(id, fn) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var clone = el.cloneNode(true);
+      el.parentNode.replaceChild(clone, el);
+      clone.addEventListener('click', fn);
+    }
+
+    vincular('btn-criar-sala', function() {
+      if (!currentUser) { alert('Faça login primeiro.'); return; }
+      var nome = document.getElementById('sala-nome-input').value.trim();
+      var senha = document.getElementById('sala-senha-input').value.trim();
+      if (!nome) nome = currentUser + ' game';
+      window.criarSala(currentUser, senha);
+    });
+
+    vincular('btn-close-sala', function() {
+      document.getElementById('sala-overlay').classList.remove('show');
+      window.limparOnline();
+    });
+
+    vincular('sala-close', function() {
+      document.getElementById('sala-overlay').classList.remove('show');
+      window.limparOnline();
+    });
+
+    // Botão "Jogar Online" na tela de modos
+    var btnOnline = document.getElementById('btn-online');
+    if (btnOnline) {
+      var cloneOnline = btnOnline.cloneNode(true);
+      btnOnline.parentNode.replaceChild(cloneOnline, btnOnline);
+      cloneOnline.addEventListener('click', function() {
+        if (!currentUser) { alert('Faça login primeiro.'); return; }
+        document.getElementById('sala-overlay').classList.add('show');
+        document.getElementById('sala-status').textContent = '🔄 Carregando salas...';
+        document.getElementById('sala-lista').innerHTML = '';
+        window.listarSalasAbertas();
+      });
+    }
+
+    // Sobrescreve doMove e placeWall para enviar jogadas online
+    if (typeof window.doMove === 'function') {
+      var oldDoMove = window.doMove;
+      window.doMove = function(r, c) {
+        oldDoMove(r, c);
+        if (window.isOnlineMode && window.salaAtual) {
+          window.enviarJogadaOnline({ type: 'move', r: r, c: c });
+        }
+      };
+    }
+
+    if (typeof window.placeWall === 'function') {
+      var oldPlaceWall = window.placeWall;
+      window.placeWall = function(ni, nj, ori) {
+        oldPlaceWall(ni, nj, ori);
+        if (window.isOnlineMode && window.salaAtual) {
+          window.enviarJogadaOnline({ type: 'wall', r: ni-1, c: nj-1, ori: ori });
+        }
+      };
+    }
+
+    console.log('✅ Modo online simplificado e funcional!');
   })();
 </script>
