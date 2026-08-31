@@ -4,10 +4,1104 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Quoridor</title>
+// ============================================================
+
+// SISTEMA DE AMIGOS (CORRIGIDO)
+
+// ============================================================
+
+
+
+function abrirAmigos() {
+
+    document.getElementById("amigos-overlay").classList.add("show");
+
+    carregarAmigos();
+
+    carregarSolicitacoes();
+
+}
+
+
+
+function fecharAmigos() {
+
+    document.getElementById("amigos-overlay").classList.remove("show");
+
+}
+
+
+
+function carregarAmigos() {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var amigos = stats.friends || [];
+
+    var list = document.getElementById("amigos-list");
+
+    list.innerHTML = "<div style=\"color:#b8a99a;font-size:12px;\">Carregando...</div>";
+
+    if (amigos.length === 0) {
+
+        list.innerHTML = "<div style=\"color:#666;text-align:center;padding:20px;\">Nenhum amigo ainda.<br>Busque e adicione!</div>";
+
+        return;
+
+    }
+
+    var html = "";
+
+    var count = 0;
+
+    amigos.forEach(function(uid) {
+
+        db.collection("users").doc(uid).get().then(function(doc) {
+
+            if (doc.exists) {
+
+                var data = doc.data();
+
+                var nome = data.username || uid;
+
+                var rtdb = firebase.database();
+
+                rtdb.ref("presence/" + uid).once("value").then(function(snap) {
+
+                    var online = snap.val() === true;
+
+                    var statusText = online ? "🟢 Online" : "⚪ Offline";
+
+                    var statusColor = online ? "#10b981" : "#666";
+
+                    html += "<div style=\"display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid rgba(255,215,140,0.06);\">";
+
+                    html += "<span style=\"font-weight:700;color:#f0e6d3;\">" + nome + "</span>";
+
+                    html += "<span style=\"font-size:11px;color:" + statusColor + ";\">" + statusText + "</span>";
+
+                    html += "</div>";
+
+                    count++;
+
+                    if (count === amigos.length) {
+
+                        list.innerHTML = html;
+
+                    }
+
+                });
+
+            } else {
+
+                count++;
+
+                if (count === amigos.length) {
+
+                    list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar amigos.</div>";
+
+                }
+
+            }
+
+        }).catch(function() {
+
+            count++;
+
+            if (count === amigos.length) {
+
+                list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar amigos.</div>";
+
+            }
+
+        });
+
+    });
+
+}
+
+
+
+function carregarSolicitacoes() {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    var list = document.getElementById("amigos-list");
+
+    list.innerHTML = "<div style=\"color:#b8a99a;font-size:12px;\">Carregando solicitações...</div>";
+
+    if (pendentes.length === 0) {
+
+        list.innerHTML = "<div style=\"color:#666;text-align:center;padding:20px;\">Nenhuma solicitação pendente.</div>";
+
+        return;
+
+    }
+
+    var html = "";
+
+    var count = 0;
+
+    pendentes.forEach(function(uid) {
+
+        db.collection("users").doc(uid).get().then(function(doc) {
+
+            if (doc.exists) {
+
+                var nome = doc.data().username || uid;
+
+                html += "<div style=\"display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid rgba(255,215,140,0.06);\">";
+
+                html += "<span style=\"font-weight:700;color:#f0e6d3;\">" + nome + "</span>";
+
+                html += "<div><button class=\"aceitar-solicitacao\" data-id=\"" + uid + "\" style=\"background:#10b981;border:none;border-radius:8px;padding:4px 12px;color:#1a1410;font-weight:700;cursor:pointer;margin-right:6px;\">Aceitar</button>";
+
+                html += "<button class=\"rejeitar-solicitacao\" data-id=\"" + uid + "\" style=\"background:#e94560;border:none;border-radius:8px;padding:4px 12px;color:#fff;font-weight:700;cursor:pointer;\">Rejeitar</button></div>";
+
+                html += "</div>";
+
+                count++;
+
+                if (count === pendentes.length) {
+
+                    list.innerHTML = html;
+
+                    document.querySelectorAll(".aceitar-solicitacao").forEach(function(btn) {
+
+                        btn.addEventListener("click", function() { aceitarSolicitacao(this.dataset.id); });
+
+                    });
+
+                    document.querySelectorAll(".rejeitar-solicitacao").forEach(function(btn) {
+
+                        btn.addEventListener("click", function() { rejeitarSolicitacao(this.dataset.id); });
+
+                    });
+
+                }
+
+            } else {
+
+                count++;
+
+                if (count === pendentes.length) {
+
+                    list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar solicitações.</div>";
+
+                }
+
+            }
+
+        }).catch(function() {
+
+            count++;
+
+            if (count === pendentes.length) {
+
+                list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar solicitações.</div>";
+
+            }
+
+        });
+
+    });
+
+}
+
+
+
+function buscarUsuarios(query) {
+
+    if (!query.trim()) {
+
+        document.getElementById("amigos-search-results").innerHTML = "";
+
+        return;
+
+    }
+
+    var resultsDiv = document.getElementById("amigos-search-results");
+
+    resultsDiv.innerHTML = "<div style=\"color:#b8a99a;font-size:12px;\">Buscando...</div>";
+
+    db.collection("users").where("username", ">=", query).where("username", "<=", query + "\uf8ff").get().then(function(snapshot) {
+
+        if (snapshot.empty) {
+
+            resultsDiv.innerHTML = "<div style=\"color:#666;text-align:center;padding:10px;\">Nenhum usuário encontrado.</div>";
+
+            return;
+
+        }
+
+        var html = "";
+
+        snapshot.forEach(function(doc) {
+
+            var data = doc.data();
+
+            if (doc.id === currentUser) return;
+
+            var stats = getUserStats(currentUser);
+
+            var amigos = stats.friends || [];
+
+            var isFriend = amigos.indexOf(doc.id) !== -1;
+
+            var pending = stats.pendingRequests || [];
+
+            var isPending = pending.indexOf(doc.id) !== -1;
+
+            html += "<div style=\"display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid rgba(255,215,140,0.06);\">";
+
+            html += "<span style=\"font-weight:600;color:#f0e6d3;\">" + data.username + "</span>";
+
+            if (!isFriend && !isPending) {
+
+                html += "<button class=\"enviar-solicitacao\" data-id=\"" + doc.id + "\" style=\"background:#4dabf7;border:none;border-radius:8px;padding:4px 12px;color:#1a1410;font-weight:700;cursor:pointer;\">Adicionar</button>";
+
+            } else if (isPending) {
+
+                html += "<span style=\"color:#facc15;font-size:11px;\">Solicitação enviada</span>";
+
+            } else {
+
+                html += "<span style=\"color:#10b981;font-size:11px;\">Amigo</span>";
+
+            }
+
+            html += "</div>";
+
+        });
+
+        resultsDiv.innerHTML = html;
+
+        document.querySelectorAll(".enviar-solicitacao").forEach(function(btn) {
+
+            btn.addEventListener("click", function() {
+
+                enviarSolicitacao(this.dataset.id);
+
+            });
+
+        });
+
+    }).catch(function(err) {
+
+        resultsDiv.innerHTML = "<div style=\"color:#e94560;\">Erro: " + err.message + "</div>";
+
+    });
+
+}
+
+
+
+function enviarSolicitacao(targetId) {
+
+    if (!currentUser) return;
+
+    if (targetId === currentUser) { alert("Não pode adicionar a si mesmo."); return; }
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    if (pendentes.indexOf(targetId) !== -1) {
+
+        alert("Solicitação já enviada.");
+
+        return;
+
+    }
+
+    pendentes.push(targetId);
+
+    stats.pendingRequests = pendentes;
+
+    updateUserStats(currentUser, stats);
+
+    db.collection("users").doc(targetId).get().then(function(doc) {
+
+        if (!doc.exists) return;
+
+        var targetData = doc.data();
+
+        var received = targetData.receivedRequests || [];
+
+        if (received.indexOf(currentUser) === -1) {
+
+            received.push(currentUser);
+
+            db.collection("users").doc(targetId).update({ receivedRequests: received });
+
+        }
+
+    });
+
+    alert("Solicitação enviada!");
+
+    buscarUsuarios(document.getElementById("amigos-search").value);
+
+}
+
+
+
+function aceitarSolicitacao(fromId) {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    var index = pendentes.indexOf(fromId);
+
+    if (index === -1) { alert("Solicitação não encontrada."); return; }
+
+    pendentes.splice(index, 1);
+
+    var amigos = stats.friends || [];
+
+    if (amigos.indexOf(fromId) === -1) {
+
+        amigos.push(fromId);
+
+        stats.friends = amigos;
+
+    }
+
+    stats.pendingRequests = pendentes;
+
+    updateUserStats(currentUser, stats);
+
+    db.collection("users").doc(fromId).get().then(function(doc) {
+
+        if (doc.exists) {
+
+            var data = doc.data();
+
+            var friendList = data.friends || [];
+
+            if (friendList.indexOf(currentUser) === -1) {
+
+                friendList.push(currentUser);
+
+                db.collection("users").doc(fromId).update({ friends: friendList });
+
+            }
+
+            var received = data.receivedRequests || [];
+
+            var idx = received.indexOf(currentUser);
+
+            if (idx !== -1) {
+
+                received.splice(idx, 1);
+
+                db.collection("users").doc(fromId).update({ receivedRequests: received });
+
+            }
+
+        }
+
+    });
+
+    carregarSolicitacoes();
+
+    carregarAmigos();
+
+}
+
+
+
+function rejeitarSolicitacao(fromId) {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    var index = pendentes.indexOf(fromId);
+
+    if (index === -1) { alert("Solicitação não encontrada."); return; }
+
+    pendentes.splice(index, 1);
+
+    stats.pendingRequests = pendentes;
+
+    updateUserStats(currentUser, stats);
+
+    db.collection("users").doc(fromId).get().then(function(doc) {
+
+        if (doc.exists) {
+
+            var data = doc.data();
+
+            var received = data.receivedRequests || [];
+
+            var idx = received.indexOf(currentUser);
+
+            if (idx !== -1) {
+
+                received.splice(idx, 1);
+
+                db.collection("users").doc(fromId).update({ receivedRequests: received });
+
+            }
+
+        }
+
+    });
+
+    carregarSolicitacoes();
+
+}
+
+
+
+// Atualizar presença no Realtime Database ao fazer login
+
+var originalGoToModeScreen = goToModeScreen;
+
+goToModeScreen = function(username) {
+
+    originalGoToModeScreen(username);
+
+    var rtdb = firebase.database();
+
+    rtdb.ref("presence/" + username).set(true);
+
+    window.addEventListener("beforeunload", function() {
+
+        rtdb.ref("presence/" + username).remove();
+
+    });
+
+};
+
+
+
+// Escutar mudanças nas abas
+
+document.addEventListener("DOMContentLoaded", function() {
+
+    document.getElementById("amigos-close").addEventListener("click", fecharAmigos);
+
+    document.getElementById("btn-close-amigos").addEventListener("click", fecharAmigos);
+
+    document.getElementById("amigos-overlay").addEventListener("click", function(e) {
+
+        if (e.target === e.currentTarget) fecharAmigos();
+
+    });
+
+    document.getElementById("amigos-search-btn").addEventListener("click", function() {
+
+        var query = document.getElementById("amigos-search").value.trim();
+
+        buscarUsuarios(query);
+
+    });
+
+    document.getElementById("amigos-search").addEventListener("keyup", function(e) {
+
+        if (e.key === "Enter") {
+
+            buscarUsuarios(this.value.trim());
+
+        }
+
+    });
+
+    document.getElementById("amigos-tab-amigos").addEventListener("click", function() {
+
+        document.querySelectorAll("#amigos-tab-amigos, #amigos-tab-solicitacoes").forEach(function(el) {
+
+            el.classList.remove("active");
+
+        });
+
+        this.classList.add("active");
+
+        carregarAmigos();
+
+    });
+
+    document.getElementById("amigos-tab-solicitacoes").addEventListener("click", function() {
+
+        document.querySelectorAll("#amigos-tab-amigos, #amigos-tab-solicitacoes").forEach(function(el) {
+
+            el.classList.remove("active");
+
+        });
+
+        this.classList.add("active");
+
+        carregarSolicitacoes();
+
+    });
+
+});
+
+
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+// ============================================================
+
+// SISTEMA DE AMIGOS (CORRIGIDO)
+
+// ============================================================
+
+
+
+function abrirAmigos() {
+
+    document.getElementById("amigos-overlay").classList.add("show");
+
+    carregarAmigos();
+
+    carregarSolicitacoes();
+
+}
+
+
+
+function fecharAmigos() {
+
+    document.getElementById("amigos-overlay").classList.remove("show");
+
+}
+
+
+
+function carregarAmigos() {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var amigos = stats.friends || [];
+
+    var list = document.getElementById("amigos-list");
+
+    list.innerHTML = "<div style=\"color:#b8a99a;font-size:12px;\">Carregando...</div>";
+
+    if (amigos.length === 0) {
+
+        list.innerHTML = "<div style=\"color:#666;text-align:center;padding:20px;\">Nenhum amigo ainda.<br>Busque e adicione!</div>";
+
+        return;
+
+    }
+
+    var html = "";
+
+    var count = 0;
+
+    amigos.forEach(function(uid) {
+
+        db.collection("users").doc(uid).get().then(function(doc) {
+
+            if (doc.exists) {
+
+                var data = doc.data();
+
+                var nome = data.username || uid;
+
+                var rtdb = firebase.database();
+
+                rtdb.ref("presence/" + uid).once("value").then(function(snap) {
+
+                    var online = snap.val() === true;
+
+                    var statusText = online ? "🟢 Online" : "⚪ Offline";
+
+                    var statusColor = online ? "#10b981" : "#666";
+
+                    html += "<div style=\"display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid rgba(255,215,140,0.06);\">";
+
+                    html += "<span style=\"font-weight:700;color:#f0e6d3;\">" + nome + "</span>";
+
+                    html += "<span style=\"font-size:11px;color:" + statusColor + ";\">" + statusText + "</span>";
+
+                    html += "</div>";
+
+                    count++;
+
+                    if (count === amigos.length) {
+
+                        list.innerHTML = html;
+
+                    }
+
+                });
+
+            } else {
+
+                count++;
+
+                if (count === amigos.length) {
+
+                    list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar amigos.</div>";
+
+                }
+
+            }
+
+        }).catch(function() {
+
+            count++;
+
+            if (count === amigos.length) {
+
+                list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar amigos.</div>";
+
+            }
+
+        });
+
+    });
+
+}
+
+
+
+function carregarSolicitacoes() {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    var list = document.getElementById("amigos-list");
+
+    list.innerHTML = "<div style=\"color:#b8a99a;font-size:12px;\">Carregando solicitações...</div>";
+
+    if (pendentes.length === 0) {
+
+        list.innerHTML = "<div style=\"color:#666;text-align:center;padding:20px;\">Nenhuma solicitação pendente.</div>";
+
+        return;
+
+    }
+
+    var html = "";
+
+    var count = 0;
+
+    pendentes.forEach(function(uid) {
+
+        db.collection("users").doc(uid).get().then(function(doc) {
+
+            if (doc.exists) {
+
+                var nome = doc.data().username || uid;
+
+                html += "<div style=\"display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid rgba(255,215,140,0.06);\">";
+
+                html += "<span style=\"font-weight:700;color:#f0e6d3;\">" + nome + "</span>";
+
+                html += "<div><button class=\"aceitar-solicitacao\" data-id=\"" + uid + "\" style=\"background:#10b981;border:none;border-radius:8px;padding:4px 12px;color:#1a1410;font-weight:700;cursor:pointer;margin-right:6px;\">Aceitar</button>";
+
+                html += "<button class=\"rejeitar-solicitacao\" data-id=\"" + uid + "\" style=\"background:#e94560;border:none;border-radius:8px;padding:4px 12px;color:#fff;font-weight:700;cursor:pointer;\">Rejeitar</button></div>";
+
+                html += "</div>";
+
+                count++;
+
+                if (count === pendentes.length) {
+
+                    list.innerHTML = html;
+
+                    document.querySelectorAll(".aceitar-solicitacao").forEach(function(btn) {
+
+                        btn.addEventListener("click", function() { aceitarSolicitacao(this.dataset.id); });
+
+                    });
+
+                    document.querySelectorAll(".rejeitar-solicitacao").forEach(function(btn) {
+
+                        btn.addEventListener("click", function() { rejeitarSolicitacao(this.dataset.id); });
+
+                    });
+
+                }
+
+            } else {
+
+                count++;
+
+                if (count === pendentes.length) {
+
+                    list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar solicitações.</div>";
+
+                }
+
+            }
+
+        }).catch(function() {
+
+            count++;
+
+            if (count === pendentes.length) {
+
+                list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar solicitações.</div>";
+
+            }
+
+        });
+
+    });
+
+}
+
+
+
+function buscarUsuarios(query) {
+
+    if (!query.trim()) {
+
+        document.getElementById("amigos-search-results").innerHTML = "";
+
+        return;
+
+    }
+
+    var resultsDiv = document.getElementById("amigos-search-results");
+
+    resultsDiv.innerHTML = "<div style=\"color:#b8a99a;font-size:12px;\">Buscando...</div>";
+
+    db.collection("users").where("username", ">=", query).where("username", "<=", query + "\uf8ff").get().then(function(snapshot) {
+
+        if (snapshot.empty) {
+
+            resultsDiv.innerHTML = "<div style=\"color:#666;text-align:center;padding:10px;\">Nenhum usuário encontrado.</div>";
+
+            return;
+
+        }
+
+        var html = "";
+
+        snapshot.forEach(function(doc) {
+
+            var data = doc.data();
+
+            if (doc.id === currentUser) return;
+
+            var stats = getUserStats(currentUser);
+
+            var amigos = stats.friends || [];
+
+            var isFriend = amigos.indexOf(doc.id) !== -1;
+
+            var pending = stats.pendingRequests || [];
+
+            var isPending = pending.indexOf(doc.id) !== -1;
+
+            html += "<div style=\"display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid rgba(255,215,140,0.06);\">";
+
+            html += "<span style=\"font-weight:600;color:#f0e6d3;\">" + data.username + "</span>";
+
+            if (!isFriend && !isPending) {
+
+                html += "<button class=\"enviar-solicitacao\" data-id=\"" + doc.id + "\" style=\"background:#4dabf7;border:none;border-radius:8px;padding:4px 12px;color:#1a1410;font-weight:700;cursor:pointer;\">Adicionar</button>";
+
+            } else if (isPending) {
+
+                html += "<span style=\"color:#facc15;font-size:11px;\">Solicitação enviada</span>";
+
+            } else {
+
+                html += "<span style=\"color:#10b981;font-size:11px;\">Amigo</span>";
+
+            }
+
+            html += "</div>";
+
+        });
+
+        resultsDiv.innerHTML = html;
+
+        document.querySelectorAll(".enviar-solicitacao").forEach(function(btn) {
+
+            btn.addEventListener("click", function() {
+
+                enviarSolicitacao(this.dataset.id);
+
+            });
+
+        });
+
+    }).catch(function(err) {
+
+        resultsDiv.innerHTML = "<div style=\"color:#e94560;\">Erro: " + err.message + "</div>";
+
+    });
+
+}
+
+
+
+function enviarSolicitacao(targetId) {
+
+    if (!currentUser) return;
+
+    if (targetId === currentUser) { alert("Não pode adicionar a si mesmo."); return; }
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    if (pendentes.indexOf(targetId) !== -1) {
+
+        alert("Solicitação já enviada.");
+
+        return;
+
+    }
+
+    pendentes.push(targetId);
+
+    stats.pendingRequests = pendentes;
+
+    updateUserStats(currentUser, stats);
+
+    db.collection("users").doc(targetId).get().then(function(doc) {
+
+        if (!doc.exists) return;
+
+        var targetData = doc.data();
+
+        var received = targetData.receivedRequests || [];
+
+        if (received.indexOf(currentUser) === -1) {
+
+            received.push(currentUser);
+
+            db.collection("users").doc(targetId).update({ receivedRequests: received });
+
+        }
+
+    });
+
+    alert("Solicitação enviada!");
+
+    buscarUsuarios(document.getElementById("amigos-search").value);
+
+}
+
+
+
+function aceitarSolicitacao(fromId) {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    var index = pendentes.indexOf(fromId);
+
+    if (index === -1) { alert("Solicitação não encontrada."); return; }
+
+    pendentes.splice(index, 1);
+
+    var amigos = stats.friends || [];
+
+    if (amigos.indexOf(fromId) === -1) {
+
+        amigos.push(fromId);
+
+        stats.friends = amigos;
+
+    }
+
+    stats.pendingRequests = pendentes;
+
+    updateUserStats(currentUser, stats);
+
+    db.collection("users").doc(fromId).get().then(function(doc) {
+
+        if (doc.exists) {
+
+            var data = doc.data();
+
+            var friendList = data.friends || [];
+
+            if (friendList.indexOf(currentUser) === -1) {
+
+                friendList.push(currentUser);
+
+                db.collection("users").doc(fromId).update({ friends: friendList });
+
+            }
+
+            var received = data.receivedRequests || [];
+
+            var idx = received.indexOf(currentUser);
+
+            if (idx !== -1) {
+
+                received.splice(idx, 1);
+
+                db.collection("users").doc(fromId).update({ receivedRequests: received });
+
+            }
+
+        }
+
+    });
+
+    carregarSolicitacoes();
+
+    carregarAmigos();
+
+}
+
+
+
+function rejeitarSolicitacao(fromId) {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    var index = pendentes.indexOf(fromId);
+
+    if (index === -1) { alert("Solicitação não encontrada."); return; }
+
+    pendentes.splice(index, 1);
+
+    stats.pendingRequests = pendentes;
+
+    updateUserStats(currentUser, stats);
+
+    db.collection("users").doc(fromId).get().then(function(doc) {
+
+        if (doc.exists) {
+
+            var data = doc.data();
+
+            var received = data.receivedRequests || [];
+
+            var idx = received.indexOf(currentUser);
+
+            if (idx !== -1) {
+
+                received.splice(idx, 1);
+
+                db.collection("users").doc(fromId).update({ receivedRequests: received });
+
+            }
+
+        }
+
+    });
+
+    carregarSolicitacoes();
+
+}
+
+
+
+// Atualizar presença no Realtime Database ao fazer login
+
+var originalGoToModeScreen = goToModeScreen;
+
+goToModeScreen = function(username) {
+
+    originalGoToModeScreen(username);
+
+    var rtdb = firebase.database();
+
+    rtdb.ref("presence/" + username).set(true);
+
+    window.addEventListener("beforeunload", function() {
+
+        rtdb.ref("presence/" + username).remove();
+
+    });
+
+};
+
+
+
+// Escutar mudanças nas abas
+
+document.addEventListener("DOMContentLoaded", function() {
+
+    document.getElementById("amigos-close").addEventListener("click", fecharAmigos);
+
+    document.getElementById("btn-close-amigos").addEventListener("click", fecharAmigos);
+
+    document.getElementById("amigos-overlay").addEventListener("click", function(e) {
+
+        if (e.target === e.currentTarget) fecharAmigos();
+
+    });
+
+    document.getElementById("amigos-search-btn").addEventListener("click", function() {
+
+        var query = document.getElementById("amigos-search").value.trim();
+
+        buscarUsuarios(query);
+
+    });
+
+    document.getElementById("amigos-search").addEventListener("keyup", function(e) {
+
+        if (e.key === "Enter") {
+
+            buscarUsuarios(this.value.trim());
+
+        }
+
+    });
+
+    document.getElementById("amigos-tab-amigos").addEventListener("click", function() {
+
+        document.querySelectorAll("#amigos-tab-amigos, #amigos-tab-solicitacoes").forEach(function(el) {
+
+            el.classList.remove("active");
+
+        });
+
+        this.classList.add("active");
+
+        carregarAmigos();
+
+    });
+
+    document.getElementById("amigos-tab-solicitacoes").addEventListener("click", function() {
+
+        document.querySelectorAll("#amigos-tab-amigos, #amigos-tab-solicitacoes").forEach(function(el) {
+
+            el.classList.remove("active");
+
+        });
+
+        this.classList.add("active");
+
+        carregarSolicitacoes();
+
+    });
+
+});
+
+
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <style>
-    /* ===== ESTILOS (completos, sem alterações) ===== */
+    /* ===== TODOS OS ESTILOS ORIGINAIS (mantidos integralmente) ===== */
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap');
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
     html,body{width:100%;height:100%;overflow:hidden;position:fixed;background:#1a1410;font-family:'Inter',sans-serif;color:#f0e6d3}
@@ -72,6 +1166,12 @@
     /* OVERLAYS (profile, history, win, config, stats, titles, skins, medals, sala) */
     #profile-overlay,#history-overlay,#win-overlay,#config-overlay,#stats-overlay,#titles-overlay,#skins-overlay,#medals-overlay,#sala-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
     #profile-overlay.show,#history-overlay.show,#win-overlay.show,#config-overlay.show,#stats-overlay.show,#titles-overlay.show,#skins-overlay.show,#medals-overlay.show,#sala-overlay.show{display:flex}
+        #amigos-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
+        #amigos-overlay.show{display:flex}
+        #amigos-card{background:rgba(26,20,16,0.97);border:1px solid rgba(255,215,140,0.12);border-radius:24px;padding:20px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 60px rgba(0,0,0,0.8);position:relative;z-index:2}
+        #amigos-card h2{color:#d4a373;font-size:16px;text-align:center;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+        #amigos-card h2 .close-btn{background:none;border:none;color:#b8a99a;font-size:20px;cursor:pointer}
+        .tab-btn.active{background:rgba(212,163,115,0.08);border-color:#d4a373;color:#d4a373}
     #profile-card,#history-card,#win-card,#config-card,#stats-card,#titles-card,#skins-card,#medals-card,#sala-card{background:rgba(26,20,16,0.97);border:1px solid rgba(255,215,140,0.12);border-radius:24px;padding:20px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 60px rgba(0,0,0,0.8);position:relative;z-index:2}
     #profile-card h2,#history-card h2,#config-card h2,#stats-card h2,#titles-card h2,#skins-card h2,#medals-card h2,#sala-card h2{color:#d4a373;font-size:16px;text-align:center;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
     #profile-card h2 .close-btn,#history-card h2 .close-btn,#titles-card h2 .close-btn,#skins-card h2 .close-btn,#medals-card h2 .close-btn,#sala-card h2 .close-btn{background:none;border:none;color:#b8a99a;font-size:20px;cursor:pointer}
@@ -287,11 +1387,10 @@
     <div class="modos"> <div class="modo-btn" id="btn-online"><span class="icon">🌐</span><div class="info"><div class="title">Jogar Online</div><div class="desc">Partidas ranqueadas</div></div><span class="arrow">›</span></div>
     <div class="modo-btn" id="btn-vs-ia"><span class="icon">⚙</span><div class="info"><div class="title">Contra o Computador</div><div class="desc">Um jogador</div></div><span class="arrow">›</span></div>
     <div class="modo-btn" id="btn-2p"><span class="icon">⚔</span><div class="info"><div class="title">Dois Jogadores</div><div class="desc">Mesmo dispositivo</div></div><span class="arrow">›</span></div> <div class="modo-btn" id="btn-moderacao"><span class="icon">🛡</span><div class="info"><div class="title">Moderação</div><div class="desc">Staff e segurança</div></div><span class="arrow">›</span></div>
-    <div class="modo-btn" id="btn-ranking" style="opacity:0.5"><span class="icon">🏆</span><div class="info"><div class="title">Classificação</div><div class="desc">Em breve</div></div><span class="arrow">›</span></div>
+    <div class="modo-btn" id="btn-ranking" style="opacity:0.5"><span class="icon">🏆</span><div class="info"><div class="title">Classificação</div><div class="desc">Gerencie seus amigos</div></div><span class="arrow">›</span></div>
     <div class="modo-btn" id="btn-titulos"><span class="icon">🎖</span><div class="info"><div class="title">Títulos</div><div class="desc"></div></div><span class="arrow">›</span></div>
     <div class="modo-btn" id="btn-medalhas"><span class="icon">🏅</span><div class="info"><div class="title">Medalhas</div><div class="desc"></div></div><span class="arrow">›</span></div> <div class="modo-btn" id="btn-trofeus"><span class="icon">🏆</span><div class="info"><div class="title">Troféus</div><div class="desc">Em breve</div></div><span class="arrow">›</span></div>
-    <div class="modo-btn" id="btn-amigos"><span class="icon">👥</span><div class="info"><div class="title">Amigos</div><div class="desc">Em breve</div></div><span class="arrow">›</span></div>
-    <div class="modo-btn" id="btn-skins"><span class="icon">🎨</span><div class="info"><div class="title">Skins</div><div class="desc">Personalize seus peões</div></div><span class="arrow">›</span></div></div>
+<div class="modo-btn" id="btn-amigos"><span class="icon">👥</span><div class="info"><div class="title">Amigos</div><div class="desc">Gerencie seus amigos</div></div><span class="arrow">›</span></div>
     <div class="daily"><div class="left"><span class="icon">🎁</span><div class="text"><strong>Recompensa diária</strong><br>+200 pontos</div></div><button class="btn-claim" id="btn-claim">Coletar</button></div>
   </div>
   <!-- TELA DO JOGO -->
@@ -307,21 +1406,14 @@
   <div id="inspect-overlay"><div id="inspect-card"><h2>INSPECIONAR <button class="close-btn" id="inspect-close">✕</button></h2><div id="inspect-content"></div><button id="btn-close-inspect">FECHAR</button></div></div>
   <div id="ranks-overlay"><div id="ranks-card"><h2>PATENTES <button class="close-btn" id="ranks-close">✕</button></h2><div id="ranks-progress"></div><div class="ranks-list" id="ranks-list"></div><button id="btn-close-ranks">FECHAR</button></div></div>
   <div id="medals-overlay"><div id="medals-card"><h2>MEDALHAS <button class="close-btn" id="medals-close">✕</button></h2><div class="medals-list" id="medals-list"></div><button id="btn-close-medals">FECHAR</button></div></div>
-  <div id="sala-overlay"><div id="sala-card"><h2>JOGAR ONLINE <button class="close-btn" id="sala-close">✕</button></h2><div id="sala-content">
-<input type="text" id="sala-nome-input" class="sala-input" placeholder="Nome da partida" maxlength="24">
-<input type="text" id="sala-senha-input" class="sala-input" placeholder="Senha (opcional)">
-<button id="btn-criar-sala" style="width:100%;padding:12px;margin-bottom:12px;border:none;border-radius:12px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;cursor:pointer">CRIAR SALA</button>
-<div class="sala-status" id="sala-status">Salas abertas aparecem abaixo</div>
-<div class="sala-lista" id="sala-lista"></div>
-<button id="btn-close-sala">FECHAR</button>
-</div></div></div>
+  <div id="sala-overlay"><div id="sala-card"><h2>SALA ONLINE <button class="close-btn" id="sala-close">✕</button></h2><div id="sala-content"><div class="sala-opcao"><button id="btn-criar-sala">Criar Sala</button><button id="btn-listar-salas">Listar Salas</button></div><input type="text" id="sala-id-input" class="sala-input" placeholder="Código da sala para entrar"><button id="btn-entrar-sala" style="width:100%;padding:10px;border-radius:12px;border:1px solid rgba(255,215,140,0.12);background:rgba(255,215,140,0.05);color:#f0e6d3;font-weight:700;cursor:pointer;margin-bottom:8px;">Entrar na Sala</button><div class="sala-status" id="sala-status">Escolha uma opção</div><div class="sala-lista" id="sala-lista"></div><input type="text" id="sala-senha-input" class="sala-input" placeholder="Senha (opcional)" style="margin-top:8px;"><button id="btn-close-sala">FECHAR</button></div></div></div>
   <div id="config-overlay"><div id="config-card"><h2>CONFIGURAÇÕES</h2><div class="config-group"><label>TEMPO</label><div class="options" id="time-options"><button data-time="30">30s</button><button data-time="45">45s</button><button data-time="60">60s</button></div></div><div class="config-group"><label>RODADAS</label><div class="options" id="rounds-options"><button data-rounds="1">1</button><button data-rounds="3">3</button><button data-rounds="5">5</button></div></div><div class="config-group" id="nivel-config" style="display:none;"><label>DIFICULDADE</label><div class="options" id="nivel-options"><button data-nivel="facil">FÁCIL</button><button data-nivel="medio">MÉDIO</button><button data-nivel="dificil">DIFÍCIL</button><button data-nivel="expert">EXPERT</button></div></div><div class="config-group" id="names-config" style="display:none;"><label>NOMES</label><input type="text" id="p1-name-input" placeholder="Player 1" maxlength="12" readonly><input type="text" id="p2-name-input" placeholder="Player 2" maxlength="12"></div><button id="btn-start-game">INICIAR</button><button id="btn-voltar">VOLTAR</button></div></div>
   <script>
     // ============================================================
     // FIREBASE INIT
     // ============================================================
     const firebaseConfig = {
-      apiKey: "AIzaSyBJJZtzkaUoP0swjNrN6Rt0Qm-trzsw4lM",
+      apiKey: "AIzaSyBJJZtzkaUoP0swjNrN6Rt0Qm-tr2sw4IM",
       authDomain: "quoridor-online-2823d.firebaseapp.com",
       databaseURL: "https://quoridor-online-2823d-default-rtdb.firebaseio.com",
       projectId: "quoridor-online-2823d",
@@ -331,7 +1423,6 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-    try { db.settings({ experimentalForceLongPolling: true, merge: true }); } catch(e) {}
 
     // ============================================================
     // SISTEMA DE CONTAS + RANQUE + HISTÓRICO
@@ -399,7 +1490,7 @@
     ];
 
     // ============================================================
-    // TÍTULOS (listas completas)
+    // TÍTULOS (listas completas) - Parte 1
     // ============================================================
     var TITLES = [
       { minWins: 1, title: 'Primeiro Passo' },
@@ -848,28 +1939,6 @@
       }
     }
 
-    function renderMedalsInProfile(listElement, stats) {
-      var unlockedMedals = MEDALS.filter(function(medal) { return medal.check(stats); });
-      var container = document.createElement('div');
-      container.style.cssText = 'padding:12px;border-top:1px solid rgba(255,215,140,0.06);border-bottom:1px solid rgba(255,215,140,0.06);margin:10px 0;';
-      container.innerHTML = '<div style="font-weight:700;color:#d4a373;margin-bottom:8px;font-size:11px;">MEDALHAS</div>';
-      var row = document.createElement('div');
-      row.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;';
-      for (var i = 0; i < MEDALS.length; i++) {
-        var medal = MEDALS[i];
-        var unlocked = unlockedMedals.indexOf(medal) !== -1;
-        var medalDiv = document.createElement('div');
-        medalDiv.style.cssText = 'display:flex;flex-direction:column;align-items:center;cursor:pointer;';
-        medalDiv.innerHTML = '<span class="medal-svg">' + medal.svg(unlocked) + '</span>';
-        (function(m) {
-          medalDiv.addEventListener('click', function() { alert(m.nome + ': ' + m.desc); });
-        })(medal);
-        row.appendChild(medalDiv);
-      }
-      container.appendChild(row);
-      listElement.appendChild(container);
-    }
-
     // ============================================================
     // FUNÇÕES AUXILIARES (contas, hash, persistência)
     // ============================================================
@@ -1001,7 +2070,7 @@
     }
 
     // ============================================================
-    // TITLES FUNCTIONS
+    // TITLES FUNCTIONS (completas)
     // ============================================================
     var currentTitlesTab = 'vitorias';
     var titleSearchQuery = '';
@@ -1062,7 +2131,7 @@
       else if (currentTitlesTab === 'nivel') renderTitleList(list, LEVEL_TITLES, 'level', '⭐', '🔒', 'Requer nível');
       else if (currentTitlesTab === '2p') renderTitleList(list, LOCAL_GAMES_TITLES, 'localGames', '👥', '🔒', 'Requer');
       else if (currentTitlesTab === 'vsia') renderTitleList(list, IA_WINS_TITLES, 'expertWins', '🤖', '🔒', 'Requer');
-      else list.innerHTML = '<div class="history-empty" style="color:#b8a99a;padding:30px 0;text-align:center;">Em breve</div>';
+      else list.innerHTML = '<div class="history-empty" style="color:#b8a99a;padding:30px 0;text-align:center;">Gerencie seus amigos</div>';
     }
 
     function openTitles() {
@@ -1382,16 +2451,10 @@
       document.getElementById('history-overlay').classList.remove('show');
     }
 
-    // ============================================================
-    // PERFIL COMPLETO (com todas as estatísticas)
-    // ============================================================
     function openProfile() {
       var stats = getUserStats(currentUser);
-      if (!stats) { alert("Erro: sem estatísticas"); return; }
       var list = document.getElementById('profile-list');
-      if (!list) { alert("Elemento profile-list não encontrado"); return; }
       list.innerHTML = '';
-
       var avgWalls = stats.games > 0 ? (stats.totalWalls / stats.games) : 0;
       var avgTurns = stats.games > 0 ? (stats.totalTurns / stats.games) : 0;
       var avgPtsWin = stats.wins > 0 ? (stats.sumPointsVictories / stats.wins) : 0;
@@ -1401,7 +2464,6 @@
       var avgOppElo = stats.opponentCount > 0 ? Math.round(stats.opponentEloSum / stats.opponentCount) : 'N/A';
       var estilo = avgWalls >= 4 ? 'Estrategista' : avgWalls >= 2 ? 'Equilibrado' : (stats.games > 0 ? 'Agressivo' : 'Indefinido');
       var titulo = stats.equippedTitle || 'Recruta';
-
       var data = [
         { label: 'Título', value: titulo, desc: getTitleRequirement(titulo) },
         { label: 'Patente Atual', value: getRank(stats.rankPoints), desc: 'Sua patente atual no sistema ranqueado.' },
@@ -1424,7 +2486,6 @@
         { label: 'Melhor rank já alcançado', value: getRank(stats.maxRankPoints || 0), desc: 'Potencial máximo.' },
         { label: 'Média de ELO dos oponentes', value: avgOppElo, desc: 'Nível dos desafios.' }
       ];
-
       for (var i = 0; i < data.length; i++) {
         var s = data[i];
         var item = document.createElement('div');
@@ -1438,7 +2499,6 @@
         });
         list.appendChild(item);
       }
-
       renderMedalsInProfile(list, stats);
       document.getElementById('profile-overlay').classList.add('show');
     }
@@ -1448,6 +2508,28 @@
       document.querySelectorAll('.profile-item').forEach(function(el) { el.classList.remove('active'); });
     }
 
+
+    function renderMedalsInProfile(listElement, stats) {
+      var container = document.createElement('div');
+      container.style.cssText = 'padding:12px;border-top:1px solid rgba(255,215,140,0.06);border-bottom:1px solid rgba(255,215,140,0.06);margin:10px 0;';
+      container.innerHTML = '<div style="font-weight:700;color:#d4a373;margin-bottom:8px;font-size:11px;">MEDALHAS</div>';
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;';
+      for (var i = 0; i < MEDALS.length; i++) {
+        var medal = MEDALS[i];
+        var unlocked = medal.check(stats);
+        var medalDiv = document.createElement('div');
+        medalDiv.style.cssText = 'display:flex;flex-direction:column;align-items:center;cursor:pointer;';
+        medalDiv.innerHTML = '<span class="medal-svg">' + medal.svg(unlocked) + '</span>';
+        (function(m) {
+          medalDiv.addEventListener('click', function() { alert(m.nome + ': ' + m.desc); });
+        })(medal);
+        row.appendChild(medalDiv);
+      }
+      container.appendChild(row);
+      listElement.appendChild(container);
+    }
+    
     function getTitleRequirement(title) {
       if (title === 'Recruta') return 'Título inicial.';
       var arrays = [TITLES, SEQUENCE_TITLES, GAMES_PLAYED_TITLES, LEVEL_TITLES, LOCAL_GAMES_TITLES, IA_WINS_TITLES];
@@ -1512,9 +2594,8 @@
     function closeRanks() {
       document.getElementById('ranks-overlay').classList.remove('show');
     }
-
     // ============================================================
-    // SALA ONLINE (FIREBASE) - VERSÃO SEM ORDERBY (CORRIGIDA)
+    // SALA ONLINE (FIREBASE) - VERSÃO SIMPLIFICADA
     // ============================================================
     var salaAtual = null;
     var salaUnsubscribe = null;
@@ -1760,64 +2841,40 @@
     }
 
     function listarSalasAbertas() {
-      if (listaSalasUnsubscribe) {
-        try { listaSalasUnsubscribe(); } catch(e) {}
-        listaSalasUnsubscribe = null;
-      }
-
-      var statusEl = document.getElementById('sala-status');
-      if (statusEl) statusEl.textContent = '🔄 Carregando salas...';
-
+      if (listaSalasUnsubscribe) { try { listaSalasUnsubscribe(); } catch(e) {} }
       listaSalasUnsubscribe = db.collection('salas')
         .where('status', '==', 'esperando')
-        .onSnapshot(function(snapshot) {
+        .onSnapshot(function(querySnapshot) {
           var lista = document.getElementById('sala-lista');
           if (!lista) return;
           lista.innerHTML = '';
-
-          if (snapshot.empty) {
-            lista.innerHTML = '<div class="history-empty" style="padding:20px;text-align:center;color:#666;">📭 Nenhuma sala aberta.<br>Crie uma para começar!</div>';
-            if (statusEl) statusEl.textContent = '💡 Nenhuma sala disponível. Crie uma!';
+          if (querySnapshot.empty) {
+            lista.innerHTML = '<div class="history-empty">Nenhuma sala aberta no momento.</div>';
             return;
           }
-
-          if (statusEl) statusEl.textContent = '📋 ' + snapshot.size + ' sala(s) disponível(eis)';
-
-          snapshot.forEach(function(doc) {
-            var data = doc.data();
+          var items = [];
+          querySnapshot.forEach(function(doc) { items.push({ id: doc.id, data: doc.data() }); });
+          items.sort(function(a,b) {
+            var ta = a.data.timestamp && a.data.timestamp.toMillis ? a.data.timestamp.toMillis() : 0;
+            var tb = b.data.timestamp && b.data.timestamp.toMillis ? b.data.timestamp.toMillis() : 0;
+            return tb - ta;
+          });
+          items.forEach(function(item) {
+            var data = item.data;
             var el = document.createElement('div');
             el.className = 'sala-item';
-            el.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid rgba(255,215,140,0.06);';
-
             var cadeado = data.senha && data.senha !== '' ? '🔒' : '🔓';
-            var jogador = data.jogador1 || 'Anônimo';
-
-            el.innerHTML =
-              '<span style="color:#f0e6d3;font-weight:bold;">' + jogador + ' ' + cadeado + '</span>' +
-              '<span style="color:#b8a99a;font-size:12px;">1/2</span>' +
-              '<button class="sala-btn" data-id="' + doc.id + '" style="background:rgba(212,163,115,0.15);border:1px solid #d4a373;color:#d4a373;border-radius:8px;padding:6px 16px;font-weight:bold;cursor:pointer;">Entrar</button>';
-
+            el.innerHTML = '<span class="sala-nome">' + (data.jogador1 || 'Sala') + ' ' + cadeado + '</span><span class="sala-jogadores">1/2</span><button class="sala-btn" data-id="' + item.id + '">Entrar</button>';
             lista.appendChild(el);
           });
-
           lista.querySelectorAll('.sala-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
-              var id = this.getAttribute('data-id');
-              if (!currentUser) {
-                alert('Faça login primeiro.');
-                return;
-              }
-              entrarSalaComSenha(id, currentUser);
+              entrarSalaComSenha(this.getAttribute('data-id'), currentUser || 'Jogador');
             });
           });
-
-        }, function(error) {
-          console.error('Erro ao listar salas:', error);
-          if (statusEl) statusEl.textContent = '❌ Erro ao carregar salas. Tente novamente.';
-          var lista = document.getElementById('sala-lista');
-          if (lista) {
-            lista.innerHTML = '<div style="color:#e06b6b;padding:20px;text-align:center;">❌ Erro ao carregar salas.<br><small>' + error.message + '</small></div>';
-          }
+        }, function(err) {
+          var el = document.getElementById('sala-status');
+          if (el) el.textContent = 'Erro ao listar salas: ' + err.message;
         });
     }
 
@@ -1892,6 +2949,7 @@
         var pulse = Math.sin(time * 3) * 0.3 + 0.7;
         ctx.shadowColor = skin.cor1;
         ctx.shadowBlur = 22 * pulse;
+        // Efeitos especiais (dragon, blackhole, fire, etc.) - mantidos completos
         if (skin.efeito === 'dragon') {
           for(var i = 0; i < 18; i++) {
             var angle = time * 2.5 + i * 0.35;
@@ -2885,7 +3943,7 @@
         else { selectPawn(G.pos[G.turn][0], G.pos[G.turn][1]); }
       }
       updateWallIndicators(); draw();
-      if (isOnlineMode) enviarJogadaOnline({ type: "move", r: r, c: c });
+      if (currentRoomRef) enviarEstado();
     }
     function placeWall(ni,nj,ori) {
       if (!gameActive || G.over || matchFinished) return;
@@ -2904,7 +3962,7 @@
         else { selectPawn(G.pos[G.turn][0], G.pos[G.turn][1]); }
       }
       updateWallIndicators(); draw();
-      if (isOnlineMode) enviarJogadaOnline({ type: "wall", r: r, c: c, ori: ori });
+      if (currentRoomRef) enviarEstado();
     }
     function checkWin() {
       if ((G.turn === 0 && G.pos[0][0] === WIN[0]) || (G.turn === 1 && G.pos[1][0] === WIN[1])) {
@@ -3059,7 +4117,7 @@
     function hideConfig() { document.getElementById('config-overlay').classList.remove('show'); }
 
     // ============================================================
-    // LOGIN E NAVEGAÇÃO
+    // NAVEGAÇÃO E EVENTOS DE BOTÃO
     // ============================================================
     var loginForm = document.getElementById('login-form');
     var loginError = document.getElementById('login-error');
@@ -3089,8 +4147,7 @@
     function goToModeScreen(username) {
       currentUser = username;
       var stats = getUserStats(username);
-      stats.points = 100000; // Todos os usuários ganham 100.000 pontos
-      updateUserStats(username, stats);
+      if (username === 'Akl') { stats.points = 100000; updateUserStats(username, stats); }
       document.getElementById('user-name').textContent = username;
       document.getElementById('user-avatar').textContent = username[0].toUpperCase();
       document.getElementById('stat-games-mode').textContent = stats.games;
@@ -3148,8 +4205,8 @@
     document.getElementById('btn-titulos').addEventListener('click', openTitles);
     document.getElementById('btn-medalhas').addEventListener('click', openMedals);
     document.getElementById('btn-trofeus').addEventListener('click', function(){ alert('Troféus em breve!'); });
-    document.getElementById('btn-amigos').addEventListener('click', function(){ alert('Amigos em breve!'); });
     document.getElementById('btn-skins').addEventListener('click', openSkins);
+document.getElementById("btn-amigos").addEventListener("click", function(){ abrirAmigos(); });
     document.getElementById('btn-claim').addEventListener('click', function() {
       alert('Recompensa coletada! +200 pontos');
       var stats = getUserStats(currentUser);
@@ -3318,52 +4375,1140 @@
       requestAnimationFrame(loop);
     }
     requestAnimationFrame(loop);
-  </script>
-  <!-- ===== CORREÇÃO: Botões de fechar o overlay da sala ===== -->
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      function fecharSalaOverlay() {
-        var overlay = document.getElementById('sala-overlay');
-        if (overlay) overlay.classList.remove('show');
-        if (typeof limparOnline === 'function') limparOnline();
-      }
+// ============================================================
 
-      var salaClose = document.getElementById('sala-close');
-      if (salaClose) {
-        var newClose = salaClose.cloneNode(true);
-        salaClose.parentNode.replaceChild(newClose, salaClose);
-        newClose.addEventListener('click', fecharSalaOverlay);
-      }
+// SISTEMA DE AMIGOS (CORRIGIDO)
 
-      var btnCloseSala = document.getElementById('btn-close-sala');
-      if (btnCloseSala) {
-        var newBtn = btnCloseSala.cloneNode(true);
-        btnCloseSala.parentNode.replaceChild(newBtn, btnCloseSala);
-        newBtn.addEventListener('click', fecharSalaOverlay);
-      }
+// ============================================================
 
-      var overlay = document.getElementById('sala-overlay');
-      if (overlay) {
-        overlay.addEventListener('click', function(e) {
-          if (e.target === e.currentTarget) fecharSalaOverlay();
+
+
+function abrirAmigos() {
+
+    document.getElementById("amigos-overlay").classList.add("show");
+
+    carregarAmigos();
+
+    carregarSolicitacoes();
+
+}
+
+
+
+function fecharAmigos() {
+
+    document.getElementById("amigos-overlay").classList.remove("show");
+
+}
+
+
+
+function carregarAmigos() {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var amigos = stats.friends || [];
+
+    var list = document.getElementById("amigos-list");
+
+    list.innerHTML = "<div style=\"color:#b8a99a;font-size:12px;\">Carregando...</div>";
+
+    if (amigos.length === 0) {
+
+        list.innerHTML = "<div style=\"color:#666;text-align:center;padding:20px;\">Nenhum amigo ainda.<br>Busque e adicione!</div>";
+
+        return;
+
+    }
+
+    var html = "";
+
+    var count = 0;
+
+    amigos.forEach(function(uid) {
+
+        db.collection("users").doc(uid).get().then(function(doc) {
+
+            if (doc.exists) {
+
+                var data = doc.data();
+
+                var nome = data.username || uid;
+
+                var rtdb = firebase.database();
+
+                rtdb.ref("presence/" + uid).once("value").then(function(snap) {
+
+                    var online = snap.val() === true;
+
+                    var statusText = online ? "🟢 Online" : "⚪ Offline";
+
+                    var statusColor = online ? "#10b981" : "#666";
+
+                    html += "<div style=\"display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid rgba(255,215,140,0.06);\">";
+
+                    html += "<span style=\"font-weight:700;color:#f0e6d3;\">" + nome + "</span>";
+
+                    html += "<span style=\"font-size:11px;color:" + statusColor + ";\">" + statusText + "</span>";
+
+                    html += "</div>";
+
+                    count++;
+
+                    if (count === amigos.length) {
+
+                        list.innerHTML = html;
+
+                    }
+
+                });
+
+            } else {
+
+                count++;
+
+                if (count === amigos.length) {
+
+                    list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar amigos.</div>";
+
+                }
+
+            }
+
+        }).catch(function() {
+
+            count++;
+
+            if (count === amigos.length) {
+
+                list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar amigos.</div>";
+
+            }
+
         });
-      }
+
     });
+
+}
+
+
+
+function carregarSolicitacoes() {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    var list = document.getElementById("amigos-list");
+
+    list.innerHTML = "<div style=\"color:#b8a99a;font-size:12px;\">Carregando solicitações...</div>";
+
+    if (pendentes.length === 0) {
+
+        list.innerHTML = "<div style=\"color:#666;text-align:center;padding:20px;\">Nenhuma solicitação pendente.</div>";
+
+        return;
+
+    }
+
+    var html = "";
+
+    var count = 0;
+
+    pendentes.forEach(function(uid) {
+
+        db.collection("users").doc(uid).get().then(function(doc) {
+
+            if (doc.exists) {
+
+                var nome = doc.data().username || uid;
+
+                html += "<div style=\"display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid rgba(255,215,140,0.06);\">";
+
+                html += "<span style=\"font-weight:700;color:#f0e6d3;\">" + nome + "</span>";
+
+                html += "<div><button class=\"aceitar-solicitacao\" data-id=\"" + uid + "\" style=\"background:#10b981;border:none;border-radius:8px;padding:4px 12px;color:#1a1410;font-weight:700;cursor:pointer;margin-right:6px;\">Aceitar</button>";
+
+                html += "<button class=\"rejeitar-solicitacao\" data-id=\"" + uid + "\" style=\"background:#e94560;border:none;border-radius:8px;padding:4px 12px;color:#fff;font-weight:700;cursor:pointer;\">Rejeitar</button></div>";
+
+                html += "</div>";
+
+                count++;
+
+                if (count === pendentes.length) {
+
+                    list.innerHTML = html;
+
+                    document.querySelectorAll(".aceitar-solicitacao").forEach(function(btn) {
+
+                        btn.addEventListener("click", function() { aceitarSolicitacao(this.dataset.id); });
+
+                    });
+
+                    document.querySelectorAll(".rejeitar-solicitacao").forEach(function(btn) {
+
+                        btn.addEventListener("click", function() { rejeitarSolicitacao(this.dataset.id); });
+
+                    });
+
+                }
+
+            } else {
+
+                count++;
+
+                if (count === pendentes.length) {
+
+                    list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar solicitações.</div>";
+
+                }
+
+            }
+
+        }).catch(function() {
+
+            count++;
+
+            if (count === pendentes.length) {
+
+                list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar solicitações.</div>";
+
+            }
+
+        });
+
+    });
+
+}
+
+
+
+function buscarUsuarios(query) {
+
+    if (!query.trim()) {
+
+        document.getElementById("amigos-search-results").innerHTML = "";
+
+        return;
+
+    }
+
+    var resultsDiv = document.getElementById("amigos-search-results");
+
+    resultsDiv.innerHTML = "<div style=\"color:#b8a99a;font-size:12px;\">Buscando...</div>";
+
+    db.collection("users").where("username", ">=", query).where("username", "<=", query + "\uf8ff").get().then(function(snapshot) {
+
+        if (snapshot.empty) {
+
+            resultsDiv.innerHTML = "<div style=\"color:#666;text-align:center;padding:10px;\">Nenhum usuário encontrado.</div>";
+
+            return;
+
+        }
+
+        var html = "";
+
+        snapshot.forEach(function(doc) {
+
+            var data = doc.data();
+
+            if (doc.id === currentUser) return;
+
+            var stats = getUserStats(currentUser);
+
+            var amigos = stats.friends || [];
+
+            var isFriend = amigos.indexOf(doc.id) !== -1;
+
+            var pending = stats.pendingRequests || [];
+
+            var isPending = pending.indexOf(doc.id) !== -1;
+
+            html += "<div style=\"display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid rgba(255,215,140,0.06);\">";
+
+            html += "<span style=\"font-weight:600;color:#f0e6d3;\">" + data.username + "</span>";
+
+            if (!isFriend && !isPending) {
+
+                html += "<button class=\"enviar-solicitacao\" data-id=\"" + doc.id + "\" style=\"background:#4dabf7;border:none;border-radius:8px;padding:4px 12px;color:#1a1410;font-weight:700;cursor:pointer;\">Adicionar</button>";
+
+            } else if (isPending) {
+
+                html += "<span style=\"color:#facc15;font-size:11px;\">Solicitação enviada</span>";
+
+            } else {
+
+                html += "<span style=\"color:#10b981;font-size:11px;\">Amigo</span>";
+
+            }
+
+            html += "</div>";
+
+        });
+
+        resultsDiv.innerHTML = html;
+
+        document.querySelectorAll(".enviar-solicitacao").forEach(function(btn) {
+
+            btn.addEventListener("click", function() {
+
+                enviarSolicitacao(this.dataset.id);
+
+            });
+
+        });
+
+    }).catch(function(err) {
+
+        resultsDiv.innerHTML = "<div style=\"color:#e94560;\">Erro: " + err.message + "</div>";
+
+    });
+
+}
+
+
+
+function enviarSolicitacao(targetId) {
+
+    if (!currentUser) return;
+
+    if (targetId === currentUser) { alert("Não pode adicionar a si mesmo."); return; }
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    if (pendentes.indexOf(targetId) !== -1) {
+
+        alert("Solicitação já enviada.");
+
+        return;
+
+    }
+
+    pendentes.push(targetId);
+
+    stats.pendingRequests = pendentes;
+
+    updateUserStats(currentUser, stats);
+
+    db.collection("users").doc(targetId).get().then(function(doc) {
+
+        if (!doc.exists) return;
+
+        var targetData = doc.data();
+
+        var received = targetData.receivedRequests || [];
+
+        if (received.indexOf(currentUser) === -1) {
+
+            received.push(currentUser);
+
+            db.collection("users").doc(targetId).update({ receivedRequests: received });
+
+        }
+
+    });
+
+    alert("Solicitação enviada!");
+
+    buscarUsuarios(document.getElementById("amigos-search").value);
+
+}
+
+
+
+function aceitarSolicitacao(fromId) {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    var index = pendentes.indexOf(fromId);
+
+    if (index === -1) { alert("Solicitação não encontrada."); return; }
+
+    pendentes.splice(index, 1);
+
+    var amigos = stats.friends || [];
+
+    if (amigos.indexOf(fromId) === -1) {
+
+        amigos.push(fromId);
+
+        stats.friends = amigos;
+
+    }
+
+    stats.pendingRequests = pendentes;
+
+    updateUserStats(currentUser, stats);
+
+    db.collection("users").doc(fromId).get().then(function(doc) {
+
+        if (doc.exists) {
+
+            var data = doc.data();
+
+            var friendList = data.friends || [];
+
+            if (friendList.indexOf(currentUser) === -1) {
+
+                friendList.push(currentUser);
+
+                db.collection("users").doc(fromId).update({ friends: friendList });
+
+            }
+
+            var received = data.receivedRequests || [];
+
+            var idx = received.indexOf(currentUser);
+
+            if (idx !== -1) {
+
+                received.splice(idx, 1);
+
+                db.collection("users").doc(fromId).update({ receivedRequests: received });
+
+            }
+
+        }
+
+    });
+
+    carregarSolicitacoes();
+
+    carregarAmigos();
+
+}
+
+
+
+function rejeitarSolicitacao(fromId) {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    var index = pendentes.indexOf(fromId);
+
+    if (index === -1) { alert("Solicitação não encontrada."); return; }
+
+    pendentes.splice(index, 1);
+
+    stats.pendingRequests = pendentes;
+
+    updateUserStats(currentUser, stats);
+
+    db.collection("users").doc(fromId).get().then(function(doc) {
+
+        if (doc.exists) {
+
+            var data = doc.data();
+
+            var received = data.receivedRequests || [];
+
+            var idx = received.indexOf(currentUser);
+
+            if (idx !== -1) {
+
+                received.splice(idx, 1);
+
+                db.collection("users").doc(fromId).update({ receivedRequests: received });
+
+            }
+
+        }
+
+    });
+
+    carregarSolicitacoes();
+
+}
+
+
+
+// Atualizar presença no Realtime Database ao fazer login
+
+var originalGoToModeScreen = goToModeScreen;
+
+goToModeScreen = function(username) {
+
+    originalGoToModeScreen(username);
+
+    var rtdb = firebase.database();
+
+    rtdb.ref("presence/" + username).set(true);
+
+    window.addEventListener("beforeunload", function() {
+
+        rtdb.ref("presence/" + username).remove();
+
+    });
+
+};
+
+
+
+// Escutar mudanças nas abas
+
+document.addEventListener("DOMContentLoaded", function() {
+
+    document.getElementById("amigos-close").addEventListener("click", fecharAmigos);
+
+    document.getElementById("btn-close-amigos").addEventListener("click", fecharAmigos);
+
+    document.getElementById("amigos-overlay").addEventListener("click", function(e) {
+
+        if (e.target === e.currentTarget) fecharAmigos();
+
+    });
+
+    document.getElementById("amigos-search-btn").addEventListener("click", function() {
+
+        var query = document.getElementById("amigos-search").value.trim();
+
+        buscarUsuarios(query);
+
+    });
+
+    document.getElementById("amigos-search").addEventListener("keyup", function(e) {
+
+        if (e.key === "Enter") {
+
+            buscarUsuarios(this.value.trim());
+
+        }
+
+    });
+
+    document.getElementById("amigos-tab-amigos").addEventListener("click", function() {
+
+        document.querySelectorAll("#amigos-tab-amigos, #amigos-tab-solicitacoes").forEach(function(el) {
+
+            el.classList.remove("active");
+
+        });
+
+        this.classList.add("active");
+
+        carregarAmigos();
+
+    });
+
+    document.getElementById("amigos-tab-solicitacoes").addEventListener("click", function() {
+
+        document.querySelectorAll("#amigos-tab-amigos, #amigos-tab-solicitacoes").forEach(function(el) {
+
+            el.classList.remove("active");
+
+        });
+
+        this.classList.add("active");
+
+        carregarSolicitacoes();
+
+    });
+
+});
+
+
   </script>
+
+<script id="VinculoPerfilCorrigido">
+(function(){
+  var userInfo = document.getElementById('user-info-profile');
+  if (userInfo) {
+    userInfo.addEventListener('click', function() {
+      if (typeof openProfile === 'function') openProfile();
+      else alert('Função openProfile não encontrada.');
+    });
+  }
+  var closeBtn = document.getElementById('profile-close');
+  if (closeBtn) closeBtn.addEventListener('click', function() { closeProfile(); });
+  var closeBtn2 = document.getElementById('btn-close-profile');
+  if (closeBtn2) closeBtn2.addEventListener('click', function() { closeProfile(); });
+  var overlay = document.getElementById('profile-overlay');
+  if (overlay) overlay.addEventListener('click', function(e) {
+    if (e.target === e.currentTarget) closeProfile();
+  });
+})();
+// ============================================================
+
+// SISTEMA DE AMIGOS (CORRIGIDO)
+
+// ============================================================
+
+
+
+function abrirAmigos() {
+
+    document.getElementById("amigos-overlay").classList.add("show");
+
+    carregarAmigos();
+
+    carregarSolicitacoes();
+
+}
+
+
+
+function fecharAmigos() {
+
+    document.getElementById("amigos-overlay").classList.remove("show");
+
+}
+
+
+
+function carregarAmigos() {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var amigos = stats.friends || [];
+
+    var list = document.getElementById("amigos-list");
+
+    list.innerHTML = "<div style=\"color:#b8a99a;font-size:12px;\">Carregando...</div>";
+
+    if (amigos.length === 0) {
+
+        list.innerHTML = "<div style=\"color:#666;text-align:center;padding:20px;\">Nenhum amigo ainda.<br>Busque e adicione!</div>";
+
+        return;
+
+    }
+
+    var html = "";
+
+    var count = 0;
+
+    amigos.forEach(function(uid) {
+
+        db.collection("users").doc(uid).get().then(function(doc) {
+
+            if (doc.exists) {
+
+                var data = doc.data();
+
+                var nome = data.username || uid;
+
+                var rtdb = firebase.database();
+
+                rtdb.ref("presence/" + uid).once("value").then(function(snap) {
+
+                    var online = snap.val() === true;
+
+                    var statusText = online ? "🟢 Online" : "⚪ Offline";
+
+                    var statusColor = online ? "#10b981" : "#666";
+
+                    html += "<div style=\"display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid rgba(255,215,140,0.06);\">";
+
+                    html += "<span style=\"font-weight:700;color:#f0e6d3;\">" + nome + "</span>";
+
+                    html += "<span style=\"font-size:11px;color:" + statusColor + ";\">" + statusText + "</span>";
+
+                    html += "</div>";
+
+                    count++;
+
+                    if (count === amigos.length) {
+
+                        list.innerHTML = html;
+
+                    }
+
+                });
+
+            } else {
+
+                count++;
+
+                if (count === amigos.length) {
+
+                    list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar amigos.</div>";
+
+                }
+
+            }
+
+        }).catch(function() {
+
+            count++;
+
+            if (count === amigos.length) {
+
+                list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar amigos.</div>";
+
+            }
+
+        });
+
+    });
+
+}
+
+
+
+function carregarSolicitacoes() {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    var list = document.getElementById("amigos-list");
+
+    list.innerHTML = "<div style=\"color:#b8a99a;font-size:12px;\">Carregando solicitações...</div>";
+
+    if (pendentes.length === 0) {
+
+        list.innerHTML = "<div style=\"color:#666;text-align:center;padding:20px;\">Nenhuma solicitação pendente.</div>";
+
+        return;
+
+    }
+
+    var html = "";
+
+    var count = 0;
+
+    pendentes.forEach(function(uid) {
+
+        db.collection("users").doc(uid).get().then(function(doc) {
+
+            if (doc.exists) {
+
+                var nome = doc.data().username || uid;
+
+                html += "<div style=\"display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid rgba(255,215,140,0.06);\">";
+
+                html += "<span style=\"font-weight:700;color:#f0e6d3;\">" + nome + "</span>";
+
+                html += "<div><button class=\"aceitar-solicitacao\" data-id=\"" + uid + "\" style=\"background:#10b981;border:none;border-radius:8px;padding:4px 12px;color:#1a1410;font-weight:700;cursor:pointer;margin-right:6px;\">Aceitar</button>";
+
+                html += "<button class=\"rejeitar-solicitacao\" data-id=\"" + uid + "\" style=\"background:#e94560;border:none;border-radius:8px;padding:4px 12px;color:#fff;font-weight:700;cursor:pointer;\">Rejeitar</button></div>";
+
+                html += "</div>";
+
+                count++;
+
+                if (count === pendentes.length) {
+
+                    list.innerHTML = html;
+
+                    document.querySelectorAll(".aceitar-solicitacao").forEach(function(btn) {
+
+                        btn.addEventListener("click", function() { aceitarSolicitacao(this.dataset.id); });
+
+                    });
+
+                    document.querySelectorAll(".rejeitar-solicitacao").forEach(function(btn) {
+
+                        btn.addEventListener("click", function() { rejeitarSolicitacao(this.dataset.id); });
+
+                    });
+
+                }
+
+            } else {
+
+                count++;
+
+                if (count === pendentes.length) {
+
+                    list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar solicitações.</div>";
+
+                }
+
+            }
+
+        }).catch(function() {
+
+            count++;
+
+            if (count === pendentes.length) {
+
+                list.innerHTML = html || "<div style=\"color:#666;text-align:center;padding:20px;\">Erro ao carregar solicitações.</div>";
+
+            }
+
+        });
+
+    });
+
+}
+
+
+
+function buscarUsuarios(query) {
+
+    if (!query.trim()) {
+
+        document.getElementById("amigos-search-results").innerHTML = "";
+
+        return;
+
+    }
+
+    var resultsDiv = document.getElementById("amigos-search-results");
+
+    resultsDiv.innerHTML = "<div style=\"color:#b8a99a;font-size:12px;\">Buscando...</div>";
+
+    db.collection("users").where("username", ">=", query).where("username", "<=", query + "\uf8ff").get().then(function(snapshot) {
+
+        if (snapshot.empty) {
+
+            resultsDiv.innerHTML = "<div style=\"color:#666;text-align:center;padding:10px;\">Nenhum usuário encontrado.</div>";
+
+            return;
+
+        }
+
+        var html = "";
+
+        snapshot.forEach(function(doc) {
+
+            var data = doc.data();
+
+            if (doc.id === currentUser) return;
+
+            var stats = getUserStats(currentUser);
+
+            var amigos = stats.friends || [];
+
+            var isFriend = amigos.indexOf(doc.id) !== -1;
+
+            var pending = stats.pendingRequests || [];
+
+            var isPending = pending.indexOf(doc.id) !== -1;
+
+            html += "<div style=\"display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid rgba(255,215,140,0.06);\">";
+
+            html += "<span style=\"font-weight:600;color:#f0e6d3;\">" + data.username + "</span>";
+
+            if (!isFriend && !isPending) {
+
+                html += "<button class=\"enviar-solicitacao\" data-id=\"" + doc.id + "\" style=\"background:#4dabf7;border:none;border-radius:8px;padding:4px 12px;color:#1a1410;font-weight:700;cursor:pointer;\">Adicionar</button>";
+
+            } else if (isPending) {
+
+                html += "<span style=\"color:#facc15;font-size:11px;\">Solicitação enviada</span>";
+
+            } else {
+
+                html += "<span style=\"color:#10b981;font-size:11px;\">Amigo</span>";
+
+            }
+
+            html += "</div>";
+
+        });
+
+        resultsDiv.innerHTML = html;
+
+        document.querySelectorAll(".enviar-solicitacao").forEach(function(btn) {
+
+            btn.addEventListener("click", function() {
+
+                enviarSolicitacao(this.dataset.id);
+
+            });
+
+        });
+
+    }).catch(function(err) {
+
+        resultsDiv.innerHTML = "<div style=\"color:#e94560;\">Erro: " + err.message + "</div>";
+
+    });
+
+}
+
+
+
+function enviarSolicitacao(targetId) {
+
+    if (!currentUser) return;
+
+    if (targetId === currentUser) { alert("Não pode adicionar a si mesmo."); return; }
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    if (pendentes.indexOf(targetId) !== -1) {
+
+        alert("Solicitação já enviada.");
+
+        return;
+
+    }
+
+    pendentes.push(targetId);
+
+    stats.pendingRequests = pendentes;
+
+    updateUserStats(currentUser, stats);
+
+    db.collection("users").doc(targetId).get().then(function(doc) {
+
+        if (!doc.exists) return;
+
+        var targetData = doc.data();
+
+        var received = targetData.receivedRequests || [];
+
+        if (received.indexOf(currentUser) === -1) {
+
+            received.push(currentUser);
+
+            db.collection("users").doc(targetId).update({ receivedRequests: received });
+
+        }
+
+    });
+
+    alert("Solicitação enviada!");
+
+    buscarUsuarios(document.getElementById("amigos-search").value);
+
+}
+
+
+
+function aceitarSolicitacao(fromId) {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    var index = pendentes.indexOf(fromId);
+
+    if (index === -1) { alert("Solicitação não encontrada."); return; }
+
+    pendentes.splice(index, 1);
+
+    var amigos = stats.friends || [];
+
+    if (amigos.indexOf(fromId) === -1) {
+
+        amigos.push(fromId);
+
+        stats.friends = amigos;
+
+    }
+
+    stats.pendingRequests = pendentes;
+
+    updateUserStats(currentUser, stats);
+
+    db.collection("users").doc(fromId).get().then(function(doc) {
+
+        if (doc.exists) {
+
+            var data = doc.data();
+
+            var friendList = data.friends || [];
+
+            if (friendList.indexOf(currentUser) === -1) {
+
+                friendList.push(currentUser);
+
+                db.collection("users").doc(fromId).update({ friends: friendList });
+
+            }
+
+            var received = data.receivedRequests || [];
+
+            var idx = received.indexOf(currentUser);
+
+            if (idx !== -1) {
+
+                received.splice(idx, 1);
+
+                db.collection("users").doc(fromId).update({ receivedRequests: received });
+
+            }
+
+        }
+
+    });
+
+    carregarSolicitacoes();
+
+    carregarAmigos();
+
+}
+
+
+
+function rejeitarSolicitacao(fromId) {
+
+    if (!currentUser) return;
+
+    var stats = getUserStats(currentUser);
+
+    var pendentes = stats.pendingRequests || [];
+
+    var index = pendentes.indexOf(fromId);
+
+    if (index === -1) { alert("Solicitação não encontrada."); return; }
+
+    pendentes.splice(index, 1);
+
+    stats.pendingRequests = pendentes;
+
+    updateUserStats(currentUser, stats);
+
+    db.collection("users").doc(fromId).get().then(function(doc) {
+
+        if (doc.exists) {
+
+            var data = doc.data();
+
+            var received = data.receivedRequests || [];
+
+            var idx = received.indexOf(currentUser);
+
+            if (idx !== -1) {
+
+                received.splice(idx, 1);
+
+                db.collection("users").doc(fromId).update({ receivedRequests: received });
+
+            }
+
+        }
+
+    });
+
+    carregarSolicitacoes();
+
+}
+
+
+
+// Atualizar presença no Realtime Database ao fazer login
+
+var originalGoToModeScreen = goToModeScreen;
+
+goToModeScreen = function(username) {
+
+    originalGoToModeScreen(username);
+
+    var rtdb = firebase.database();
+
+    rtdb.ref("presence/" + username).set(true);
+
+    window.addEventListener("beforeunload", function() {
+
+        rtdb.ref("presence/" + username).remove();
+
+    });
+
+};
+
+
+
+// Escutar mudanças nas abas
+
+document.addEventListener("DOMContentLoaded", function() {
+
+    document.getElementById("amigos-close").addEventListener("click", fecharAmigos);
+
+    document.getElementById("btn-close-amigos").addEventListener("click", fecharAmigos);
+
+    document.getElementById("amigos-overlay").addEventListener("click", function(e) {
+
+        if (e.target === e.currentTarget) fecharAmigos();
+
+    });
+
+    document.getElementById("amigos-search-btn").addEventListener("click", function() {
+
+        var query = document.getElementById("amigos-search").value.trim();
+
+        buscarUsuarios(query);
+
+    });
+
+    document.getElementById("amigos-search").addEventListener("keyup", function(e) {
+
+        if (e.key === "Enter") {
+
+            buscarUsuarios(this.value.trim());
+
+        }
+
+    });
+
+    document.getElementById("amigos-tab-amigos").addEventListener("click", function() {
+
+        document.querySelectorAll("#amigos-tab-amigos, #amigos-tab-solicitacoes").forEach(function(el) {
+
+            el.classList.remove("active");
+
+        });
+
+        this.classList.add("active");
+
+        carregarAmigos();
+
+    });
+
+    document.getElementById("amigos-tab-solicitacoes").addEventListener("click", function() {
+
+        document.querySelectorAll("#amigos-tab-amigos, #amigos-tab-solicitacoes").forEach(function(el) {
+
+            el.classList.remove("active");
+
+        });
+
+        this.classList.add("active");
+
+        carregarSolicitacoes();
+
+    });
+
+});
+
+
+</script>
+
 </body>
 </html>
+
+// ============================================================
+// SISTEMA DE AMIGOS
+// ============================================================
+
 <script>
   // ============================================================
-  // CORREÇÃO COMPLETA – OVERLAY JOGAR ONLINE
+  // PATCH CORRETIVO – MODO ONLINE (sobrescreve funções antigas)
   // ============================================================
   (function() {
-    console.log('🔧 Aplicando correção do overlay online...');
+    console.log('🔧 Aplicando patch do modo online...');
 
     // ============================================================
-    // 1. FUNÇÕES DE SALA (sobrescrevem as existentes)
+    // 1. SOBRESCREVE AS FUNÇÕES DE SALA
     // ============================================================
 
-    // Cria uma nova sala no Firestore
     window.criarSala = function(nomeJogador, senha) {
       if (!nomeJogador) { alert('Nome do jogador não definido.'); return; }
       var salaRef = db.collection('salas').doc();
@@ -3390,10 +5535,7 @@
         G.salald = salald;
         G.p1Name = nomeJogador;
         G.p2Name = 'Aguardando...';
-        // Listener da sala
-        if (window.salaUnsubscribe) {
-          try { window.salaUnsubscribe(); } catch(e) {}
-        }
+        if (window.salaUnsubscribe) { try { window.salaUnsubscribe(); } catch(e) {} }
         window.salaUnsubscribe = salaRef.onSnapshot(function(doc) {
           if (!doc.exists) return;
           var data = doc.data();
@@ -3404,14 +5546,12 @@
             document.getElementById('sala-status').textContent = '⏳ Aguardando oponente entrar...';
           }
         });
-        // Atualiza lista de salas
         window.listarSalasAbertas();
       }).catch(function(err) {
         document.getElementById('sala-status').textContent = '❌ Erro: ' + err.message;
       });
     };
 
-    // Lista salas abertas
     window.listarSalasAbertas = function() {
       if (window.listaSalasUnsubscribe) {
         try { window.listaSalasUnsubscribe(); } catch(e) {}
@@ -3448,7 +5588,6 @@
             btn.addEventListener('click', function() {
               var id = this.getAttribute('data-id');
               if (!currentUser) { alert('Faça login primeiro.'); return; }
-              // Verifica se tem senha
               db.collection('salas').doc(id).get().then(function(doc) {
                 if (!doc.exists) return;
                 var data = doc.data();
@@ -3468,7 +5607,6 @@
         });
     };
 
-    // Entrar em uma sala existente
     window.entrarSala = function(salald, nomeJogador, senhaFornecida) {
       var salaRef = db.collection('salas').doc(salald);
       salaRef.get().then(function(doc) {
@@ -3494,7 +5632,6 @@
           document.getElementById('sala-status').textContent = '❌ Sala cheia.';
           return;
         }
-        // Entra como jogador 2
         salaRef.update({ jogador2: nomeJogador, status: 'em_andamento' })
           .then(function() { return salaRef.get(); })
           .then(function(doc2) {
@@ -3509,7 +5646,6 @@
       });
     };
 
-    // Iniciar jogo online (entra na tela de jogo)
     window.iniciarJogoOnline = function(salald, nomeJogador, data) {
       window.isOnlineMode = true;
       window.salaAtual = salald;
@@ -3533,10 +5669,7 @@
           }
         });
       });
-      // Listener da sala para sincronizar
-      if (window.salaUnsubscribe) {
-        try { window.salaUnsubscribe(); } catch(e) {}
-      }
+      if (window.salaUnsubscribe) { try { window.salaUnsubscribe(); } catch(e) {} }
       window.salaUnsubscribe = db.collection('salas').doc(salald).onSnapshot(function(doc) {
         if (!doc.exists) return;
         var novoData = doc.data();
@@ -3557,7 +5690,6 @@
       });
     };
 
-    // Aplicar estado da sala ao jogo local
     window.aplicarEstadoSala = function(data) {
       if (!data) return;
       G.p1Name = data.jogador1 || G.p1Name;
@@ -3565,11 +5697,7 @@
       if (data.posicoes && data.posicoes.length === 2) {
         G.pos = [[data.posicoes[0][0], data.posicoes[0][1]], [data.posicoes[1][0], data.posicoes[1][1]]];
       }
-      // Limpa paredes atuais e recria
-      G.pH = [];
-      G.pV = [];
-      G.wallOwnerH = [];
-      G.wallOwnerV = [];
+      G.pH = []; G.pV = []; G.wallOwnerH = []; G.wallOwnerV = [];
       (data.paredesH || []).forEach(function(w) {
         if (Array.isArray(w)) { G.pH.push([w[0], w[1]]); G.wallOwnerH.push(0); }
         else if (w && typeof w.r === 'number') { G.pH.push([w.r, w.c]); G.wallOwnerH.push(typeof w.dono === 'number' ? w.dono : 0); }
@@ -3582,7 +5710,6 @@
       G.turn = typeof data.turno === 'number' ? data.turno : 0;
       G.vsIA = false;
       G.online = true;
-      // Atualiza UI
       document.getElementById('p1-nome').textContent = G.p1Name;
       document.getElementById('nomeJ2').textContent = G.p2Name;
       document.getElementById('placar-p1').textContent = G.p1Name;
@@ -3596,22 +5723,17 @@
       if (typeof draw === 'function') draw();
       if (typeof st === 'function') {
         if (G.over) return;
-        if (window.euSouJogadorDaVez()) {
-          st('Sua vez: ' + (G.turn === 0 ? G.p1Name : G.p2Name));
-        } else {
-          st('Aguardando oponente...');
-        }
+        if (window.euSouJogadorDaVez()) st('Sua vez: ' + (G.turn === 0 ? G.p1Name : G.p2Name));
+        else st('Aguardando oponente...');
       }
     };
 
-    // Verifica se o jogador atual é o dono da vez
     window.euSouJogadorDaVez = function() {
       if (!window.isOnlineMode) return true;
       if (G.turn === 0) return currentUser === G.p1Name;
       return currentUser === G.p2Name;
     };
 
-    // Envia jogada para o Firestore
     window.enviarJogadaOnline = function(jogada) {
       if (!window.salaAtual || !window.isOnlineMode) return;
       if (!window.euSouJogadorDaVez()) return;
@@ -3637,7 +5759,6 @@
       });
     };
 
-    // Converte paredes locais para formato Firestore
     window.paredesLocalParaFirestore = function() {
       var paredesH = [], paredesV = [];
       for (var i = 0; i < G.pH.length; i++) {
@@ -3649,7 +5770,6 @@
       return { paredesH: paredesH, paredesV: paredesV };
     };
 
-    // Limpa listeners e estado online
     window.limparOnline = function() {
       if (window.salaUnsubscribe) { try { window.salaUnsubscribe(); } catch(e) {} window.salaUnsubscribe = null; }
       if (window.listaSalasUnsubscribe) { try { window.listaSalasUnsubscribe(); } catch(e) {} window.listaSalasUnsubscribe = null; }
@@ -3670,7 +5790,6 @@
       clone.addEventListener('click', fn);
     }
 
-    // Criar Sala
     vincularBotao('btn-criar-sala', function() {
       if (!currentUser) { alert('Faça login primeiro.'); return; }
       var nome = document.getElementById('sala-nome-input').value.trim();
@@ -3679,20 +5798,18 @@
       window.criarSala(currentUser, senha);
     });
 
-    // Listar Salas (já existe, mas vamos garantir)
     vincularBotao('btn-listar-salas', function() {
       window.listarSalasAbertas();
     });
 
-    // Fechar overlay (X e botão FECHAR)
     function fecharOverlay() {
       document.getElementById('sala-overlay').classList.remove('show');
       window.limparOnline();
     }
+
     vincularBotao('sala-close', fecharOverlay);
     vincularBotao('btn-close-sala', fecharOverlay);
 
-    // Fechar ao clicar fora do card
     var overlay = document.getElementById('sala-overlay');
     if (overlay) {
       overlay.addEventListener('click', function(e) {
@@ -3701,12 +5818,30 @@
     }
 
     // ============================================================
-    // 3. CORRIGE OS EVENTOS DE MOVIMENTO PARA ENVIAR JOGADA ONLINE
+    // 3. CORRIGE OS EVENTOS DE MOVIMENTO (doMove e placeWall)
     // ============================================================
 
-    // As funções doMove e placeWall já devem chamar enviarJogadaOnline
-    // Se não chamarem, sobrescrevemos aqui (já feito no patch anterior)
+    // Sobrescreve doMove e placeWall para chamar enviarJogadaOnline
+    if (typeof window.doMove === 'function') {
+      var originalDoMove = window.doMove;
+      window.doMove = function(r, c) {
+        originalDoMove(r, c);
+        if (window.isOnlineMode && window.salaAtual) {
+          window.enviarJogadaOnline({ type: 'move', r: r, c: c });
+        }
+      };
+    }
 
-    console.log('✅ Correção do overlay online aplicada com sucesso!');
+    if (typeof window.placeWall === 'function') {
+      var originalPlaceWall = window.placeWall;
+      window.placeWall = function(ni, nj, ori) {
+        originalPlaceWall(ni, nj, ori);
+        if (window.isOnlineMode && window.salaAtual) {
+          window.enviarJogadaOnline({ type: 'wall', r: ni-1, c: nj-1, ori: ori });
+        }
+      };
+    }
+
+    console.log('✅ Patch do modo online aplicado com sucesso!');
   })();
 </script>
