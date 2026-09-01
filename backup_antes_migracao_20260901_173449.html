@@ -285,187 +285,11 @@
   #btn-close-chat,#btn-close-guilda{width:100%;padding:12px;border:none;border-radius:14px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;font-size:13px;cursor:pointer;margin-top:4px}
 
 </style>
-
-<style>
-  /* ===== MELHORIAS TELA DE LOGIN ===== */
-  #login-screen {
-    background: radial-gradient(ellipse at 30% 40%, rgba(212,163,115,0.15), transparent 60%),
-                radial-gradient(ellipse at 70% 60%, rgba(77,171,247,0.1), transparent 60%),
-                linear-gradient(145deg, #1a1410, #0d0a08);
-    position: relative;
-    overflow: hidden;
-  }
-
-  /* Fundo animado com tabuleiro */
-  #login-screen::before {
-    content: "";
-    position: absolute;
-    top: -20%;
-    left: -20%;
-    width: 140%;
-    height: 140%;
-    background-image: repeating-linear-gradient(0deg, rgba(212,163,115,0.08) 0px, rgba(212,163,115,0.08) 2px, transparent 2px, transparent 40px),
-                      repeating-linear-gradient(90deg, rgba(212,163,115,0.08) 0px, rgba(212,163,115,0.08) 2px, transparent 2px, transparent 40px);
-    animation: tabuleiroMove 20s linear infinite;
-    pointer-events: none;
-  }
-
-  @keyframes tabuleiroMove {
-    0% { transform: translate(0,0) rotate(0deg); }
-    100% { transform: translate(5%, 5%) rotate(2deg); }
-  }
-
-  /* Partículas douradas */
-  .particula {
-    position: absolute;
-    width: 4px;
-    height: 4px;
-    background: #d4a373;
-    border-radius: 50%;
-    box-shadow: 0 0 8px #d4a373, 0 0 16px #d4a373;
-    animation: flutuar linear infinite;
-    pointer-events: none;
-  }
-
-  @keyframes flutuar {
-    0% { transform: translateY(0) translateX(0); opacity: 0; }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { transform: translateY(-100vh) translateX(30px); opacity: 0; }
-  }
-
-  /* Título com gradiente animado */
-  #login-screen h1 {
-    font-size: 52px;
-    font-family: 'Playfair Display', serif;
-    font-weight: 900;
-    background: linear-gradient(270deg, #d4a373, #ffd700, #b8860b, #d4a373);
-    background-size: 300% 300%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: gradienteTitulo 4s ease infinite, brilhoTitulo 2s ease-in-out infinite alternate;
-    text-shadow: none;
-    filter: drop-shadow(0 0 20px rgba(212,163,115,0.4));
-  }
-
-  @keyframes gradienteTitulo {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-
-  @keyframes brilhoTitulo {
-    from { filter: drop-shadow(0 0 10px rgba(212,163,115,0.3)); }
-    to { filter: drop-shadow(0 0 30px rgba(212,163,115,0.7)); }
-  }
-
-  /* Subtítulo */
-  #login-screen .sub {
-    letter-spacing: 3px;
-    font-weight: 700;
-    color: #b8a99a;
-    text-transform: uppercase;
-    font-size: 13px;
-    margin-bottom: 40px;
-    animation: fadeInUp 1s ease 0.2s both;
-  }
-
-  /* Card do formulário com vidro fosco */
-  #login-screen form {
-    background: rgba(26,20,16,0.8);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(212,163,115,0.2);
-    border-radius: 24px;
-    padding: 30px 24px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
-    animation: fadeInUp 1s ease 0.4s both;
-  }
-
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(30px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  /* Inputs com borda dupla e animação no foco */
-  #login-screen input {
-    background: rgba(255,215,140,0.05);
-    border: 2px solid rgba(212,163,115,0.2);
-    border-radius: 14px;
-    padding: 16px 18px;
-    color: #f0e6d3;
-    font-size: 14px;
-    outline: none;
-    transition: all 0.3s ease;
-    position: relative;
-  }
-
-  #login-screen input:focus {
-    border-color: #d4a373;
-    box-shadow: 0 0 0 3px rgba(212,163,115,0.1), 0 0 20px rgba(212,163,115,0.3);
-    background: rgba(255,215,140,0.08);
-  }
-
-  /* Botão com efeito parede */
-  #login-screen .btn-primary {
-    background: linear-gradient(135deg, #d4a373, #b8860b);
-    color: #1a1410;
-    border: none;
-    border-radius: 14px;
-    padding: 16px;
-    font-weight: 800;
-    font-size: 16px;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-    transition: all 0.3s ease;
-    box-shadow: 0 10px 30px rgba(212,163,115,0.3);
-  }
-
-  #login-screen .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 15px 40px rgba(212,163,115,0.5);
-  }
-
-  #login-screen .btn-primary::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: -20%;
-    width: 20%;
-    height: 300%;
-    background: rgba(255,255,255,0.4);
-    transform: translateY(-50%) rotate(20deg);
-    transition: left 0.5s ease;
-  }
-
-  #login-screen .btn-primary:hover::after {
-    left: 120%;
-  }
-
-  /* Dica de estratégia */
-  #login-dica {
-    color: #8a7a6a;
-    font-size: 11px;
-    margin-top: 20px;
-    animation: fadeInUp 1s ease 0.6s both;
-    text-align: center;
-    font-style: italic;
-  }
-</style>
-
 </head>
 <body>
   <!-- TELA DE LOGIN -->
   <div id="login-screen" class="screen active">
-    <h1>QUORIDOR</h1>
-    <div class="sub">Construa. Bloqueie. Vença.</div>
-    <form id="login-form"><input type="text" id="login-username" placeholder="Nome de usuário" required><input type="password" id="login-password" placeholder="Senha" required>
-    <input type="password" id="login-confirm" placeholder="Confirmar senha"><div id="login-error"></div>
-    <button type="submit" class="btn-primary" id="login-btn">CRIAR CONTA</button>
-    </form><div class="toggle-link" id="toggle-login">Já tem conta? Faça login</div>
-    
-    
-</div>
+    <h1>QUORIDOR</h1><div class="sub">Crie sua conta e comece a jogar</div>
     <form id="login-form"><input type="text" id="login-username" placeholder="Nome de usuário" required><input type="password" id="login-password" placeholder="Senha" required>
     <input type="password" id="login-confirm" placeholder="Confirmar senha"><div id="login-error"></div>
     <button type="submit" class="btn-primary" id="login-btn">CRIAR CONTA</button>
@@ -535,7 +359,7 @@
     var ACCOUNTS_KEY = 'quoridor_accounts_v2';
     var currentUser = null;
 
-    // ============================================================
+// ============================================================
     // SKINS PRÉ-DEFINIDAS
     // ============================================================
     var SKINS = [
@@ -3269,17 +3093,22 @@
     });
     loginForm.addEventListener('submit', function(e) {
       e.preventDefault();
-      var username = document.getElementById('login-username').value.trim();
-      var password = document.getElementById('login-password').value;
-      var confirm = document.getElementById('login-confirm').value;
-      if (!username || !password) { loginError.textContent = 'Preencha todos os campos'; return; }
-      if (isLoginMode) {
-        if (loginUser(username, password)) { loginError.textContent = ''; goToModeScreen(username); }
-        else loginError.textContent = 'Usuário ou senha inválidos';
-      } else {
-        if (password !== confirm) { loginError.textContent = 'As senhas não coincidem'; return; }
-        if (createUser(username, password)) { loginUser(username, password); loginError.textContent = ''; goToModeScreen(username); }
-        else loginError.textContent = 'Usuário já existe';
+      try {
+        var username = document.getElementById('login-username').value.trim();
+        var password = document.getElementById('login-password').value;
+        var confirm = document.getElementById('login-confirm').value;
+        if (!username || !password) { loginError.textContent = 'Preencha todos os campos'; return; }
+        if (isLoginMode) {
+          if (loginUser(username, password)) { loginError.textContent = ''; goToModeScreen(username); }
+          else loginError.textContent = 'Usuário ou senha inválidos';
+        } else {
+          if (password !== confirm) { loginError.textContent = 'As senhas não coincidem'; return; }
+          if (createUser(username, password)) { loginUser(username, password); loginError.textContent = ''; goToModeScreen(username); }
+          else loginError.textContent = 'Usuário já existe';
+        }
+      } catch(err) {
+        loginError.textContent = 'ERRO: ' + err.message;
+        console.error(err);
       }
     });
     function goToModeScreen(username) {
@@ -3620,49 +3449,6 @@
       document.getElementById('chat-' + alvo).classList.add('active');
     });
   });
-})();
-</script>
-
-
-<script>
-(function(){
-  // Gerar partículas douradas
-  function criarParticula() {
-    var container = document.getElementById('particulas-container');
-    if (!container) return;
-    var p = document.createElement('div');
-    p.className = 'particula';
-    p.style.left = Math.random() * 100 + '%';
-    p.style.top = (100 + Math.random() * 20) + '%';
-    p.style.animationDuration = (Math.random() * 8 + 6) + 's';
-    p.style.animationDelay = (Math.random() * 2) + 's';
-    p.style.width = (Math.random() * 6 + 2) + 'px';
-    p.style.height = p.style.width;
-    container.appendChild(p);
-    setTimeout(function(){ p.remove(); }, 15000);
-  }
-  setInterval(criarParticula, 800);
-
-  // Dicas de estratégia aleatórias
-  var dicas = [
-    'Dica: Paredes bem colocadas valem mais que pressa.',
-    'Dica: Bloquear o caminho do oponente pode garantir a vitória.',
-    'Dica: Economize paredes para o final do jogo.',
-    'Dica: O centro do tabuleiro é o coração da estratégia.',
-    'Dica: Cada movimento deve ter um propósito.',
-    'Dica: Antecipe os saltos do adversário.'
-  ];
-  var dicaEl = document.getElementById('login-dica');
-  if (dicaEl) {
-    setInterval(function() {
-      var novaDica = dicas[Math.floor(Math.random() * dicas.length)];
-      dicaEl.style.opacity = 0;
-      setTimeout(function() {
-        dicaEl.textContent = novaDica;
-        dicaEl.style.opacity = 1;
-      }, 500);
-    }, 5000);
-  }
 })();
 </script>
 
