@@ -11,3 +11,12 @@ tmp/
 node_modules/
 .DS_Store
 public/
+*.py
+*.txt
+parte_*
+*.bak_*
+*.bak
+corrigir*.py
+limpar*.py
+patch_*.py
+*_backup.html
