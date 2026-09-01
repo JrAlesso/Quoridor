@@ -1,8 +1,13 @@
 *.bak
 *.log
+*.zip
+*.tar.gz
+serviceAccountKey.json
+*.key
+*.pem
+.env
+temp/
+tmp/
 node_modules/
 .DS_Store
-*.zip
-temp/
 public/
-serviceAccountKey.json
