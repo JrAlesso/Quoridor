@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Quoridor</title>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
@@ -14,6 +12,7 @@ html,body{width:100%;height:100%;overflow:hidden;position:fixed;background:#1a14
 .screen.active{display:flex}
 .screen>*{position:relative;z-index:1}
 body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at 20% 50%,rgba(212,163,115,0.08),transparent 70%),radial-gradient(ellipse at 80% 20%,rgba(77,171,247,0.05),transparent 60%);pointer-events:none;z-index:0}
+
 /* LOGIN */
 #login-screen{background:linear-gradient(145deg,#1a1410,#0d0a08);justify-content:center}
 #login-screen h1{font-size:44px;font-family:'Playfair Display',serif;font-weight:900;background:linear-gradient(135deg,#d4a373,#b8860b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
@@ -24,6 +23,7 @@ body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;backg
 #login-screen .btn-primary{width:100%;padding:16px;border:none;border-radius:14px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;font-size:16px;cursor:pointer}
 #login-screen .toggle-link{color:#b8a99a;font-size:13px;cursor:pointer;text-align:center;margin-top:8px}
 #login-error{color:#e06b6b;font-size:12px;text-align:center;min-height:20px}
+
 /* MODE */
 #mode-screen{background:linear-gradient(145deg,#1a1410,#0d0a08);padding-top:20px}
 #mode-screen .header{width:100%;max-width:420px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
@@ -55,6 +55,7 @@ body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;backg
 #mode-screen .modo-btn .arrow{color:#b8a99a;font-size:18px}
 #mode-screen .daily{width:100%;max-width:420px;background:rgba(255,215,140,0.04);border:1px solid rgba(255,215,140,0.08);border-radius:16px;padding:12px 16px;margin-top:10px;display:flex;justify-content:space-between;align-items:center}
 #mode-screen .daily .btn-claim{padding:6px 18px;border:none;border-radius:12px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:700;font-size:11px;cursor:pointer}
+
 /* RANKS OVERLAY */
 #ranks-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
 #ranks-overlay.show{display:flex}
@@ -71,9 +72,10 @@ body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;backg
 .rank-item .rank-name{flex:1}
 .rank-item .rank-range{color:#666;font-size:10px}
 #btn-close-ranks{width:100%;padding:12px;border:none;border-radius:14px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;font-size:13px;cursor:pointer;margin-top:4px}
+
 /* OVERLAYS */
-#profile-overlay,#history-overlay,#win-overlay,#config-overlay,#stats-overlay,#titles-overlay,#skins-overlay,#medals-overlay,#sala-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
-#profile-overlay.show,#history-overlay.show,#win-overlay.show,#config-overlay.show,#stats-overlay.show,#titles-overlay.show,#skins-overlay.show,#medals-overlay.show,#sala-overlay.show{display:flex}
+#profile-overlay,#history-overlay,#win-overlay,#config-overlay,#stats-overlay,#titles-overlay,#skins-overlay,#medals-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
+#profile-overlay.show,#history-overlay.show,#win-overlay.show,#config-overlay.show,#stats-overlay.show,#titles-overlay.show,#skins-overlay.show,#medals-overlay.show{display:flex}
 #profile-card,#history-card,#win-card,#config-card,#stats-card,#titles-card,#skins-card,#medals-card{background:rgba(26,20,16,0.97);border:1px solid rgba(255,215,140,0.12);border-radius:24px;padding:20px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 60px rgba(0,0,0,0.8);position:relative;z-index:2}
 #profile-card h2,#history-card h2,#config-card h2,#stats-card h2,#titles-card h2,#skins-card h2,#medals-card h2{color:#d4a373;font-size:16px;text-align:center;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
 #profile-card h2 .close-btn,#history-card h2 .close-btn,#titles-card h2 .close-btn,#skins-card h2 .close-btn,#medals-card h2 .close-btn{background:none;border:none;color:#b8a99a;font-size:20px;cursor:pointer}
@@ -92,6 +94,7 @@ body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;backg
 .history-item .result.win{color:#10b981;min-width:60px;text-align:center}
 .history-item .result.loss{color:#e94560;min-width:60px;text-align:center}
 .history-empty{color:#666;text-align:center;padding:30px 0;font-size:13px}
+
 /* MEDALS OVERLAY */
 .medal-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid rgba(255,215,140,0.04);border-radius:10px;margin-bottom:6px;transition:all 0.2s}
 .medal-item.unlocked{background:rgba(16,185,129,0.05);border-color:rgba(16,185,129,0.15)}
@@ -101,6 +104,7 @@ body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;backg
 .medal-name{font-weight:700;font-size:13px;color:#f0e6d3}
 .medal-req{font-size:10px;color:#b8a99a;margin-top:2px}
 #btn-close-medals{width:100%;padding:12px;border:none;border-radius:14px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;font-size:13px;cursor:pointer;margin-top:4px}
+
 /* TITLES OVERLAY */
 #titles-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
 #titles-overlay.show{display:flex}
@@ -127,14 +131,14 @@ body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;backg
 .title-equip-btn{background:rgba(212,163,115,0.15);border:1px solid #d4a373;color:#d4a373;border-radius:8px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;transition:all 0.2s}
 .title-equip-btn:hover{background:rgba(212,163,115,0.3)}
 .title-equip-btn.equipped{background:#d4a373;color:#1a1410}
+
 /* SKINS OVERLAY */
 #skins-card{display:flex;flex-direction:column}
 #skins-balance{text-align:center;color:#b8a99a;font-size:12px;margin-bottom:10px}
 #skins-list{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;padding-right:4px}
 .skin-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid rgba(255,215,140,0.04);border-radius:10px;margin-bottom:6px;transition:all 0.2s}
 .skin-item.owned{background:rgba(16,185,129,0.05);border-color:rgba(16,185,129,0.15)}
-.skin-preview{width:48px;height:48px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
-.skin-preview canvas{width:48px;height:48px}
+.skin-preview{width:36px;height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px}
 .skin-info{flex:1}
 .skin-name{font-weight:700;font-size:13px;color:#f0e6d3}
 .skin-price{font-size:10px;color:#b8a99a;margin-top:2px}
@@ -145,10 +149,12 @@ body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;backg
 .skin-btn.buy:hover{background:rgba(16,185,129,0.3)}
 #btn-close-skins{width:100%;padding:12px;border:none;border-radius:14px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;font-size:13px;cursor:pointer;margin-top:4px}
 .skin-raridade{font-size:8px;color:#facc15;font-weight:700;text-transform:uppercase}
+
 /* SKINS TABS */
 .skins-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;justify-content:center}
 .skin-tab{flex:1;min-width:60px;padding:8px 4px;border:1px solid rgba(255,215,140,0.06);border-radius:8px;background:rgba(255,215,140,0.03);color:#b8a99a;font-weight:700;font-size:9px;cursor:pointer;transition:all 0.2s}
 .skin-tab.active{border-color:#d4a373;color:#d4a373;background:rgba(212,163,115,0.08)}
+
 /* INSPECT OVERLAY */
 #inspect-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
 #inspect-overlay.show{display:flex}
@@ -161,9 +167,21 @@ body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;backg
 .inspect-item .label{flex:1}
 .inspect-item .value{font-weight:700;color:#f0e6d3;min-width:70px;text-align:right}
 .p-info{cursor:pointer}
+
 /* GAME */
-#game-screen{background:linear-gradient(180deg, rgba(26,20,16,0.55) 0%, rgba(26,20,16,0.75) 100%),repeating-linear-gradient(90deg, #3d2b1f 0px, #4a3426 2px, #5c4030 4px, #4a3426 6px, #3d2b1f 8px),linear-gradient(180deg, #2c1e14 0%, #1a120c 100%);justify-content:center;padding:10px}
-#game-screen.p2-active{background:linear-gradient(180deg, rgba(26,20,16,0.75) 0%, rgba(26,20,16,0.55) 100%),repeating-linear-gradient(90deg, #3d2b1f 0px, #4a3426 2px, #5c4030 4px, #4a3426 6px, #3d2b1f 8px),linear-gradient(0deg, #2c1e14 0%, #1a120c 100%)}
+#game-screen{
+  background:
+    linear-gradient(180deg, rgba(26,20,16,0.55) 0%, rgba(26,20,16,0.75) 100%),
+    repeating-linear-gradient(90deg, #3d2b1f 0px, #4a3426 2px, #5c4030 4px, #4a3426 6px, #3d2b1f 8px),
+    linear-gradient(180deg, #2c1e14 0%, #1a120c 100%);
+  justify-content:center;padding:10px;
+}
+#game-screen.p2-active{
+  background:
+    linear-gradient(180deg, rgba(26,20,16,0.75) 0%, rgba(26,20,16,0.55) 100%),
+    repeating-linear-gradient(90deg, #3d2b1f 0px, #4a3426 2px, #5c4030 4px, #4a3426 6px, #3d2b1f 8px),
+    linear-gradient(0deg, #2c1e14 0%, #1a120c 100%);
+}
 #game-screen #app{max-width:600px;width:100%;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;margin:auto}
 #menu-container{width:100%;display:flex;justify-content:center;margin-bottom:4px;position:relative;order:10}
 #menu-toggle{padding:8px 22px;background:rgba(255,215,140,0.06);border:1px solid rgba(255,215,140,0.12);border-radius:30px;color:#e8d5b5;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px}
@@ -216,6 +234,7 @@ canvas{display:block;touch-action:none;max-width:100%}
 #p2-controls button{transform:rotate(180deg)}
 .wall-icon-h{width:28px;height:6px;border-radius:3px;background:currentColor}
 .wall-icon-v{width:6px;height:28px;border-radius:3px;background:currentColor}
+
 /* WIN */
 #win-overlay{z-index:1000}
 #win-card{z-index:1002;animation:winCardIn 0.5s cubic-bezier(0.34,1.56,0.64,1);background:rgba(26,20,16,0.98);border:2px solid rgba(212,163,115,0.35);box-shadow:0 0 60px rgba(212,163,115,0.25),0 20px 60px rgba(0,0,0,0.8);position:relative}
@@ -238,6 +257,7 @@ canvas{display:block;touch-action:none;max-width:100%}
 #confetti-container{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:1003}
 .confetti-piece{position:absolute;width:10px;height:20px;border-radius:3px;animation:confettiExplode linear forwards}
 @keyframes confettiExplode{0%{transform:translate(0,0) rotate(0deg) scale(1);opacity:1}100%{transform:translate(var(--tx),var(--ty)) rotate(720deg) scale(0.1);opacity:0}}
+
 .config-group{margin-bottom:12px}
 .config-group label{display:block;color:#b8a99a;font-size:10px;font-weight:700;margin-bottom:4px}
 .config-group .options{display:flex;gap:6px;justify-content:center}
@@ -246,46 +266,124 @@ canvas{display:block;touch-action:none;max-width:100%}
 #btn-start-game,#btn-close-stats,#btn-close-profile{width:100%;padding:12px;border:none;border-radius:14px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;font-size:13px;cursor:pointer;margin-top:4px}
 #btn-voltar{width:100%;padding:12px;border:none;border-radius:14px;background:rgba(255,255,255,0.03);color:#b8a99a;font-weight:700;font-size:13px;cursor:pointer;margin-top:6px}
 #names-config input{padding:12px 14px;border-radius:12px;border:1px solid rgba(255,215,140,0.15);background:rgba(255,215,140,0.05);color:#f0e6d3;font-size:14px;outline:none;width:100%;margin-bottom:6px}
-
-#sala-card{background:rgba(26,20,16,0.97);border:1px solid rgba(255,215,140,0.12);border-radius:24px;padding:20px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column}
-#sala-card h2{color:#d4a373;font-size:16px;text-align:center;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
-#sala-card h2 .close-btn{background:none;border:none;color:#b8a99a;font-size:20px}
-#sala-content .sala-input{width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,215,140,0.15);background:rgba(255,215,140,0.05);color:#f0e6d3;margin-bottom:8px}
-#sala-content .sala-status{font-size:12px;color:#b8a99a;padding:8px;text-align:center;margin:8px 0}
-#sala-lista{overflow-y:auto;max-height:40vh}
-#btn-criar-sala,#btn-close-sala{width:100%;padding:12px;border:none;border-radius:14px;font-weight:800;margin-top:4px}
-#btn-criar-sala{background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410}
-#btn-close-sala{background:rgba(255,215,140,0.08);color:#f0e6d3;margin-top:8px}
-
 /* CHAT OVERLAY */
-#chat-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
-#chat-overlay.show{display:flex}
-#chat-card{background:rgba(26,20,16,0.97);border:1px solid rgba(255,215,140,0.12);border-radius:24px;padding:20px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 60px rgba(0,0,0,0.8);position:relative;z-index:2}
-#chat-card h2{color:#d4a373;font-size:16px;text-align:center;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
-#chat-card h2 .close-btn{background:none;border:none;color:#b8a99a;font-size:20px;cursor:pointer}
-#chat-tabs{display:flex;gap:6px;margin-bottom:12px}
-#chat-tabs .chat-tab{flex:1;padding:8px;border:1px solid rgba(255,215,140,0.1);border-radius:10px;background:rgba(255,215,140,0.03);color:#b8a99a;font-weight:700;font-size:11px;cursor:pointer;transition:all 0.2s}
-#chat-tabs .chat-tab.active{border-color:#d4a373;color:#d4a373;background:rgba(212,163,115,0.08)}
-#chat-panels .chat-panel{display:none;flex-direction:column;gap:10px;flex:1;overflow-y:auto}
-#chat-panels .chat-panel.active{display:flex}
-#chat-messages{flex:1;overflow-y:auto;background:rgba(255,215,140,0.03);border-radius:12px;padding:10px;max-height:300px;border:1px solid rgba(255,215,140,0.06);margin-bottom:10px}
-#chat-messages .msg{padding:6px 10px;margin-bottom:4px;border-radius:8px;background:rgba(255,215,140,0.06);font-size:13px;color:#f0e6d3;word-wrap:break-word}
-#chat-messages .msg .user{font-weight:700;color:#d4a373}
-#chat-messages .msg .time{font-size:10px;color:#8a7a6a;margin-left:8px}
-#chat-input-area{display:flex;gap:8px}
-#chat-input-area input{flex:1;padding:10px 14px;border-radius:12px;border:1px solid rgba(255,215,140,0.15);background:rgba(255,215,140,0.05);color:#f0e6d3;font-size:13px;outline:none}
-#chat-input-area input:focus{border-color:#d4a373}
-#chat-input-area button{padding:10px 18px;border:none;border-radius:12px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
-#chat-salas{max-height:150px;overflow-y:auto}
-#chat-salas .sala-item{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px solid rgba(255,215,140,0.06);font-size:12px}
-#chat-salas .sala-item .sala-nome{color:#d4a373;font-weight:700}
-#chat-salas .sala-item .sala-users{color:#b8a99a;font-size:10px}
-#chat-salas .sala-item .btn-entrar-chat{padding:4px 10px;border:none;border-radius:6px;background:#4dabf7;color:#111;font-weight:700;font-size:10px;cursor:pointer}
-#chat-criar-sala{display:flex;gap:6px;margin-top:6px}
-#chat-criar-sala input{flex:1;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,215,140,0.15);background:rgba(255,215,140,0.05);color:#f0e6d3;font-size:12px;outline:none}
-#chat-criar-sala input:focus{border-color:#d4a373}
-#chat-criar-sala button{padding:8px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:700;font-size:12px;cursor:pointer}
-#btn-close-chat{width:100%;padding:12px;border:none;border-radius:14px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;font-size:13px;cursor:pointer;margin-top:8px}
+#chat-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001;
+  padding: 20px;
+}
+#chat-overlay.show { display: flex; }
+
+#chat-card {
+  background: rgba(26,20,16,0.97);
+  border: 1px solid rgba(255,215,140,0.12);
+  border-radius: 24px;
+  padding: 20px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 60px rgba(0,0,0,0.8);
+  position: relative;
+  z-index: 2;
+}
+
+#chat-card h2 {
+  color: #d4a373;
+  font-size: 16px;
+  text-align: center;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#chat-card h2 .close-btn {
+  background: none;
+  border: none;
+  color: #b8a99a;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+#chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  background: rgba(255,215,140,0.03);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 12px;
+  max-height: 300px;
+  border: 1px solid rgba(255,215,140,0.06);
+}
+
+#chat-messages .msg {
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  background: rgba(255,215,140,0.06);
+  font-size: 13px;
+  color: #f0e6d3;
+  word-wrap: break-word;
+}
+#chat-messages .msg .user {
+  font-weight: 700;
+  color: #d4a373;
+}
+#chat-messages .msg .time {
+  font-size: 10px;
+  color: #8a7a6a;
+  margin-left: 8px;
+}
+
+#chat-input-area {
+  display: flex;
+  gap: 8px;
+}
+#chat-input-area input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,215,140,0.15);
+  background: rgba(255,215,140,0.05);
+  color: #f0e6d3;
+  font-size: 13px;
+  outline: none;
+}
+#chat-input-area input:focus {
+  border-color: #d4a373;
+}
+#chat-input-area button {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #d4a373, #b8860b);
+  color: #1a1410;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#btn-close-chat {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #d4a373, #b8860b);
+  color: #1a1410;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 8px;
+}
 </style>
 </head>
 <body>
@@ -293,15 +391,16 @@ canvas{display:block;touch-action:none;max-width:100%}
 <div id="login-screen" class="screen active">
   <h1>♞ QUORIDOR</h1>
   <div class="sub">Crie sua conta e comece a jogar</div>
-  <form id="login-form" onsubmit="return handleLogin(event)">
+  <form id="login-form">
     <input type="text" id="login-username" placeholder="Nome de usuário" required>
     <input type="password" id="login-password" placeholder="Senha" required>
     <input type="password" id="login-confirm" placeholder="Confirmar senha">
     <div id="login-error"></div>
-    <button type="submit" class="btn-primary" id="login-btn" onclick="toggleMode()">CRIAR CONTA</button>
+    <button type="submit" class="btn-primary" id="login-btn">CRIAR CONTA</button>
   </form>
-  <div class="toggle-link" id="toggle-login" onclick="toggleMode()">Já tem conta? Faça login</div>
+  <div class="toggle-link" id="toggle-login">Já tem conta? Faça login</div>
 </div>
+
 <!-- TELA DE MODOS -->
 <div id="mode-screen" class="screen">
   <div class="header">
@@ -330,12 +429,21 @@ canvas{display:block;touch-action:none;max-width:100%}
     <div class="modo-btn" id="btn-titulos"><span class="icon">🎖️</span><div class="info"><div class="title">Títulos</div><div class="desc"></div></div><span class="arrow">›</span></div>
     <div class="modo-btn" id="btn-medalhas"><span class="icon">🏅</span><div class="info"><div class="title">Medalhas</div><div class="desc"></div></div><span class="arrow">›</span></div>
     <div class="modo-btn" id="btn-trofeus"><span class="icon">🏆</span><div class="info"><div class="title">Troféus</div><div class="desc">Em breve</div></div><span class="arrow">›</span></div>
-    <div class="modo-btn" id="btn-chat"><span class="icon">💬</span><div class="info"><div class="title">Chat Online</div><div class="desc">Converse com outros jogadores</div></div><span class="arrow">›</span></div>
     <div class="modo-btn" id="btn-amigos"><span class="icon">👥</span><div class="info"><div class="title">Amigos</div><div class="desc">Em breve</div></div><span class="arrow">›</span></div>
     <div class="modo-btn" id="btn-skins"><span class="icon">🎨</span><div class="info"><div class="title">Skins</div><div class="desc">Personalize seus peões</div></div><span class="arrow">›</span></div>
+    <!-- Card Chat Online -->
+    <div class="modo-btn" id="btn-chat">
+      <span class="icon">💬</span>
+      <div class="info">
+        <div class="title">Chat Online</div>
+        <div class="desc">Converse com outros jogadores</div>
+      </div>
+      <span class="arrow">›</span>
+    </div>
   </div>
   <div class="daily"><div class="left"><span class="icon">🎁</span><div class="text"><strong>Recompensa diária</strong><br>+200 pontos</div></div><button class="btn-claim" id="btn-claim">Coletar</button></div>
 </div>
+
 <!-- TELA DO JOGO -->
 <div id="game-screen" class="screen">
   <div id="app">
@@ -368,6 +476,7 @@ canvas{display:block;touch-action:none;max-width:100%}
     </div>
   </div>
 </div>
+
 <!-- OVERLAYS -->
 <div id="config-overlay">
   <div id="config-card">
@@ -384,39 +493,7 @@ canvas{display:block;touch-action:none;max-width:100%}
     <button id="btn-voltar">← VOLTAR</button>
   </div>
 </div>
-<div id="sala-overlay"><div id="sala-card"><h2>JOGAR ONLINE <button class="close-btn" id="sala-close" type="button">✕</button></h2>
-<div id="sala-content">
-<input type="text" id="sala-nome-input" class="sala-input" placeholder="Nome da partida" maxlength="24">
-<input type="text" id="sala-senha-input" class="sala-input" placeholder="Senha (opcional)">
-<button type="button" id="btn-criar-sala">CRIAR SALA</button>
-<div class="sala-status" id="sala-status">Salas abertas abaixo. Primeiro a apertar Entrar joga.</div>
-<div id="sala-lista"></div>
-<button type="button" id="btn-close-sala">FECHAR</button>
-</div></div></div>
-<div id="chat-overlay"><div id="chat-card"><h2>💬 CHAT <button class="close-btn" id="chat-close" type="button">✕</button></h2>
-<div id="chat-tabs">
-<button class="chat-tab active" data-chat-tab="geral">🌍 Geral</button>
-<button class="chat-tab" data-chat-tab="salas">🏠 Salas</button>
-</div>
-<div id="chat-panels">
-<div class="chat-panel active" id="panel-geral">
-<div id="chat-messages"></div>
-<div id="chat-input-area">
-<input type="text" id="chat-input" placeholder="Digite sua mensagem...">
-<button id="chat-send">Enviar</button>
-</div>
-</div>
-<div class="chat-panel" id="panel-salas">
-<div id="chat-salas"></div>
-<div id="chat-criar-sala">
-<input type="text" id="chat-sala-nome" placeholder="Nome da sala (ex: amigos)">
-<input type="text" id="chat-sala-senha" placeholder="Senha (opcional)" maxlength="10">
-<button id="chat-criar-sala-btn">Criar</button>
-</div>
-</div>
-</div>
-<button id="btn-close-chat">FECHAR</button>
-</div></div>
+
 <div id="win-overlay"><div id="win-card"><div id="win-message">◈ Jogador Venceu!</div><button id="btn-close-win">FECHAR</button></div></div>
 <div id="confetti-container"></div>
 <div id="stats-overlay"><div id="stats-card"><h2>≡ ESTATÍSTICAS</h2><div id="stats-content"></div><button id="btn-close-stats">FECHAR</button></div></div>
@@ -445,12 +522,14 @@ var currentUser = null;
 // SKINS PRÉ-DEFINIDAS (com categorias)
 // ============================================================
 var SKINS = [
+  // Simples
   { id: 'classic', nome: 'Clássico', forma: 'circle', cor1: '#d4a373', cor2: '#b8860b', preco: 0, categoria: 'simples' },
   { id: 'blue', nome: 'Azul Real', forma: 'circle', cor1: '#4dabf7', cor2: '#1a6bb5', preco: 100, categoria: 'simples' },
   { id: 'gold', nome: 'Dourado', forma: 'diamond', cor1: '#facc15', cor2: '#b8860b', preco: 250, categoria: 'simples' },
   { id: 'emerald', nome: 'Esmeralda', forma: 'hexagon', cor1: '#10b981', cor2: '#065f46', preco: 400, categoria: 'simples' },
   { id: 'ruby', nome: 'Rubi', forma: 'star', cor1: '#ef4444', cor2: '#7f1d1d', preco: 600, categoria: 'simples' },
   { id: 'neon', nome: 'Neon', forma: 'square', cor1: '#22d3ee', cor2: '#0e7490', preco: 800, categoria: 'simples' },
+  // Lendárias
   { id: 'phoenix', nome: 'Fênix Lendária', forma: 'star', cor1: '#ff4500', cor2: '#ffd700', preco: 5000, raridade: 'lendaria', efeito: 'fire', categoria: 'lendarias' },
   { id: 'dragon', nome: 'Dragão Ancestral', forma: 'dragon', cor1: '#8b0000', cor2: '#ff4500', preco: 5000, raridade: 'lendaria', efeito: 'dragon', categoria: 'lendarias' },
   { id: 'blackhole', nome: 'Buraco Negro', forma: 'circle', cor1: '#0a0a12', cor2: '#1a0033', preco: 5000, raridade: 'lendaria', efeito: 'blackhole', categoria: 'lendarias' },
@@ -469,6 +548,7 @@ var SKINS = [
   { id: 'arcane_mage', nome: 'Mago Arcano', forma: 'circle', cor1: '#8a2be2', cor2: '#ff69b4', preco: 5000, raridade: 'lendaria', efeito: 'arcane_mage', categoria: 'lendarias' },
   { id: 'pandora', nome: 'Pandora', forma: 'circle', cor1: '#ffd700', cor2: '#ff4500', preco: 5000, raridade: 'lendaria', efeito: 'pandora', categoria: 'lendarias' },
   { id: 'serpent', nome: 'Serpente', forma: 'circle', cor1: '#32cd32', cor2: '#008000', preco: 5000, raridade: 'lendaria', efeito: 'serpent', categoria: 'lendarias' },
+  // Raras
   { id: 'inferno', nome: 'Inferno', forma: 'circle', cor1: '#ff0000', cor2: '#8b0000', preco: 5000, raridade: 'rara', efeito: 'fire', categoria: 'raras' },
   { id: 'ocean', nome: 'Oceano', forma: 'circle', cor1: '#00bfff', cor2: '#00008b', preco: 5500, raridade: 'rara', efeito: 'water', categoria: 'raras' },
   { id: 'floresta', nome: 'Floresta', forma: 'circle', cor1: '#228b22', cor2: '#006400', preco: 6000, raridade: 'rara', efeito: 'nature', categoria: 'raras' },
@@ -496,10 +576,6 @@ var PATENTES = [
   { nome: 'Eclipse', subdivisoes: 5, pontosPorSub: 130 },
   { nome: 'Lendário', subdivisoes: 1, pontosPorSub: Infinity }
 ];
-
-// ============================================================
-// FUNÇÕES DE AUTENTICAÇÃO
-// ============================================================
 function hashPassword(pass){ return btoa(unescape(encodeURIComponent(pass))); }
 function getAccounts(){ try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY)) || {}; } catch(e){ return {}; } }
 function saveAccounts(accounts){ localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts)); }
@@ -532,9 +608,6 @@ function updateUserStats(username, newStats){
 }
 function showScreen(id){ document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); }); document.getElementById(id).classList.add('active'); }
 
-// ============================================================
-// PATENTES
-// ============================================================
 function obterPatente(points){
   var acumulado = 0;
   for(var i=0;i<PATENTES.length;i++){
@@ -591,272 +664,6 @@ function updateRankDisplay(username){
   var prox = obterProximaPatente(points);
   document.getElementById('rank-indicator-btn').textContent = prox ? 'Próx: ' + prox : 'MAX';
   document.getElementById('rank-progress-fill').style.width = obterProgresso(points) + '%';
-}
-
-// ============================================================
-// FUNÇÕES DE LOGIN GLOBAIS (para onsubmit e onclick)
-// ============================================================
-window.handleLogin = function(e) {
-  if (e) e.preventDefault();
-  var username = document.getElementById('login-username').value.trim();
-  var password = document.getElementById('login-password').value;
-  var confirm = document.getElementById('login-confirm').value;
-  var errorDiv = document.getElementById('login-error');
-
-  if (!username || !password) {
-    if (errorDiv) errorDiv.textContent = 'Preencha todos os campos';
-    return false;
-  }
-
-  var btn = document.getElementById('login-btn');
-  var isLoginMode = btn && btn.textContent === 'ENTRAR';
-
-  if (isLoginMode) {
-    if (loginUser(username, password)) {
-      if (errorDiv) errorDiv.textContent = '';
-      goToModeScreen(username);
-      return true;
-    } else {
-      if (errorDiv) errorDiv.textContent = 'Usuário ou senha inválidos';
-      return false;
-    }
-  } else {
-    if (password !== confirm) {
-      if (errorDiv) errorDiv.textContent = 'As senhas não coincidem';
-      return false;
-    }
-    if (createUser(username, password)) {
-      loginUser(username, password);
-      if (errorDiv) errorDiv.textContent = '';
-      goToModeScreen(username);
-      return true;
-    } else {
-      if (errorDiv) errorDiv.textContent = 'Usuário já existe';
-      return false;
-    }
-  }
-};
-
-window.toggleMode = function() {
-  var btn = document.getElementById('login-btn');
-  var toggle = document.getElementById('toggle-login');
-  var confirmField = document.getElementById('login-confirm');
-  if (btn) {
-    if (btn.textContent === 'CRIAR CONTA') {
-      btn.textContent = 'ENTRAR';
-      if (toggle) toggle.textContent = 'Não tem conta? Cadastre-se';
-      if (confirmField) confirmField.style.display = 'none';
-    } else {
-      btn.textContent = 'CRIAR CONTA';
-      if (toggle) toggle.textContent = 'Já tem conta? Faça login';
-      if (confirmField) confirmField.style.display = 'block';
-    }
-  }
-  return false;
-};
-
-function goToModeScreen(username){
-  currentUser = username;
-  var stats = getUserStats(username);
-  document.getElementById('user-name').textContent = username;
-  document.getElementById('user-avatar').textContent = username[0].toUpperCase();
-  document.getElementById('stat-games-mode').textContent = stats.games;
-  document.getElementById('stat-wins-mode').textContent = stats.wins;
-  document.getElementById('stat-streak').textContent = stats.streak || 0;
-  document.getElementById('user-level').textContent = 'Nível ' + (stats.level || 1);
-  updateRankDisplay(username);
-  showScreen('mode-screen');
-}
-
-// ============================================================
-// SKINS ANIMADAS (DRAWSKINPREVIEW)
-// ============================================================
-function drawSkinPreview(canvas, skin) {
-  if (!canvas) return;
-  var ctx = canvas.getContext('2d');
-  var w = canvas.width, h = canvas.height;
-  var cx = w/2, cy = h/2;
-  var rad = Math.min(w, h) * 0.42;
-
-  function animate(time) {
-    ctx.clearRect(0, 0, w, h);
-    var t = time / 1000;
-    var grad = ctx.createRadialGradient(cx - rad*0.3, cy - rad*0.35, rad*0.05, cx, cy, rad);
-    grad.addColorStop(0, skin.cor1);
-    grad.addColorStop(1, skin.cor2);
-    ctx.fillStyle = grad;
-    ctx.shadowColor = 'rgba(255,255,255,0.1)';
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    var forma = skin.forma || 'circle';
-    if (forma === 'dragon') {
-      ctx.ellipse(cx, cy + rad*0.1, rad*0.7, rad*0.85, 0, 0, Math.PI*2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.fillStyle = skin.cor2;
-      ctx.beginPath();
-      ctx.moveTo(cx - rad*0.3, cy);
-      ctx.quadraticCurveTo(cx - rad*1.2, cy - rad*0.7, cx - rad*0.5, cy - rad*1.0);
-      ctx.quadraticCurveTo(cx - rad*0.8, cy - rad*0.3, cx - rad*0.3, cy);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(cx + rad*0.3, cy);
-      ctx.quadraticCurveTo(cx + rad*1.2, cy - rad*0.7, cx + rad*0.5, cy - rad*1.0);
-      ctx.quadraticCurveTo(cx + rad*0.8, cy - rad*0.3, cx + rad*0.3, cy);
-      ctx.fill();
-    } else {
-      switch(forma) {
-        case 'circle': ctx.arc(cx, cy, rad, 0, Math.PI*2); break;
-        case 'square': ctx.rect(cx-rad, cy-rad, rad*2, rad*2); break;
-        case 'diamond': ctx.moveTo(cx, cy-rad); ctx.lineTo(cx+rad, cy); ctx.lineTo(cx, cy+rad); ctx.lineTo(cx-rad, cy); ctx.closePath(); break;
-        case 'hexagon': for(var k=0;k<6;k++){ var a=Math.PI/6+k*Math.PI/3; var hx=cx+rad*Math.cos(a), hy=cy+rad*Math.sin(a); if(k===0) ctx.moveTo(hx,hy); else ctx.lineTo(hx,hy); } ctx.closePath(); break;
-        case 'star': for(var k=0;k<10;k++){ var a=-Math.PI/2+k*Math.PI/5; var r=k%2===0?rad:rad*0.5; var sx=cx+r*Math.cos(a), sy=cy+r*Math.sin(a); if(k===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy); } ctx.closePath(); break;
-        default: ctx.arc(cx, cy, rad, 0, Math.PI*2);
-      }
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-      ctx.lineWidth = 1.2;
-      ctx.stroke();
-    }
-
-    var efeito = skin.efeito || '';
-    if (efeito === 'fire' || efeito === 'volcano' || efeito === 'inferno' || efeito === 'lava' || efeito === 'meteor') {
-      var cor = efeito==='volcano'?'#ff4500':efeito==='inferno'?'#ff0000':efeito==='lava'?'#ff4500':efeito==='meteor'?'#ff8c00':'#ff4500';
-      for(var i=0;i<8;i++){ var a=t*3+i*0.5; var d=Math.sin(t*5+i)*rad*0.5; var fx=cx+Math.cos(a)*d; var fy=cy-rad-i*1.8+Math.sin(t*8+i)*2.5; ctx.fillStyle=i%2===0?cor:'#ffd700'; ctx.globalAlpha=0.7-i*0.05; ctx.beginPath(); ctx.arc(fx,fy,1.5+Math.sin(t+i)*0.5,0,Math.PI*2); ctx.fill(); } ctx.globalAlpha=1;
-    } else if (efeito === 'dragon') {
-      for(var i=0;i<10;i++){ var a=t*2.5+i*0.35; var d=Math.sin(t*4+i)*rad*0.6+rad*0.3; var fx=cx+Math.cos(a)*d*0.6; var fy=cy-rad*0.7-i*1.2+Math.sin(t*6+i)*3; ctx.fillStyle=i%3===0?'#ffd700':'#ff4500'; ctx.globalAlpha=0.8-i*0.04; ctx.beginPath(); ctx.arc(fx,fy,1.5+Math.sin(t*5+i)*0.5,0,Math.PI*2); ctx.fill(); } ctx.globalAlpha=1;
-    } else if (efeito === 'blackhole') {
-      for(var i=0;i<20;i++){ var a=t*1.8+i*(Math.PI*2/20); var r1=rad*0.9+Math.sin(t*3+i)*rad*0.08; var r2=rad*1.2+Math.cos(t*2.5+i)*rad*0.1; var c1=cx+Math.cos(a)*r1; var c2=cy+Math.sin(a)*r1*0.55; var c3=cx+Math.cos(a+0.15)*r2; var c4=cy+Math.sin(a+0.15)*r2*0.55; ctx.strokeStyle=i%2===0?'rgba(255,140,0,0.5)':'rgba(180,40,255,0.4)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(c1,c2); ctx.lineTo(c3,c4); ctx.stroke(); } ctx.strokeStyle='rgba(255,200,80,0.5)'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.ellipse(cx,cy,rad*0.8,rad*0.4,0,0,Math.PI*2); ctx.stroke();
-    } else if (efeito === 'ice' || efeito === 'ice_dragon') {
-      for(var i=0;i<6;i++){ var a=t*1.5+i*0.63; var d=rad*0.9+Math.sin(t*2+i)*rad*0.3; var ix=cx+Math.cos(a)*d; var iy=cy+Math.sin(a)*d; ctx.fillStyle='#e0ffff'; ctx.globalAlpha=0.6; ctx.beginPath(); ctx.arc(ix,iy,1.5+Math.sin(t+i)*0.5,0,Math.PI*2); ctx.fill(); } ctx.globalAlpha=1;
-    } else if (efeito === 'shadow') {
-      for(var i=0;i<6;i++){ var a=t*1.2+i*0.8; var d=rad*0.9+Math.sin(t*3+i)*rad*0.4; var sx=cx+Math.cos(a)*d; var sy=cy+Math.sin(a)*d*0.6; ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.quadraticCurveTo(cx+Math.cos(a)*d*0.5,cy+Math.sin(a)*d*0.3,sx,sy); ctx.stroke(); }
-    } else if (efeito === 'nature' || efeito === 'floresta') {
-      for(var i=0;i<8;i++){ var a=t*0.8+i*0.52; var d=rad*0.9+Math.sin(t*2+i)*rad*0.3; var nx=cx+Math.cos(a)*d; var ny=cy+Math.sin(a)*d; ctx.fillStyle=i%2===0?'#32cd32':'#228b22'; ctx.globalAlpha=0.6; ctx.beginPath(); ctx.arc(nx,ny,1.8,0,Math.PI*2); ctx.fill(); } ctx.globalAlpha=1;
-    } else if (efeito === 'cosmic_eye') {
-      ctx.strokeStyle='#ff00ff'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(cx,cy,rad*0.9,0,Math.PI*2); ctx.stroke(); ctx.fillStyle='#ff00ff'; ctx.beginPath(); ctx.arc(cx,cy,rad*0.15,0,Math.PI*2); ctx.fill(); var ea=t*2; ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cx+Math.cos(ea)*rad*0.3,cy+Math.sin(ea)*rad*0.3,rad*0.1,0,Math.PI*2); ctx.fill();
-    } else if (efeito === 'wind') {
-      for(var i=0;i<8;i++){ var a=t*4+i*(Math.PI*2/8); var d=rad*0.9+Math.sin(t*8+i)*rad*0.3; var x1=cx+Math.cos(a)*d; var y1=cy+Math.sin(a)*d*0.5; ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x1+Math.cos(a)*6,y1+Math.sin(a)*3); ctx.stroke(); }
-    } else if (efeito === 'arcane_mage') {
-      for(var i=0;i<6;i++){ var a=t*1.2+i*(Math.PI*2/6); var d=rad; var mx=cx+Math.cos(a)*d; var my=cy+Math.sin(a)*d; ctx.fillStyle='#8a2be2'; ctx.globalAlpha=0.5+Math.sin(t*3+i)*0.3; ctx.font='10px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('✦',mx,my); } ctx.globalAlpha=1;
-    } else if (efeito === 'pandora') {
-      for(var i=0;i<6;i++){ var a=t*2+i*0.63; var d=rad*0.9+Math.sin(t*5+i)*rad*0.4; var px=cx+Math.cos(a)*d; var py=cy+Math.sin(a)*d; ctx.fillStyle=['#ffd700','#ff4500','#00ffff','#ff00ff'][i%4]; ctx.globalAlpha=0.7; ctx.beginPath(); ctx.arc(px,py,1.5,0,Math.PI*2); ctx.fill(); } ctx.globalAlpha=1;
-    } else if (efeito === 'serpent') {
-      for(var i=0;i<6;i++){ var a=t*1.5+i*0.8; var d=rad*0.9; var sx=cx+Math.cos(a)*d; var sy=cy+Math.sin(a)*d; ctx.strokeStyle='#32cd32'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.quadraticCurveTo(cx+Math.cos(a)*d*0.5,cy+Math.sin(a)*d*0.3,sx,sy); ctx.stroke(); }
-    } else if (efeito === 'water' || efeito === 'ocean') {
-      for(var i=0;i<6;i++){ var a=t*1.5+i*0.63; var d=rad*0.9+Math.sin(t*2+i)*rad*0.3; var wx=cx+Math.cos(a)*d; var wy=cy+Math.sin(a)*d; ctx.fillStyle='#00bfff'; ctx.globalAlpha=0.5; ctx.beginPath(); ctx.arc(wx,wy,1.8,0,Math.PI*2); ctx.fill(); } ctx.globalAlpha=1;
-    } else if (efeito === 'sand' || efeito === 'deserto') {
-      for(var i=0;i<6;i++){ var a=t*2+i*0.63; var d=rad*0.9+Math.sin(t*3+i)*rad*0.3; var sx=cx+Math.cos(a)*d; var sy=cy+Math.sin(a)*d; ctx.fillStyle='#edc9af'; ctx.globalAlpha=0.5; ctx.beginPath(); ctx.arc(sx,sy,1.2,0,Math.PI*2); ctx.fill(); } ctx.globalAlpha=1;
-    } else if (efeito === 'sky' || efeito === 'ceu') {
-      for(var i=0;i<6;i++){ var a=t*1.5+i*0.8; var d=rad*0.9; var sx=cx+Math.cos(a)*d; var sy=cy+Math.sin(a)*d*0.5; ctx.fillStyle='#87ceeb'; ctx.globalAlpha=0.4; ctx.beginPath(); ctx.arc(sx,sy,1.5,0,Math.PI*2); ctx.fill(); } ctx.globalAlpha=1;
-    } else if (efeito === 'ghost' || efeito === 'espectral') {
-      for(var i=0;i<6;i++){ var a=t*1.5+i*1.0; var d=rad*0.9; var gx=cx+Math.cos(a)*d; var gy=cy+Math.sin(a)*d*0.6; ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(gx,gy,2,0,Math.PI*2); ctx.stroke(); }
-    } else if (efeito === 'crown' || efeito === 'rei') {
-      ctx.fillStyle='#ffd700'; ctx.beginPath(); ctx.moveTo(cx-rad*0.4,cy-rad*0.5); ctx.lineTo(cx-rad*0.4,cy-rad*0.8); ctx.lineTo(cx-rad*0.15,cy-rad*0.65); ctx.lineTo(cx,cy-rad*0.9); ctx.lineTo(cx+rad*0.15,cy-rad*0.65); ctx.lineTo(cx+rad*0.4,cy-rad*0.8); ctx.lineTo(cx+rad*0.4,cy-rad*0.5); ctx.closePath(); ctx.fill();
-    }
-
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold ' + Math.round(rad*0.65) + 'px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('1', cx, cy + (forma==='dragon'?rad*0.25:0));
-
-    requestAnimationFrame(animate);
-  }
-  requestAnimationFrame(animate);
-}
-
-// ============================================================
-// SKINS (LOJA)
-// ============================================================
-var currentSkinsTab = 'simples';
-function openSkins(){ renderSkinsList(); document.getElementById('skins-overlay').classList.add('show'); }
-function closeSkins(){ document.getElementById('skins-overlay').classList.remove('show'); }
-
-document.querySelectorAll('.skin-tab').forEach(function(tab){
-  tab.addEventListener('click', function(){
-    document.querySelectorAll('.skin-tab').forEach(function(t){ t.classList.remove('active'); });
-    this.classList.add('active');
-    currentSkinsTab = this.getAttribute('data-tab');
-    renderSkinsList();
-  });
-});
-
-function renderSkinsList() {
-  var stats = getUserStats(currentUser);
-  var list = document.getElementById('skins-list');
-  var balance = document.getElementById('skins-balance');
-  balance.textContent = '💎 Pontos: ' + (stats.points || 0);
-  list.innerHTML = '';
-  var filteredSkins = SKINS.filter(function(skin) {
-    if (currentSkinsTab === 'simples') return skin.categoria === 'simples';
-    if (currentSkinsTab === 'lendarias') return skin.categoria === 'lendarias';
-    if (currentSkinsTab === 'raras') return skin.categoria === 'raras';
-    if (currentSkinsTab === 'eventos') return skin.categoria === 'eventos';
-    if (currentSkinsTab === 'paises') return skin.categoria === 'paises';
-    return false;
-  });
-  if (filteredSkins.length === 0) {
-    list.innerHTML = '<div class="history-empty" style="color:#b8a99a;padding:30px 0;text-align:center;">Nenhuma skin disponível nesta categoria.</div>';
-    return;
-  }
-  for (var i=0; i<filteredSkins.length; i++) {
-    var skin = filteredSkins[i];
-    var owned = (stats.ownedSkins||[]).indexOf(skin.id) !== -1;
-    var equipped = stats.equippedSkin === skin.id;
-    var item = document.createElement('div');
-    item.className = 'skin-item' + (owned ? ' owned' : '');
-    var previewCanvas = document.createElement('canvas');
-    previewCanvas.style.width = '48px';
-    previewCanvas.style.height = '48px';
-    previewCanvas.width = 48;
-    previewCanvas.height = 48;
-    drawSkinPreview(previewCanvas, skin);
-    var previewSpan = document.createElement('span');
-    previewSpan.className = 'skin-preview';
-    previewSpan.appendChild(previewCanvas);
-    var raridadeHtml = skin.raridade ? '<span class="skin-raridade">' + skin.raridade.toUpperCase() + '</span>' : '';
-    item.appendChild(previewSpan);
-    var infoDiv = document.createElement('div');
-    infoDiv.className = 'skin-info';
-    infoDiv.innerHTML = '<div class="skin-name">' + skin.nome + ' ' + raridadeHtml + '</div><div class="skin-price">' + (owned ? (equipped ? 'Equipada' : 'Possuída') : 'Preço: ' + skin.preco + ' pts') + '</div>';
-    item.appendChild(infoDiv);
-    var btn = document.createElement('button');
-    if (!owned) { btn.className = 'skin-btn buy'; btn.textContent = 'Comprar'; btn.setAttribute('data-skin-id', skin.id); }
-    else if (equipped) { btn.className = 'skin-btn equipped'; btn.disabled = true; btn.textContent = '✓ Em uso'; }
-    else { btn.className = 'skin-btn equip'; btn.textContent = 'Equipar'; btn.setAttribute('data-skin-id', skin.id); }
-    item.appendChild(btn);
-    list.appendChild(item);
-  }
-  list.querySelectorAll('.skin-btn.buy').forEach(function(btn) {
-    btn.addEventListener('click', function(e){ e.stopPropagation(); buySkin(this.getAttribute('data-skin-id')); });
-  });
-  list.querySelectorAll('.skin-btn.equip').forEach(function(btn) {
-    btn.addEventListener('click', function(e){ e.stopPropagation(); equipSkin(this.getAttribute('data-skin-id')); });
-  });
-}
-function buySkin(skinId) {
-  var stats = getUserStats(currentUser);
-  var skin = SKINS.find(function(s){ return s.id===skinId; });
-  if (!skin || (stats.ownedSkins||[]).indexOf(skinId)!==-1) return;
-  if ((stats.points||0) < skin.preco){ alert('Pontos insuficientes!'); return; }
-  stats.points -= skin.preco;
-  if (!stats.ownedSkins) stats.ownedSkins = ['classic'];
-  stats.ownedSkins.push(skinId);
-  updateUserStats(currentUser, stats);
-  renderSkinsList();
-}
-function equipSkin(skinId) {
-  var stats = getUserStats(currentUser);
-  if ((stats.ownedSkins||[]).indexOf(skinId)===-1) return;
-  stats.equippedSkin = skinId;
-  updateUserStats(currentUser, stats);
-  renderSkinsList();
-  if (document.getElementById('game-screen').classList.contains('active')) draw();
 }
 
 // ============================================================
@@ -955,7 +762,7 @@ function openRanks(){
 function closeRanks(){ document.getElementById('ranks-overlay').classList.remove('show'); }
 
 // ============================================================
-// TÍTULOS (COMPLETO)
+// LISTAS COMPLETAS DE TÍTULOS
 // ============================================================
 var TITLES = [
   { minWins: 1, title: 'Primeiro Passo' },
@@ -1371,9 +1178,6 @@ var IA_WINS_TITLES = [
   { minVsIAWins: 10000, title: 'Despertar da IA' }
 ];
 
-// ============================================================
-// FUNÇÕES DOS TÍTULOS
-// ============================================================
 function getTitleRequirement(title){
   if(title === 'Recruta') return 'Título inicial.';
   var arrays = [TITLES, SEQUENCE_TITLES, GAMES_PLAYED_TITLES, LEVEL_TITLES, LOCAL_GAMES_TITLES, IA_WINS_TITLES];
@@ -1471,6 +1275,252 @@ document.getElementById('title-search').addEventListener('input', function(){
 });
 
 // ============================================================
+// SKINS OVERLAY (com abas e preview real)
+// ============================================================
+var currentSkinsTab = 'simples';
+
+function openSkins(){ renderSkinsList(); document.getElementById('skins-overlay').classList.add('show'); }
+function closeSkins(){ document.getElementById('skins-overlay').classList.remove('show'); }
+
+document.querySelectorAll('.skin-tab').forEach(function(tab){
+  tab.addEventListener('click', function(){
+    document.querySelectorAll('.skin-tab').forEach(function(t){ t.classList.remove('active'); });
+    this.classList.add('active');
+    currentSkinsTab = this.getAttribute('data-tab');
+    renderSkinsList();
+  });
+});
+
+function drawSkinPreview(canvas, skin){
+  if(!canvas) return;
+  var ctx = canvas.getContext('2d');
+  canvas.width = 36; canvas.height = 36;
+  ctx.clearRect(0,0,36,36);
+  var x = 18, y = 18, rad = 12;
+  // Desenha a forma
+  ctx.save();
+  var grad = ctx.createRadialGradient(x - rad*0.3, y - rad*0.35, rad*0.05, x, y, rad);
+  grad.addColorStop(0, skin.cor1);
+  grad.addColorStop(1, skin.cor2);
+  ctx.fillStyle = grad;
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  if(skin.forma === 'dragon'){
+    ctx.ellipse(x, y + rad*0.1, rad*0.75, rad*0.9, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+    // Adiciona chifres
+    ctx.fillStyle = skin.cor2;
+    ctx.beginPath();
+    ctx.moveTo(x - rad*0.3, y);
+    ctx.quadraticCurveTo(x - rad*1.4, y - rad*0.8, x - rad*0.5, y - rad*1.1);
+    ctx.quadraticCurveTo(x - rad*0.9, y - rad*0.3, x - rad*0.3, y);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + rad*0.3, y);
+    ctx.quadraticCurveTo(x + rad*1.4, y - rad*0.8, x + rad*0.5, y - rad*1.1);
+    ctx.quadraticCurveTo(x + rad*0.9, y - rad*0.3, x + rad*0.3, y);
+    ctx.fill();
+  } else {
+    switch(skin.forma){
+      case 'circle': ctx.arc(x, y, rad, 0, Math.PI*2); break;
+      case 'square': ctx.rect(x-rad, y-rad, rad*2, rad*2); break;
+      case 'diamond':
+        ctx.moveTo(x, y-rad); ctx.lineTo(x+rad, y); ctx.lineTo(x, y+rad); ctx.lineTo(x-rad, y); ctx.closePath(); break;
+      case 'hexagon':
+        for(var k=0;k<6;k++){
+          var angle = Math.PI/6 + k*Math.PI/3;
+          var hx = x + rad*Math.cos(angle), hy = y + rad*Math.sin(angle);
+          if(k===0) ctx.moveTo(hx,hy); else ctx.lineTo(hx,hy);
+        }
+        ctx.closePath(); break;
+      case 'star':
+        for(var k=0;k<10;k++){
+          var angle = -Math.PI/2 + k*Math.PI/5;
+          var radius = k%2===0 ? rad : rad*0.5;
+          var sx = x + radius*Math.cos(angle), sy = y + radius*Math.sin(angle);
+          if(k===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+        }
+        ctx.closePath(); break;
+      default: ctx.arc(x, y, rad, 0, Math.PI*2);
+    }
+    ctx.fill();
+    ctx.stroke();
+  }
+  // Número do peão (opcional)
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 8px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('1', x, y + (skin.forma==='dragon'?rad*0.25:0));
+  ctx.restore();
+}
+
+function renderSkinsList(){
+  var stats = getUserStats(currentUser);
+  var list = document.getElementById('skins-list');
+  var balance = document.getElementById('skins-balance');
+  balance.textContent = '💎 Pontos: ' + (stats.points || 0);
+  list.innerHTML = '';
+  var filteredSkins = SKINS.filter(function(skin){
+    if(currentSkinsTab === 'simples') return skin.categoria === 'simples';
+    if(currentSkinsTab === 'lendarias') return skin.categoria === 'lendarias';
+    if(currentSkinsTab === 'raras') return skin.categoria === 'raras';
+    if(currentSkinsTab === 'eventos') return skin.categoria === 'eventos';
+    if(currentSkinsTab === 'paises') return skin.categoria === 'paises';
+    return false;
+  });
+  if(filteredSkins.length === 0){
+    list.innerHTML = '<div class="history-empty" style="color:#b8a99a;padding:30px 0;text-align:center;">Nenhuma skin disponível nesta categoria.</div>';
+    return;
+  }
+  for(var i=0;i<filteredSkins.length;i++){
+    var skin = filteredSkins[i];
+    var owned = (stats.ownedSkins||[]).indexOf(skin.id) !== -1;
+    var equipped = stats.equippedSkin === skin.id;
+    var item = document.createElement('div');
+    item.className = 'skin-item' + (owned ? ' owned' : '');
+    // Cria preview canvas
+    var previewCanvas = document.createElement('canvas');
+    previewCanvas.className = 'skin-preview-canvas';
+    previewCanvas.style.width = '36px';
+    previewCanvas.style.height = '36px';
+    drawSkinPreview(previewCanvas, skin);
+    var previewSpan = document.createElement('span');
+    previewSpan.className = 'skin-preview';
+    previewSpan.appendChild(previewCanvas);
+    var raridadeHtml = skin.raridade ? '<span class="skin-raridade">' + skin.raridade.toUpperCase() + '</span>' : '';
+    item.appendChild(previewSpan);
+    var infoDiv = document.createElement('div');
+    infoDiv.className = 'skin-info';
+    infoDiv.innerHTML = '<div class="skin-name">' + skin.nome + ' ' + raridadeHtml + '</div>' +
+      '<div class="skin-price">' + (owned ? (equipped ? 'Equipada' : 'Possuída') : 'Preço: ' + skin.preco + ' pts') + '</div>';
+    item.appendChild(infoDiv);
+    var btn = document.createElement('button');
+    if(!owned){
+      btn.className = 'skin-btn buy';
+      btn.textContent = 'Comprar';
+      btn.setAttribute('data-skin-id', skin.id);
+    } else if(equipped){
+      btn.className = 'skin-btn equipped';
+      btn.disabled = true;
+      btn.textContent = '✓ Em uso';
+    } else {
+      btn.className = 'skin-btn equip';
+      btn.textContent = 'Equipar';
+      btn.setAttribute('data-skin-id', skin.id);
+    }
+    item.appendChild(btn);
+    list.appendChild(item);
+  }
+  list.querySelectorAll('.skin-btn.buy').forEach(function(btn){
+    btn.addEventListener('click', function(e){ e.stopPropagation(); buySkin(this.getAttribute('data-skin-id')); });
+  });
+  list.querySelectorAll('.skin-btn.equip').forEach(function(btn){
+    btn.addEventListener('click', function(e){ e.stopPropagation(); equipSkin(this.getAttribute('data-skin-id')); });
+  });
+}
+function buySkin(skinId){
+  var stats = getUserStats(currentUser);
+  var skin = SKINS.find(function(s){ return s.id===skinId; });
+  if(!skin || (stats.ownedSkins||[]).indexOf(skinId)!==-1) return;
+  if((stats.points||0) < skin.preco){ alert('Pontos insuficientes!'); return; }
+  stats.points -= skin.preco;
+  if(!stats.ownedSkins) stats.ownedSkins = ['classic'];
+  stats.ownedSkins.push(skinId);
+  updateUserStats(currentUser, stats);
+  renderSkinsList();
+}
+function equipSkin(skinId){
+  var stats = getUserStats(currentUser);
+  if((stats.ownedSkins||[]).indexOf(skinId)===-1) return;
+  stats.equippedSkin = skinId;
+  updateUserStats(currentUser, stats);
+  renderSkinsList();
+  if(document.getElementById('game-screen').classList.contains('active')) draw();
+}
+
+// ============================================================
+// INSPECT OVERLAY (CORRIGIDO PARA AMBOS OS JOGADORES)
+// ============================================================
+function openInspect(playerIndex, viewer){
+  var content = document.getElementById('inspect-content');
+  content.innerHTML = '';
+  var stats = getStats();
+  var name = playerIndex === 0 ? G.p1Name : G.p2Name;
+  var data = [];
+  if(playerIndex === 0 && currentUser){
+    data = [
+      {label:'Nome',value:name},{label:'Título',value:stats.equippedTitle||'Recruta'},
+      {label:'Patente',value:getRank(stats.rankPoints)},{label:'Nível',value:stats.level||1},
+      {label:'Partidas',value:stats.games},{label:'Vitórias',value:stats.winsP1},
+      {label:'Derrotas',value:stats.losses},
+      {label:'Taxa de vitórias',value:(stats.games>0?((stats.winsP1/stats.games)*100).toFixed(1)+'%':'0%')},
+      {label:'Pontos (ELO)',value:stats.rankPoints.toFixed(1)},
+      {label:'Estilo de jogo',value:stats.games>0?(stats.totalWalls/stats.games>=4?'Estrategista':stats.totalWalls/stats.games>=2?'Equilibrado':'Agressivo'):'Indefinido'}
+    ];
+  } else if(playerIndex === 1 && G.vsIA){
+    data = [{label:'Nome',value:name},{label:'Tipo',value:'Inteligência Artificial'},{label:'Dificuldade',value:G.nivelIA.toUpperCase()}];
+  } else {
+    data = [{label:'Nome',value:name},{label:'Tipo',value:'Jogador Local'},{label:'Título',value:'Nenhum'}];
+  }
+  for(var i=0;i<data.length;i++){
+    var item = document.createElement('div');
+    item.className = 'inspect-item';
+    item.innerHTML = '<span class="label">' + data[i].label + '</span><span class="value">' + data[i].value + '</span>';
+    content.appendChild(item);
+  }
+  var inspectCard = document.getElementById('inspect-card');
+  if (!G.vsIA && G.turn === 1) {
+    inspectCard.classList.add('rotated');
+  } else {
+    inspectCard.classList.remove('rotated');
+  }
+  document.getElementById('inspect-overlay').classList.add('show');
+}
+function closeInspect(){ document.getElementById('inspect-overlay').classList.remove('show'); document.getElementById('inspect-card').classList.remove('rotated'); }
+
+// ============================================================
+// SISTEMA DE XP E PONTOS
+// ============================================================
+function xpParaProximoNivel(nivel){ return Math.floor(100 * Math.pow(nivel, 1.5)); }
+function calcularXP(winner, playerIndex, wallsPlaced, moveCount, timeLeft, timeTotal, streak){
+  var base = winner === playerIndex ? 50 : 20;
+  var bonusWall = wallsPlaced === 0 ? 15 : wallsPlaced <= 2 ? 10 : wallsPlaced <= 5 ? 5 : 0;
+  var bonusMove = moveCount <= 10 ? 15 : Math.max(0, 15 - (moveCount - 10) * 2);
+  var bonusTime = timeLeft > timeTotal * 0.5 ? 10 : 0;
+  var bonusStreak = streak >= 10 ? 20 : streak >= 5 ? 10 : streak >= 2 ? 5 : 0;
+  if(winner !== playerIndex){ bonusWall=Math.min(bonusWall,5); bonusMove=Math.min(bonusMove,5); bonusTime=0; bonusStreak=0; }
+  return base + bonusWall + bonusMove + bonusTime + bonusStreak;
+}
+function aplicarXP(stats, xp){
+  stats.xp = (stats.xp||0) + xp;
+  while(stats.level < 100 && stats.xp >= xpParaProximoNivel(stats.level)){
+    stats.xp -= xpParaProximoNivel(stats.level);
+    stats.level++;
+  }
+  if(stats.level >= 100) stats.xp = Math.min(stats.xp, xpParaProximoNivel(100));
+  return stats;
+}
+function calcularPontosPartida(winner, playerIndex, wallsPlaced, moveCount, totalRounds, timeLeft, timeTotal, streak){
+  if(playerIndex !== winner){
+    var penalty = -5;
+    if(wallsPlaced >= 5) penalty -= 2;
+    if(moveCount >= 20) penalty -= 2;
+    if(streak >= 3) penalty -= 2;
+    if(timeLeft < timeTotal * 0.5) penalty -= 1;
+    return Math.max(-15, penalty);
+  }
+  var base = 15;
+  var bonusMove = moveCount <= 10 ? 6 : Math.max(0, 6 - (moveCount - 10) * 0.5);
+  var bonusWall = wallsPlaced === 0 ? 4 : wallsPlaced <= 2 ? 3 : wallsPlaced <= 5 ? 2 : 0;
+  var bonusStreak = streak >= 10 ? 5 : streak >= 5 ? 3 : streak >= 2 ? 2 : 0;
+  var bonusTime = timeLeft > timeTotal * 0.5 ? 3 : 0;
+  return Math.min(35, Math.round((base + bonusMove + bonusWall + bonusStreak + bonusTime) * 10) / 10);
+}
+
+// ============================================================
 // RENDERIZAÇÃO DE HISTÓRICO E PERFIL
 // ============================================================
 function renderHistory(){
@@ -1543,45 +1593,6 @@ function openProfile(){
   document.getElementById('profile-overlay').classList.add('show');
 }
 function closeProfile(){ document.getElementById('profile-overlay').classList.remove('show'); document.querySelectorAll('.profile-item').forEach(function(el){ el.classList.remove('active'); }); }
-
-// ============================================================
-// SISTEMA DE XP E PONTOS
-// ============================================================
-function xpParaProximoNivel(nivel){ return Math.floor(100 * Math.pow(nivel, 1.5)); }
-function calcularXP(winner, playerIndex, wallsPlaced, moveCount, timeLeft, timeTotal, streak){
-  var base = winner === playerIndex ? 50 : 20;
-  var bonusWall = wallsPlaced === 0 ? 15 : wallsPlaced <= 2 ? 10 : wallsPlaced <= 5 ? 5 : 0;
-  var bonusMove = moveCount <= 10 ? 15 : Math.max(0, 15 - (moveCount - 10) * 2);
-  var bonusTime = timeLeft > timeTotal * 0.5 ? 10 : 0;
-  var bonusStreak = streak >= 10 ? 20 : streak >= 5 ? 10 : streak >= 2 ? 5 : 0;
-  if(winner !== playerIndex){ bonusWall=Math.min(bonusWall,5); bonusMove=Math.min(bonusMove,5); bonusTime=0; bonusStreak=0; }
-  return base + bonusWall + bonusMove + bonusTime + bonusStreak;
-}
-function aplicarXP(stats, xp){
-  stats.xp = (stats.xp||0) + xp;
-  while(stats.level < 100 && stats.xp >= xpParaProximoNivel(stats.level)){
-    stats.xp -= xpParaProximoNivel(stats.level);
-    stats.level++;
-  }
-  if(stats.level >= 100) stats.xp = Math.min(stats.xp, xpParaProximoNivel(100));
-  return stats;
-}
-function calcularPontosPartida(winner, playerIndex, wallsPlaced, moveCount, totalRounds, timeLeft, timeTotal, streak){
-  if(playerIndex !== winner){
-    var penalty = -5;
-    if(wallsPlaced >= 5) penalty -= 2;
-    if(moveCount >= 20) penalty -= 2;
-    if(streak >= 3) penalty -= 2;
-    if(timeLeft < timeTotal * 0.5) penalty -= 1;
-    return Math.max(-15, penalty);
-  }
-  var base = 15;
-  var bonusMove = moveCount <= 10 ? 6 : Math.max(0, 6 - (moveCount - 10) * 0.5);
-  var bonusWall = wallsPlaced === 0 ? 4 : wallsPlaced <= 2 ? 3 : wallsPlaced <= 5 ? 2 : 0;
-  var bonusStreak = streak >= 10 ? 5 : streak >= 5 ? 3 : streak >= 2 ? 2 : 0;
-  var bonusTime = timeLeft > timeTotal * 0.5 ? 3 : 0;
-  return Math.min(35, Math.round((base + bonusMove + bonusWall + bonusStreak + bonusTime) * 10) / 10);
-}
 
 // ============================================================
 // LOGIN E NAVEGAÇÃO
@@ -1663,7 +1674,7 @@ document.getElementById('btn-close-profile').addEventListener('click', closeProf
 document.getElementById('profile-overlay').addEventListener('click', function(e){ if(e.target === e.currentTarget) closeProfile(); });
 document.getElementById('btn-vs-ia').addEventListener('click', function(){ prepararConfiguracao(true); });
 document.getElementById('btn-2p').addEventListener('click', function(){ prepararConfiguracao(false); });
-document.getElementById('btn-online').addEventListener('click', function(){});
+document.getElementById('btn-online').addEventListener('click', function(){ alert('Modo Online em breve!'); });
 document.getElementById('btn-ranking').addEventListener('click', function(){ alert('Classificação em breve!'); });
 document.getElementById('btn-titulos').addEventListener('click', openTitles);
 document.getElementById('btn-medalhas').addEventListener('click', openMedals);
@@ -1769,9 +1780,7 @@ function saveStats(stats){
   updateUserStats(currentUser, userStats);
 }
 
-// ============================================================
-// DRAW PAWN (COMPLETO - COM EFEITOS DE SKINS)
-// ============================================================
+/* DRAW PAWN COM EFEITOS LENDÁRIOS E RAROS */
 function drawPawn(p, x, y, rad, active, rotateText){
   var skinId = null;
   if(p === 0 && currentUser){
@@ -2148,9 +2157,6 @@ function drawPawn(p, x, y, rad, active, rotateText){
   else ctx.fillText(String(p+1), x, y);
 }
 
-// ============================================================
-// FUNÇÕES DO TABULEIRO (COMPLETAS)
-// ============================================================
 function resize(){
   var container = document.getElementById('canvas-container');
   var maxW = Math.min(window.innerWidth - 20, 600);
@@ -2176,7 +2182,6 @@ function isBlocked(r,c,dr,dc,pH,pV){
   if(dc===1) return pV.some(function(w){ return w[1]===c && (w[0]===r||w[0]===r-1); });
   return false;
 }
-
 function hasPath(player,pH,pV,positions){
   var pos = positions || G.pos;
   var sr = pos[player][0], sc = pos[player][1];
@@ -2198,7 +2203,6 @@ function hasPath(player,pH,pV,positions){
   }
   return false;
 }
-
 function bfsDist(player,pH,pV,positions){
   var pos = positions || G.pos;
   var sr = pos[player][0], sc = pos[player][1];
@@ -2221,7 +2225,6 @@ function bfsDist(player,pH,pV,positions){
   }
   return 999;
 }
-
 function legalMoves(p,pH,pV,positions){
   pH = pH || G.pH; pV = pV || G.pV; positions = positions || G.pos;
   var r = positions[p][0], c = positions[p][1];
@@ -2245,7 +2248,6 @@ function legalMoves(p,pH,pV,positions){
   }
   return res;
 }
-
 function canPlace(r,c,ori,pH,pV,positions){
   pH = pH || G.pH; pV = pV || G.pV; positions = positions || G.pos;
   if(G.over || G.walls[G.turn]<=0) return false;
@@ -2264,7 +2266,6 @@ function canPlace(r,c,ori,pH,pV,positions){
   var tV = ori==='V' ? pV.concat([[r,c]]) : pV.slice();
   return hasPath(0,tH,tV,positions) && hasPath(1,tH,tV,positions);
 }
-
 function canPlaceIA(r,c,ori,pH,pV,walls,positions){
   if(walls<=0) return false;
   if(ori==='H'){
@@ -2282,13 +2283,11 @@ function canPlaceIA(r,c,ori,pH,pV,walls,positions){
   var tV = ori==='V' ? pV.concat([[r,c]]) : pV.slice();
   return hasPath(0,tH,tV,positions) && hasPath(1,tH,tV,positions);
 }
-
 function computeValid(){
   G.validH=[]; G.validV=[];
   if(G.mode==='H') for(var i=1;i<N;i++) for(var j=1;j<N;j++) if(canPlace(i-1,j-1,'H')) G.validH.push([i,j]);
   if(G.mode==='V') for(var i=1;i<N;i++) for(var j=1;j<N;j++) if(canPlace(i-1,j-1,'V')) G.validV.push([i,j]);
 }
-
 function nodeXY(ni,nj){ return [nj*PAT - GAP/2, ni*PAT - GAP/2]; }
 
 var transpositionTable = new Map();
@@ -2298,14 +2297,12 @@ function hashState(pos, pH, pV) {
   key += '|'+pV.length+':'+pV.map(function(w){return w[0]+','+w[1];}).join(';');
   return key;
 }
-
 function isRecentState(key) {
   for (var i = Math.max(0, positionHistory.length - 8); i < positionHistory.length; i++) {
     if (positionHistory[i] === key) return true;
   }
   return false;
 }
-
 function canWinNext(player, pH, pV, positions) {
   var moves = legalMoves(player, pH, pV, positions);
   for (var i = 0; i < moves.length; i++) {
@@ -2313,9 +2310,8 @@ function canWinNext(player, pH, pV, positions) {
   }
   return false;
 }
-
 // ============================================================
-// IA EXPERT (COMPLETA)
+// IA EXPERT APRIMORADA (INVENCIBLE)
 // ============================================================
 function evaluateExpert(pos, pH, pV, walls) {
   var d0 = bfsDist(0, pH, pV, pos);
@@ -2326,29 +2322,34 @@ function evaluateExpert(pos, pH, pV, walls) {
   var mob1 = legalMoves(1, pH, pV, pos).length;
   var threat0 = canWinNext(0, pH, pV, pos) ? 5000 : 0;
   var threat1 = canWinNext(1, pH, pV, pos) ? 5000 : 0;
+  
+  // Penalidade extra se o jogador estiver no centro do tabuleiro
   var playerCol = pos[0][1];
   var playerRow = pos[0][0];
   var centerPenalty = 0;
   if (playerRow >= 2 && playerRow <= 6 && playerCol >= 2 && playerCol <= 6) {
-    centerPenalty = 1000;
+    centerPenalty = 1000; // jogador no centro é muito perigoso
   }
   var centerDist = Math.abs(playerCol - 4) + Math.abs(playerRow - 4);
   centerPenalty += Math.max(0, 8 - centerDist) * 80;
+  
   var blockadeBonus = mob1 <= 2 ? 400 : mob1 <= 3 ? 200 : 0;
   var wallAdvantage = (walls[1] - walls[0]) * 45;
   var progressPenalty = pos[0][0] * 25;
   var progressBonus = (8 - pos[1][0]) * 20;
+  
+  // Penalidade por gastar paredes desnecessariamente (quanto mais paredes a IA tiver, melhor)
   var wallHoardingBonus = walls[1] * 30;
+  
   return (d0 - d1) * 100 + (mob0 - mob1) * 20 + wallAdvantage + threat1 - threat0 + blockadeBonus - progressPenalty + progressBonus - centerPenalty + wallHoardingBonus;
 }
-
 function wallCandidatesExpert(pH, pV, walls, pos, iaIdx) {
   if (walls[iaIdx] <= 0) return [];
   var cands = [];
   var opp = 1 - iaIdx;
   var or = pos[opp][0], oc = pos[opp][1];
   var playerCenter = (or >= 2 && or <= 6 && oc >= 2 && oc <= 6);
-  var minGain = playerCenter ? 1 : 2;
+  var minGain = playerCenter ? 1 : 2; // no centro, aceita ganho 1; fora, exige 2
   for (var r = 0; r < N - 1; r++) {
     for (var c = 0; c < N - 1; c++) {
       if (canPlaceIA(r, c, 'H', pH, pV, walls[iaIdx], pos)) {
@@ -2368,7 +2369,6 @@ function wallCandidatesExpert(pH, pV, walls, pos, iaIdx) {
   cands.sort(function(a, b) { return b.gain - a.gain; });
   return cands;
 }
-
 function minimaxExpert(pos, pH, pV, walls, depth, alpha, beta, maximizing, iaIdx, startTime, timeLimit) {
   var key = hashState(pos, pH, pV);
   if (transpositionTable.has(key)) {
@@ -2408,7 +2408,6 @@ function minimaxExpert(pos, pH, pV, walls, depth, alpha, beta, maximizing, iaIdx
   transpositionTable.set(key, {value: bestVal, depth: depth});
   return bestVal;
 }
-
 function iaJogarExpert() {
   var cfg = {depth: 14, mistakes: 0, wallLimit: 500, timeLimit: 3500};
   var iaIdx = 1;
@@ -2416,19 +2415,24 @@ function iaJogarExpert() {
   var pH = G.pH.slice(), pV = G.pV.slice(), walls = G.walls.slice();
   var startTime = Date.now();
   transpositionTable.clear();
+  
+  // Determina fase do jogo baseado na posição do jogador
   var playerRow = pos[0][0], playerCol = pos[0][1];
   var playerCenter = (playerRow >= 2 && playerRow <= 6 && playerCol >= 2 && playerCol <= 6);
   var wallsUsed = WALLS - walls[iaIdx];
-  var maxWallsToUse = playerCenter ? 10 : 4;
+  var maxWallsToUse = playerCenter ? 10 : 4; // no centro, pode usar mais; antes, economizar
+  
   var bestAction = null, bestScore = -Infinity;
   for (var depth = 2; depth <= cfg.depth; depth += 2) {
     if (Date.now() - startTime > cfg.timeLimit) break;
     var moves = legalMoves(iaIdx, pH, pV, pos);
     var wCands = wallCandidatesExpert(pH, pV, walls, pos, iaIdx).slice(0, cfg.wallLimit);
+    // Limita número de paredes se não está no centro
     if (!playerCenter && wallsUsed >= maxWallsToUse) {
       wCands = [];
     }
     var actions = [];
+    // Se o jogador pode vencer, defesa imediata
     if (canWinNext(0, pH, pV, pos)) {
       for (var i = 0; i < wCands.length; i++) {
         var w = wCands[i];
@@ -2438,8 +2442,11 @@ function iaJogarExpert() {
       }
       if (bestAction) break;
     }
+    // Adiciona movimentos
     for (var i = 0; i < moves.length; i++) actions.push({type:'move', r:moves[i][0], c:moves[i][1]});
+    // Adiciona paredes (ordenadas por ganho)
     for (var j = 0; j < wCands.length; j++) actions.push({type:'wall', r:wCands[j].r, c:wCands[j].c, ori:wCands[j].ori});
+    // Ordena ações: paredes com alto ganho primeiro, depois movimentos
     actions.sort(function(a,b){
       if (a.type === 'wall' && b.type === 'move') return -1;
       if (a.type === 'move' && b.type === 'wall') return 1;
@@ -2463,6 +2470,7 @@ function iaJogarExpert() {
     var moves = legalMoves(iaIdx, pH, pV, pos);
     if (moves.length) {
       moves.sort(function(a,b){ return Math.abs(a[0]-WIN[iaIdx]) - Math.abs(b[0]-WIN[iaIdx]); });
+      // Pequena aleatoriedade entre as 2 melhores para evitar repetição
       var topMoves = moves.slice(0, Math.min(2, moves.length));
       bestAction = {type:'move', r:topMoves[Math.floor(Math.random()*topMoves.length)][0], c:topMoves[Math.floor(Math.random()*topMoves.length)][1]};
     }
@@ -2478,9 +2486,8 @@ function iaJogarExpert() {
   }
   return bestAction;
 }
-
 // ============================================================
-// IA COMUM (FÁCIL, MÉDIO, DIFÍCIL)
+// FIM DA IA EXPERT APRIMORADA
 // ============================================================
 function nivelConfig() {
   switch (G.nivelIA) {
@@ -2491,72 +2498,6 @@ function nivelConfig() {
     default: return {depth:2, wallChance:0.35, mistakes:0.15, wallLimit:12, timeLimit:400};
   }
 }
-
-function wallCandidates(pH, pV, walls, pos, iaIdx) {
-  if (walls[iaIdx] <= 0) return [];
-  var cands = [];
-  var opp = 1 - iaIdx;
-  for (var r = 0; r < N - 1; r++) {
-    for (var c = 0; c < N - 1; c++) {
-      if (canPlaceIA(r, c, 'H', pH, pV, walls[iaIdx], pos)) {
-        var tH = pH.concat([[r, c]]);
-        var newDist = bfsDist(opp, tH, pV, pos);
-        var gain = newDist - bfsDist(opp, pH, pV, pos);
-        if (gain >= 1) cands.push({r: r, c: c, ori: 'H', gain: gain});
-      }
-      if (canPlaceIA(r, c, 'V', pH, pV, walls[iaIdx], pos)) {
-        var tV = pV.concat([[r, c]]);
-        var newDist = bfsDist(opp, pH, tV, pos);
-        var gain = newDist - bfsDist(opp, pH, pV, pos);
-        if (gain >= 1) cands.push({r: r, c: c, ori: 'V', gain: gain});
-      }
-    }
-  }
-  cands.sort(function(a, b) { return b.gain - a.gain; });
-  return cands;
-}
-
-function minimax(pos, pH, pV, walls, depth, alpha, beta, maximizing, iaIdx, startTime, timeLimit) {
-  var key = hashState(pos, pH, pV);
-  if (transpositionTable.has(key)) {
-    var stored = transpositionTable.get(key);
-    if (stored.depth >= depth) return stored.value;
-  }
-  var d0 = bfsDist(0, pH, pV, pos), d1 = bfsDist(1, pH, pV, pos);
-  if (d1 === 0) return 100000 + depth;
-  if (d0 === 0) return -100000 - depth;
-  if (depth === 0 || Date.now() - startTime > timeLimit) return (d0 - d1) * 100;
-  var cur = maximizing ? iaIdx : 1 - iaIdx;
-  var moves = legalMoves(cur, pH, pV, pos);
-  var wCands = wallCandidates(pH, pV, walls, pos, cur).slice(0, maximizing ? 50 : 30);
-  var actions = [];
-  for (var i = 0; i < moves.length; i++) {
-    actions.push({type:'move', r:moves[i][0], c:moves[i][1], dist: Math.abs(moves[i][0] - WIN[cur])});
-  }
-  actions.sort(function(a,b){ return a.dist - b.dist; });
-  for (var j = 0; j < wCands.length; j++) {
-    actions.push({type:'wall', r:wCands[j].r, c:wCands[j].c, ori:wCands[j].ori});
-  }
-  if (!actions.length) return (d0 - d1) * 100;
-  var bestVal = maximizing ? -Infinity : Infinity;
-  for (var k = 0; k < actions.length; k++) {
-    if (Date.now() - startTime > timeLimit) break;
-    var act = actions[k];
-    var npos = pos.map(function(p){ return p.slice(); });
-    var npH = pH.slice(), npV = pV.slice(), nw = walls.slice();
-    if (act.type === 'move') npos[cur] = [act.r, act.c];
-    else { if (act.ori === 'H') npH = pH.concat([[act.r, act.c]]); else npV = pV.concat([[act.r, act.c]]); nw[cur]--; }
-    var newKey = hashState(npos, npH, npV);
-    if (isRecentState(newKey)) continue;
-    var val = minimax(npos, npH, npV, nw, depth - 1, alpha, beta, !maximizing, iaIdx, startTime, timeLimit);
-    if (maximizing) { if (val > bestVal) bestVal = val; alpha = Math.max(alpha, bestVal); }
-    else { if (val < bestVal) bestVal = val; beta = Math.min(beta, bestVal); }
-    if (beta <= alpha) break;
-  }
-  transpositionTable.set(key, {value: bestVal, depth: depth});
-  return bestVal;
-}
-
 function iaJogar() {
   if (G.nivelIA === 'expert') return iaJogarExpert();
   var cfg = nivelConfig();
@@ -2622,9 +2563,6 @@ function iaJogar() {
   return bestAction;
 }
 
-// ============================================================
-// DRAW, RR E FUNÇÕES DE INTERFACE
-// ============================================================
 function draw(){
   if(!BOARD || BOARD < 10) return;
   ctx.clearRect(0,0,BOARD,BOARD);
@@ -2684,14 +2622,12 @@ function draw(){
     drawPawn(p, x, y, rad, active, rotateText);
   }
 }
-
 function rr(x,y,w,h,r2){
   r2=Math.min(r2,w/2,h/2,20);
   ctx.beginPath(); ctx.moveTo(x+r2,y); ctx.lineTo(x+w-r2,y); ctx.arcTo(x+w,y,x+w,y+r2,r2);
   ctx.lineTo(x+w,y+h-r2); ctx.arcTo(x+w,y+h,x+w-r2,y+h,r2); ctx.lineTo(x+r2,y+h);
   ctx.arcTo(x,y+h,x,y+h-r2,r2); ctx.lineTo(x,y+r2); ctx.arcTo(x,y,x+r2,y,r2); ctx.closePath();
 }
-
 function initPips(){
   for(var p=0;p<2;p++){
     var el=document.getElementById('pips'+(p+1));
@@ -2699,7 +2635,6 @@ function initPips(){
     for(var i=0;i<WALLS;i++){ var d=document.createElement('div'); d.className='pip'; el.appendChild(d); }
   }
 }
-
 function updateWallIndicators(){
   for(var p=0;p<2;p++){
     var children = document.getElementById('pips'+(p+1)).children;
@@ -2710,9 +2645,7 @@ function updateWallIndicators(){
   }
   updateTimerDisplay(); syncBtn();
 }
-
 function st(t){ statusEl.textContent = t; }
-
 function updateTimerDisplay(){
   if(G.over){
     timerDisplayEl.className = 'fim';
@@ -2725,7 +2658,6 @@ function updateTimerDisplay(){
   stopTimer();
   if(!G.over && gameActive && !matchFinished) startTimer();
 }
-
 function syncBtn(){
   var pc = C[G.turn];
   ['btnH','btnV','btnH2','btnV2'].forEach(function(id){
@@ -2741,9 +2673,7 @@ function syncBtn(){
     b.classList.toggle('modo-ativo', match);
   });
 }
-
 function setIAThinking(v){ G.iaThinking=v; iaTh.className = v ? 'show' : ''; if(!v) updateTimerDisplay(); }
-
 function startTimer(){
   stopTimer(); if(G.over||!gameActive||matchFinished) return;
   currentTime = config.time;
@@ -2762,9 +2692,7 @@ function startTimer(){
     }
   }, 1000);
 }
-
 function stopTimer(){ if(timerInterval){ clearInterval(timerInterval); timerInterval=null; } timerRunning=false; }
-
 function atualizarPlacar(){
   document.getElementById('score1').textContent = scores[0];
   document.getElementById('score2').textContent = scores[1];
@@ -2858,9 +2786,6 @@ function showWinOverlay(msg, vencedor){
   }, 3500);
 }
 
-// ============================================================
-// FUNÇÕES DE JOGO (MOVIMENTOS, PAREDES, TURNOS)
-// ============================================================
 function selectPawn(r,c){
   if(!gameActive||G.over||matchFinished) return;
   var pr=G.pos[G.turn][0], pc=G.pos[G.turn][1];
@@ -2869,7 +2794,6 @@ function selectPawn(r,c){
   st(G.moves.length ? G.moves.length + ' movimentos' : 'Sem movimentos');
   draw();
 }
-
 function doMove(r,c){
   if(!gameActive||G.over||matchFinished) return;
   if(G.turn===0) seriesStats.userMoves++;
@@ -2883,7 +2807,6 @@ function doMove(r,c){
   }
   updateWallIndicators(); draw();
 }
-
 function placeWall(ni,nj,ori){
   if(!gameActive||G.over||matchFinished) return;
   var r=ni-1, c=nj-1;
@@ -2902,7 +2825,6 @@ function placeWall(ni,nj,ori){
   }
   updateWallIndicators(); draw();
 }
-
 function checkWin(){
   if((G.turn===0 && G.pos[0][0]===WIN[0]) || (G.turn===1 && G.pos[1][0]===WIN[1])){
     G.over=true; G.mode='move'; syncBtn(); setIAThinking(false);
@@ -2911,7 +2833,6 @@ function checkWin(){
     showWinOverlay('◈ ' + nome + ' vence a rodada!', G.turn);
   }
 }
-
 function nextTurn(){
   G.turn = 1 - G.turn;
   if(G.mode!=='move'){ computeValid(); st((G.mode==='H'?G.validH:G.validV).length + ' posições'); }
@@ -2920,11 +2841,11 @@ function nextTurn(){
     document.getElementById('game-screen').classList.toggle('p2-active', G.turn === 1);
     document.getElementById('hud-wrapper').classList.toggle('rotated', G.turn === 1);
   } else {
+    // GARANTE QUE NO MODO IA O HUD NUNCA ROTACIONE
     document.getElementById('game-screen').classList.remove('p2-active');
     document.getElementById('hud-wrapper').classList.remove('rotated');
   }
 }
-
 function scheduleIA(){
   if(G.iaThinking||G.over||!gameActive||matchFinished) return;
   setIAThinking(true);
@@ -2949,7 +2870,6 @@ function scheduleIA(){
     if(!G.over && G.turn===0) selectPawn(G.pos[0][0], G.pos[0][1]);
   }, delay);
 }
-
 function undo(){
   if(!gameActive||G.over||matchFinished||!G.hist.length||G.iaThinking) return;
   var steps = G.vsIA && G.hist.length>=2 ? 2 : 1;
@@ -2969,7 +2889,6 @@ function undo(){
   if(G.mode!=='move') computeValid();
   st('Desfeito!'); setIAThinking(false); updateWallIndicators(); syncBtn(); draw();
 }
-
 function resetGame(){
   stopTimer(); if(autoResetTimer) clearTimeout(autoResetTimer); if(autoResetTimer2) clearTimeout(autoResetTimer2);
   document.getElementById('win-overlay').classList.remove('show');
@@ -2989,7 +2908,6 @@ function resetGame(){
     document.getElementById('hud-wrapper').classList.remove('rotated');
   }
 }
-
 function reset(){
   stopTimer(); if(autoResetTimer) clearTimeout(autoResetTimer); if(autoResetTimer2) clearTimeout(autoResetTimer2);
   document.getElementById('win-overlay').classList.remove('show');
@@ -3014,7 +2932,6 @@ function reset(){
   }
   updateUndoButtonVisibility();
 }
-
 function setMode(m){
   if(!gameActive||G.over||matchFinished) return;
   if(G.vsIA&&G.turn===1) return;
@@ -3024,13 +2941,11 @@ function setMode(m){
   else { G.validH=[]; G.validV=[]; st((G.turn===0?G.p1Name:G.p2Name) + ': toque no peão'); }
   draw();
 }
-
 function getEventXY(e){
   var rect = canvas.getBoundingClientRect();
   var t = e.touches ? e.touches[0] : e;
   return [(t.clientX-rect.left)*(BOARD/rect.width), (t.clientY-rect.top)*(BOARD/rect.height)];
 }
-
 function nearestNode(px,py,list,th){
   var best=null, bestD=th*th;
   for(var i=0;i<list.length;i++){
@@ -3040,7 +2955,6 @@ function nearestNode(px,py,list,th){
   }
   return best;
 }
-
 function handleTap(e){
   e.preventDefault();
   if(!gameActive||G.over||matchFinished||G.iaThinking||(G.vsIA&&G.turn===1)) return;
@@ -3052,7 +2966,6 @@ function handleTap(e){
   if(G.sel && G.moves.some(function(m){ return m[0]===row&&m[1]===col; })) doMove(row,col);
   else selectPawn(row,col);
 }
-
 function handleHover(e){
   e.preventDefault();
   if(G.mode==='move'||G.over||!gameActive||matchFinished) return;
@@ -3062,58 +2975,9 @@ function handleHover(e){
   var newHov = node ? {i:node[0],j:node[1]} : null;
   if(JSON.stringify(newHov)!==JSON.stringify(G.hoverNode)){ G.hoverNode=newHov; draw(); }
 }
-
 function showConfig(){ document.getElementById('config-overlay').classList.add('show'); }
 function hideConfig(){ document.getElementById('config-overlay').classList.remove('show'); }
 
-function updateUndoButtonVisibility(){
-  var btnUndo = document.getElementById('btnUndo');
-  if (btnUndo) btnUndo.style.display = G.vsIA ? 'none' : 'block';
-}
-
-// ============================================================
-// INSPECT
-// ============================================================
-function openInspect(playerIndex, viewer){
-  var content = document.getElementById('inspect-content');
-  content.innerHTML = '';
-  var stats = getStats();
-  var name = playerIndex === 0 ? G.p1Name : G.p2Name;
-  var data = [];
-  if(playerIndex === 0 && currentUser){
-    data = [
-      {label:'Nome',value:name},{label:'Título',value:stats.equippedTitle||'Recruta'},
-      {label:'Patente',value:getRank(stats.rankPoints)},{label:'Nível',value:stats.level||1},
-      {label:'Partidas',value:stats.games},{label:'Vitórias',value:stats.winsP1},
-      {label:'Derrotas',value:stats.losses},
-      {label:'Taxa de vitórias',value:(stats.games>0?((stats.winsP1/stats.games)*100).toFixed(1)+'%':'0%')},
-      {label:'Pontos (ELO)',value:stats.rankPoints.toFixed(1)},
-      {label:'Estilo de jogo',value:stats.games>0?(stats.totalWalls/stats.games>=4?'Estrategista':stats.totalWalls/stats.games>=2?'Equilibrado':'Agressivo'):'Indefinido'}
-    ];
-  } else if(playerIndex === 1 && G.vsIA){
-    data = [{label:'Nome',value:name},{label:'Tipo',value:'Inteligência Artificial'},{label:'Dificuldade',value:G.nivelIA.toUpperCase()}];
-  } else {
-    data = [{label:'Nome',value:name},{label:'Tipo',value:'Jogador Local'},{label:'Título',value:'Nenhum'}];
-  }
-  for(var i=0;i<data.length;i++){
-    var item = document.createElement('div');
-    item.className = 'inspect-item';
-    item.innerHTML = '<span class="label">' + data[i].label + '</span><span class="value">' + data[i].value + '</span>';
-    content.appendChild(item);
-  }
-  var inspectCard = document.getElementById('inspect-card');
-  if (!G.vsIA && G.turn === 1) {
-    inspectCard.classList.add('rotated');
-  } else {
-    inspectCard.classList.remove('rotated');
-  }
-  document.getElementById('inspect-overlay').classList.add('show');
-}
-function closeInspect(){ document.getElementById('inspect-overlay').classList.remove('show'); document.getElementById('inspect-card').classList.remove('rotated'); }
-
-// ============================================================
-// EVENTOS DE CONFIGURAÇÃO E INICIALIZAÇÃO
-// ============================================================
 document.querySelectorAll('#time-options button').forEach(function(btn){
   btn.addEventListener('click', function(){
     document.querySelectorAll('#time-options button').forEach(function(b){ b.classList.remove('selected'); });
@@ -3193,6 +3057,11 @@ document.getElementById('btnV').addEventListener('click', function(){ setMode(G.
 document.getElementById('btnH2').addEventListener('click', function(){ setMode(G.mode==='H'?'move':'H'); });
 document.getElementById('btnV2').addEventListener('click', function(){ setMode(G.mode==='V'?'move':'V'); });
 
+function updateUndoButtonVisibility(){
+  var btnUndo = document.getElementById('btnUndo');
+  if (btnUndo) btnUndo.style.display = G.vsIA ? 'none' : 'block';
+}
+
 window.addEventListener('load', function(){
   resize(); initPips();
   document.querySelector('#time-options button[data-time="30"]').classList.add('selected');
@@ -3204,7 +3073,6 @@ window.addEventListener('load', function(){
 window.addEventListener('resize', function(){
   if(document.getElementById('game-screen').classList.contains('active')){ resize(); draw(); }
 });
-
 function loop(){
   var needDraw = G.over || G.hoverNode || G.iaThinking;
   if(!needDraw && currentUser){
@@ -3216,591 +3084,97 @@ function loop(){
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+// ============================================================
+// CHAT ONLINE (simulado localmente)
+// ============================================================
+var chatMessages = [];
+var CHAT_KEY = 'quoridor_chat';
 
-console.log('✅ Quoridor Online carregado!');
-</script>
+function loadChatMessages() {
+  try {
+    var stored = localStorage.getItem(CHAT_KEY);
+    if (stored) chatMessages = JSON.parse(stored);
+    else chatMessages = [];
+  } catch(e) { chatMessages = []; }
+  renderChatMessages();
+}
+function saveChatMessages() {
+  try {
+    localStorage.setItem(CHAT_KEY, JSON.stringify(chatMessages));
+  } catch(e) {}
+}
 
-<script>
-(function(){
-  var firebaseConfig={
-    apiKey:"AIzaSyBJJZtzkaUoP0swjNrN6Rt0Qm-trzsw4lM",
-    authDomain:"quoridor-online-2823d.firebaseapp.com",
-    databaseURL:"https://quoridor-online-2823d-default-rtdb.firebaseio.com",
-    projectId:"quoridor-online-2823d",
-    storageBucket:"quoridor-online-2823d.appspot.com",
-    messagingSenderId:"652289533045",
-    appId:"1:652289533045:web:043558b291"
-  };
-  try{if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);}catch(e){}
-  var isOnlineMode=false,salaAtual=null,_listaHandler=null,_jogoHandler=null;
-  function getRtdb(){try{return firebase.database();}catch(e){alert(e.message);return null;}}
-  function setStatus(m){var el=document.getElementById("sala-status");if(el)el.innerHTML=m;}
-  function euDaVez(){if(!isOnlineMode)return true;return G.turn===0?(currentUser===G.p1Name):(currentUser===G.p2Name);}
-  function autoPeao(){
-    if(!isOnlineMode||!G||G.over||!gameActive)return;
-    if(!euDaVez()){G.sel=null;G.moves=[];if(typeof st==="function")st("Aguardando oponente...");if(typeof draw==="function")draw();return;}
-    G.sel=[G.pos[G.turn][0],G.pos[G.turn][1]];
-    if(typeof legalMoves==="function")G.moves=legalMoves(G.turn);
-    if(typeof st==="function")st("Sua vez");
-    if(typeof draw==="function")draw();
+function renderChatMessages() {
+  var container = document.getElementById('chat-messages');
+  container.innerHTML = '';
+  if (!chatMessages.length) {
+    container.innerHTML = '<div style="color:#666;text-align:center;padding:20px;font-size:13px;">Nenhuma mensagem ainda. Seja o primeiro!</div>';
+    return;
   }
-  function escutarSalas(){
-    var rtdb=getRtdb();if(!rtdb)return;
-    if(_listaHandler){try{rtdb.ref("salas").off("value",_listaHandler);}catch(e){}}
-    _listaHandler=function(snap){
-      var lista=document.getElementById("sala-lista");if(!lista)return;
-      lista.innerHTML="";
-      var val=snap.val()||{},items=[];
-      Object.keys(val).forEach(function(id){var d=val[id];if(d&&d.status==="esperando")items.push({id:id,d:d});});
-      items.sort(function(a,b){return (b.d.createdAt||0)-(a.d.createdAt||0);});
-      if(!items.length){lista.innerHTML='<div class="history-empty">Nenhuma sala. Crie uma!</div>';return;}
-      items.forEach(function(it){
-        var d=it.d,nome=d.nomePartida||d.jogador1||"Sala",lock=d.senha?"🔒 ":"",souEu=d.jogador1===currentUser;
-        var row=document.createElement("div");
-        row.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,215,140,0.08)";
-        row.innerHTML="<div><b style='color:#f0e6d3'>"+lock+nome+"</b><br><small style='color:#b8a99a'>Host: "+(d.jogador1||"")+(souEu?" (sua)":"")+"</small></div>";
-        if(!souEu){var btn=document.createElement("button");btn.textContent="Entrar";btn.style.cssText="padding:8px 14px;border:none;border-radius:10px;background:#4dabf7;color:#111;font-weight:800";btn.onclick=function(){entrarSala(it.id,d);};row.appendChild(btn);}
-        lista.appendChild(row);
-      });
-    };
-    rtdb.ref("salas").on("value",_listaHandler,function(err){setStatus(err.message);alert(err.message);});
+  var msgs = chatMessages.slice(-50);
+  for (var i = 0; i < msgs.length; i++) {
+    var m = msgs[i];
+    var div = document.createElement('div');
+    div.className = 'msg';
+    var date = new Date(m.time).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    div.innerHTML = '<span class="user">' + escapeHTML(m.user) + '</span><span class="time">' + date + '</span><br>' + escapeHTML(m.text);
+    container.appendChild(div);
   }
-  function criarSala(){
-    if(!currentUser){alert("Faca login");return;}
-    var rtdb=getRtdb();if(!rtdb)return;
-    var nome=((document.getElementById("sala-nome-input")||{}).value||"").trim()||(currentUser+" game");
-    var senha=((document.getElementById("sala-senha-input")||{}).value||"").trim();
-    var ref=rtdb.ref("salas").push(),id=ref.key;
-    setStatus("Criando...");
-    ref.set({nomePartida:nome,jogador1:currentUser,jogador2:"",status:"esperando",turno:0,posicoes:[[8,4],[0,4]],paredesH:[],paredesV:[],paredesRestantes:[10,10],vencedor:"",createdAt:Date.now(),senha:senha})
-    .then(function(){
-      setStatus("Sala criada. Esperando oponente...");alert("Sala criada!");
-      isOnlineMode=true;salaAtual=id;G.p1Name=currentUser;G.p2Name="Aguardando...";
-      ref.on("value",function(snap){var data=snap.val();if(data&&data.status==="em_andamento"&&data.jogador2){document.getElementById("sala-overlay").classList.remove("show");iniciarJogoOnline(id,data);}});
-      escutarSalas();
-    }).catch(function(err){setStatus(err.message);alert(err.message);});
-  }
-  function entrarSala(salaId,data){
-    if(!currentUser){alert("Faca login");return;}
-    if(data.senha){var s=prompt("Senha:");if(s===null)return;if(s!==data.senha){alert("Senha errada");return;}}
-    var rtdb=getRtdb(),ref=rtdb.ref("salas/"+salaId);
-    ref.transaction(function(cur){
-      if(!cur)return cur;
-      if(cur.status!=="esperando"||(cur.jogador2&&cur.jogador2!==""))return;
-      cur.jogador2=currentUser;cur.status="em_andamento";return cur;
-    }).then(function(r){
-      if(!r.committed){alert("Sala ja ocupada");escutarSalas();return;}
-      document.getElementById("sala-overlay").classList.remove("show");
-      iniciarJogoOnline(salaId,r.snapshot.val());
-    }).catch(function(err){alert(err.message);});
-  }
-  function aplicarEstado(data){
-    if(!data)return;
-    G.p1Name=data.jogador1||G.p1Name;G.p2Name=data.jogador2||G.p2Name;
-    G.pos=data.posicoes||G.pos;G.walls=data.paredesRestantes||G.walls;
-    G.turn=typeof data.turno==="number"?data.turno:G.turn;
-    G.pH=[];G.pV=[];G.wallOwnerH=[];G.wallOwnerV=[];
-    (data.paredesH||[]).forEach(function(w){if(Array.isArray(w)){G.pH.push([w[0],w[1]]);G.wallOwnerH.push(0);}else if(w){G.pH.push([w.r,w.c]);G.wallOwnerH.push(w.dono||0);}});
-    (data.paredesV||[]).forEach(function(w){if(Array.isArray(w)){G.pV.push([w[0],w[1]]);G.wallOwnerV.push(0);}else if(w){G.pV.push([w.r,w.c]);G.wallOwnerV.push(w.dono||0);}});
-    var a=document.getElementById("p1-nome");if(a)a.textContent=G.p1Name;
-    var b=document.getElementById("nomeJ2");if(b)b.textContent=G.p2Name;
-  }
-  function iniciarJogoOnline(salaId,data){
-    isOnlineMode=true;salaAtual=salaId;G.vsIA=false;G.over=false;G.mode="move";G.sel=null;G.moves=[];
-    gameActive=true;matchFinished=false;aplicarEstado(data);
-    var p2c=document.getElementById("p2-controls");if(p2c)p2c.style.display="none";
-    document.getElementById("game-screen").classList.remove("p2-active","modo-2p");
-    showScreen("game-screen");
-    requestAnimationFrame(function(){requestAnimationFrame(function(){
-      if(typeof resize==="function")resize();
-      if(typeof updateWallIndicators==="function")updateWallIndicators();
-      if(typeof draw==="function")draw();autoPeao();
-    });});
-    var rtdb=getRtdb(),ref=rtdb.ref("salas/"+salaId);
-    if(_jogoHandler){try{ref.off("value",_jogoHandler);}catch(e){}}
-    _jogoHandler=function(snap){
-      var novo=snap.val();if(!novo)return;
-      if(novo.status==="finalizada"){if(!G.over){G.over=true;if(typeof showWinOverlay==="function")showWinOverlay("◈ "+(novo.vencedor||"")+" venceu!",novo.vencedor===G.p1Name?0:1);}return;}
-      aplicarEstado(novo);
-      if(typeof updateWallIndicators==="function")updateWallIndicators();
-      if(typeof draw==="function")draw();autoPeao();
-    };
-    ref.on("value",_jogoHandler);
-  }
-  function enviarEstado(){
-    if(!salaAtual||!isOnlineMode||!euDaVez())return;
-    var rtdb=getRtdb();if(!rtdb)return;
-    var paredesH=[],paredesV=[];
-    for(var i=0;i<G.pH.length;i++)paredesH.push({r:G.pH[i][0],c:G.pH[i][1],dono:G.wallOwnerH[i]||0});
-    for(var j=0;j<G.pV.length;j++)paredesV.push({r:G.pV[j][0],c:G.pV[j][1],dono:G.wallOwnerV[j]||0});
-    var upd={posicoes:[[G.pos[0][0],G.pos[0][1]],[G.pos[1][0],G.pos[1][1]]],paredesH:paredesH,paredesV:paredesV,paredesRestantes:[G.walls[0],G.walls[1]],turno:G.turn};
-    if(G.over||G.pos[0][0]===0||G.pos[1][0]===8){upd.status="finalizada";upd.vencedor=G.pos[0][0]===0?G.p1Name:G.p2Name;}
-    rtdb.ref("salas/"+salaAtual).update(upd);
-  }
-  if(typeof doMove==="function"){var _dm=doMove;doMove=function(r,c){if(isOnlineMode&&!euDaVez()){if(typeof st==="function")st("Nao e a sua vez");return;}var o=_dm.apply(this,arguments);if(isOnlineMode)enviarEstado();setTimeout(autoPeao,40);return o;};}
-  if(typeof placeWall==="function"){var _pw=placeWall;placeWall=function(ni,nj,ori){if(isOnlineMode&&!euDaVez()){if(typeof st==="function")st("Nao e a sua vez");return;}var o=_pw.apply(this,arguments);if(isOnlineMode)enviarEstado();setTimeout(autoPeao,40);return o;};}
-  var canvas=document.getElementById("board");
-  if(canvas){function block(e){if(!isOnlineMode||G.over||!gameActive)return;if(!euDaVez()){e.stopImmediatePropagation();e.preventDefault();}}canvas.addEventListener("click",block,true);canvas.addEventListener("touchstart",block,true);}
-  function abrir(){if(!currentUser){alert("Faca login");return;}document.getElementById("sala-overlay").classList.add("show");setStatus("Crie ou entre numa sala");escutarSalas();}
-  function bind(id,fn){var el=document.getElementById(id);if(!el)return;var n=el.cloneNode(true);el.parentNode.replaceChild(n,el);n.addEventListener("click",fn);}
-  bind("btn-online",abrir);bind("btn-criar-sala",criarSala);
-  bind("btn-close-sala",function(){document.getElementById("sala-overlay").classList.remove("show");});
-  bind("sala-close",function(){document.getElementById("sala-overlay").classList.remove("show");});
-  console.log("ONLINE RTDB ativo");
-})();
-</script>
+  container.scrollTop = container.scrollHeight;
+}
 
-
-<script>
-(function(){
-  var firebaseConfig={
-    apiKey:"AIzaSyBJJZtzkaUoP0swjNrN6Rt0Qm-trzsw4lM",
-    authDomain:"quoridor-online-2823d.firebaseapp.com",
-    databaseURL:"https://quoridor-online-2823d-default-rtdb.firebaseio.com",
-    projectId:"quoridor-online-2823d",
-    storageBucket:"quoridor-online-2823d.appspot.com",
-    messagingSenderId:"652289533045",
-    appId:"1:652289533045:web:043558b291"
-  };
-  try{if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);}catch(e){}
-  var _chatMsgsHandler=null,_chatSalasHandler=null,_chatSalaAtual=null;
-  function getRtdb(){try{return firebase.database();}catch(e){alert(e.message);return null;}}
-  function escapeHTML(str){return String(str).replace(/[&<>"]/g,function(m){if(m==='&')return'&amp;';if(m==='<')return'&lt;';if(m==='>')return'&gt;';if(m==='"')return'&quot;';return m;});}
-  function carregarMensagens(salaId){
-    if(!salaId)salaId="geral";
-    _chatSalaAtual=salaId;
-    var container=document.getElementById("chat-messages");if(!container)return;
-    container.innerHTML='<div style="color:#666;text-align:center;padding:20px;">Carregando...</div>';
-    if(_chatMsgsHandler){try{firebase.database().ref("chat/"+salaId).off("value",_chatMsgsHandler);}catch(e){}}
-    var rtdb=getRtdb();if(!rtdb)return;
-    _chatMsgsHandler=function(snap){
-      container.innerHTML='';
-      var val=snap.val()||{};
-      var keys=Object.keys(val).sort();
-      if(!keys.length){container.innerHTML='<div style="color:#666;text-align:center;padding:20px;">Nenhuma mensagem.</div>';return;}
-      keys.slice(-50).forEach(function(k){
-        var m=val[k];
-        var div=document.createElement('div');div.className='msg';
-        var date=m.t?new Date(m.t).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
-        div.innerHTML='<span class="user">'+escapeHTML(m.u||'Anonimo')+'</span><span class="time">'+date+'</span><br>'+escapeHTML(m.tx||'');
-        container.appendChild(div);
-      });
-      container.scrollTop=container.scrollHeight;
-    };
-    rtdb.ref("chat/"+salaId).orderByKey().on("value",_chatMsgsHandler);
-  }
-  function enviarMensagem(){
-    var input=document.getElementById("chat-input");if(!input)return;
-    var txt=input.value.trim();if(!txt)return;
-    var user=currentUser||'Anonimo';
-    var sala=_chatSalaAtual||"geral";
-    var rtdb=getRtdb();if(!rtdb)return;
-    rtdb.ref("chat/"+sala).push({u:user,tx:txt,t:Date.now()});
-    input.value='';
-  }
-  function carregarSalas(){
-    var container=document.getElementById("chat-salas");if(!container)return;
-    container.innerHTML='<div style="color:#666;text-align:center;padding:10px;">Carregando salas...</div>';
-    if(_chatSalasHandler){try{firebase.database().ref("chat_salas").off("value",_chatSalasHandler);}catch(e){}}
-    var rtdb=getRtdb();if(!rtdb)return;
-    _chatSalasHandler=function(snap){
-      container.innerHTML='';
-      var val=snap.val()||{};
-      var items=[];
-      Object.keys(val).forEach(function(id){var d=val[id];if(d)items.push({id:id,d:d});});
-      if(!items.length){container.innerHTML='<div style="color:#666;text-align:center;padding:10px;">Nenhuma sala privada.</div>';return;}
-      items.forEach(function(it){
-        var d=it.d,row=document.createElement('div');row.className='sala-item';
-        var lock=d.senha?'🔒 ':'';
-        row.innerHTML='<span class="sala-nome">'+lock+(d.nome||it.id)+'</span><span class="sala-users">👤 '+(d.usuarios||0)+'</span>';
-        var btn=document.createElement('button');btn.className='btn-entrar-chat';btn.textContent='Entrar';
-        btn.onclick=function(){entrarSalaPrivada(it.id,d);};
-        row.appendChild(btn);container.appendChild(row);
-      });
-    };
-    rtdb.ref("chat_salas").on("value",_chatSalasHandler);
-  }
-  function criarSalaPrivada(){
-    var nome=document.getElementById("chat-sala-nome");if(!nome)return;
-    var senha=document.getElementById("chat-sala-senha");if(!senha)return;
-    var n=nome.value.trim()||"Sala";var s=senha.value.trim();
-    var rtdb=getRtdb();if(!rtdb)return;
-    var ref=rtdb.ref("chat_salas").push();
-    ref.set({nome:n,senha:s||'',criador:currentUser||'Anonimo',usuarios:1,criado:Date.now()});
-    alert("Sala criada! Entre nela.");
-    nome.value='';senha.value='';
-    carregarSalas();
-  }
-  function entrarSalaPrivada(salaId,data){
-    if(data.senha){var p=prompt("Senha da sala:");if(p===null)return;if(p!==data.senha){alert("Senha incorreta");return;}}
-    var rtdb=getRtdb();if(!rtdb)return;
-    rtdb.ref("chat_salas/"+salaId+"/usuarios").transaction(function(cur){return (cur||0)+1;});
-    document.querySelector('[data-chat-tab="geral"]').click();
-    carregarMensagens(salaId);
-    // Atualiza contador ao sair
-    document.getElementById("chat-close").onclick=function(){
-      rtdb.ref("chat_salas/"+salaId+"/usuarios").transaction(function(cur){return Math.max(0,(cur||1)-1);});
-      document.getElementById("chat-overlay").classList.remove("show");
-    };
-  }
-  function abrirChat(){
-    document.getElementById("chat-overlay").classList.add("show");
-    carregarMensagens("geral");
-    carregarSalas();
-  }
-  function fecharChat(){
-    document.getElementById("chat-overlay").classList.remove("show");
-    if(_chatMsgsHandler){try{firebase.database().ref("chat/"+(_chatSalaAtual||"geral")).off("value",_chatMsgsHandler);}catch(e){}}
-    if(_chatSalasHandler){try{firebase.database().ref("chat_salas").off("value",_chatSalasHandler);}catch(e){}}
-  }
-  // Tabs
-  document.querySelectorAll('.chat-tab').forEach(function(tab){
-    tab.addEventListener('click',function(){
-      document.querySelectorAll('.chat-tab').forEach(function(t){t.classList.remove('active');});
-      this.classList.add('active');
-      var target=this.dataset.chatTab;
-      document.querySelectorAll('.chat-panel').forEach(function(p){p.classList.remove('active');});
-      document.getElementById('panel-'+target).classList.add('active');
-      if(target==='geral')carregarMensagens('geral');
-      if(target==='salas')carregarSalas();
-    });
+function escapeHTML(str) {
+  return String(str).replace(/[&<>"]/g, function(m) {
+    if (m === '&') return '&amp;';
+    if (m === '<') return '&lt;';
+    if (m === '>') return '&gt;';
+    if (m === '"') return '&quot;';
+    return m;
   });
-  // Eventos
-  document.getElementById('btn-chat').addEventListener('click',abrirChat);
-  document.getElementById('chat-close').addEventListener('click',fecharChat);
-  document.getElementById('btn-close-chat').addEventListener('click',fecharChat);
-  document.getElementById('chat-send').addEventListener('click',enviarMensagem);
-  document.getElementById('chat-input').addEventListener('keydown',function(e){if(e.key==='Enter')enviarMensagem();});
-  document.getElementById('chat-criar-sala-btn').addEventListener('click',criarSalaPrivada);
-  document.getElementById('chat-overlay').addEventListener('click',function(e){if(e.target===this)fecharChat();});
-  console.log('✅ Chat Online ativado (público/privado)!');
-})();
+}
+
+function sendChatMessage() {
+  var input = document.getElementById('chat-input');
+  var text = input.value.trim();
+  if (!text) return;
+  var user = currentUser || 'Anônimo';
+  chatMessages.push({ user: user, text: text, time: Date.now() });
+  saveChatMessages();
+  renderChatMessages();
+  input.value = '';
+}
+
+function openChat() {
+  loadChatMessages();
+  document.getElementById('chat-overlay').classList.add('show');
+}
+
+function closeChat() {
+  document.getElementById('chat-overlay').classList.remove('show');
+}
+
+document.getElementById('btn-chat').addEventListener('click', openChat);
+document.getElementById('chat-close').addEventListener('click', closeChat);
+document.getElementById('btn-close-chat').addEventListener('click', closeChat);
+document.getElementById('chat-overlay').addEventListener('click', function(e) {
+  if (e.target === e.currentTarget) closeChat();
+});
+document.getElementById('chat-send').addEventListener('click', sendChatMessage);
+document.getElementById('chat-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') sendChatMessage();
+});
 </script>
-
-
-<script>
-(function(){
-  // Config Firebase
-  var firebaseConfig={
-    apiKey:"AIzaSyBJJZtzkaUoP0swjNrN6Rt0Qm-trzsw4lM",
-    authDomain:"quoridor-online-2823d.firebaseapp.com",
-    databaseURL:"https://quoridor-online-2823d-default-rtdb.firebaseio.com",
-    projectId:"quoridor-online-2823d",
-    storageBucket:"quoridor-online-2823d.appspot.com",
-    messagingSenderId:"652289533045",
-    appId:"1:652289533045:web:043558b291"
-  };
-  try{if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);}catch(e){}
-
-  var isOnlineMode=false, salaAtual=null, _listaHandler=null, _jogoHandler=null;
-  var meuJogadorIndex = 0; // 0 = jogador1, 1 = jogador2
-
-  function getRtdb(){try{return firebase.database();}catch(e){alert(e.message);return null;}}
-  function setStatus(m){var el=document.getElementById("sala-status");if(el)el.innerHTML=m;}
-
-  // ============================================================
-  // VERIFICA SE É A VEZ DO JOGADOR LOCAL
-  // ============================================================
-  function ehMinhaVez(){
-    if(!isOnlineMode) return true;
-    if(!G || G.over) return false;
-    var dono = G.p1Name || '';
-    var oponente = G.p2Name || '';
-    if(currentUser === dono && G.turn === 0) return true;
-    if(currentUser === oponente && G.turn === 1) return true;
-    return false;
-  }
-
-  // ============================================================
-  // AUTO SELEÇÃO DO PEÃO
-  // ============================================================
-  function autoPeao(){
-    if(!isOnlineMode || !G || G.over || !gameActive) return;
-    if(!ehMinhaVez()){
-      G.sel = null;
-      G.moves = [];
-      if(typeof st === "function") st("Aguardando oponente...");
-      if(typeof draw === "function") draw();
-      return;
-    }
-    var p = G.turn;
-    G.sel = [G.pos[p][0], G.pos[p][1]];
-    if(typeof legalMoves === "function") G.moves = legalMoves(p);
-    if(typeof st === "function") st("Sua vez");
-    if(typeof draw === "function") draw();
-  }
-
-  // ============================================================
-  // LISTAR SALAS DISPONÍVEIS
-  // ============================================================
-  function escutarSalas(){
-    var rtdb=getRtdb(); if(!rtdb) return;
-    if(_listaHandler){ try{rtdb.ref("salas").off("value",_listaHandler);}catch(e){} }
-    _listaHandler=function(snap){
-      var lista=document.getElementById("sala-lista"); if(!lista) return;
-      lista.innerHTML="";
-      var val=snap.val()||{}, items=[];
-      Object.keys(val).forEach(function(id){
-        var d=val[id];
-        if(d && d.status==="esperando" && !d.jogador2) items.push({id:id, d:d});
-      });
-      items.sort(function(a,b){ return (b.d.createdAt||0)-(a.d.createdAt||0); });
-      if(!items.length){
-        lista.innerHTML='<div class="history-empty">Nenhuma sala disponível. Crie uma!</div>';
-        return;
-      }
-      items.forEach(function(it){
-        var d=it.d, nome=d.nomePartida||d.jogador1||"Sala";
-        var lock=d.senha?"🔒 ":"", souEu=d.jogador1===currentUser;
-        var row=document.createElement("div");
-        row.className="sala-item";
-        row.innerHTML='<div class="sala-info"><span class="sala-nome">'+lock+nome+'</span><br><span class="sala-host">👤 '+(d.jogador1||"")+(souEu?" (sua)":"")+'</span></div>';
-        if(!souEu){
-          var btn=document.createElement("button");
-          btn.className="btn-entrar";
-          btn.textContent="Entrar";
-          btn.onclick=function(){ entrarSala(it.id, d); };
-          row.appendChild(btn);
-        }
-        lista.appendChild(row);
-      });
-    };
-    rtdb.ref("salas").orderByChild("createdAt").on("value",_listaHandler,function(err){ setStatus(err.message); });
-  }
-
-  // ============================================================
-  // CRIAR SALA
-  // ============================================================
-  function criarSala(){
-    if(!currentUser){ alert("Faça login"); return; }
-    var rtdb=getRtdb(); if(!rtdb) return;
-    var nome=((document.getElementById("sala-nome-input")||{}).value||"").trim() || (currentUser+" game");
-    var senha=((document.getElementById("sala-senha-input")||{}).value||"").trim();
-    var ref=rtdb.ref("salas").push(), id=ref.key;
-    setStatus("Criando...");
-    ref.set({
-      nomePartida: nome,
-      jogador1: currentUser,
-      jogador2: "",
-      status: "esperando",
-      turno: 0,
-      posicoes: [[8,4],[0,4]],
-      paredesH: [],
-      paredesV: [],
-      paredesRestantes: [10,10],
-      vencedor: "",
-      createdAt: Date.now(),
-      senha: senha
-    }).then(function(){
-      setStatus("✅ Sala criada! Aguardando oponente...");
-      alert("Sala criada! ID: "+id);
-      isOnlineMode = true;
-      salaAtual = id;
-      G.p1Name = currentUser;
-      G.p2Name = "Aguardando...";
-      meuJogadorIndex = 0;
-      // Escuta mudanças na sala
-      ref.on("value", function(snap){
-        var data=snap.val();
-        if(data && data.status==="em_andamento" && data.jogador2){
-          document.getElementById("sala-overlay").classList.remove("show");
-          iniciarJogoOnline(id, data);
-        }
-      });
-      escutarSalas();
-    }).catch(function(err){ setStatus(err.message); alert(err.message); });
-  }
-
-  // ============================================================
-  // ENTRAR EM SALA
-  // ============================================================
-  function entrarSala(salaId, data){
-    if(!currentUser){ alert("Faça login"); return; }
-    if(data.senha){
-      var s=prompt("Senha da sala:");
-      if(s===null) return;
-      if(s!==data.senha){ alert("Senha incorreta"); return; }
-    }
-    var rtdb=getRtdb(), ref=rtdb.ref("salas/"+salaId);
-    ref.transaction(function(cur){
-      if(!cur) return cur;
-      if(cur.status!=="esperando" || (cur.jogador2 && cur.jogador2!=="")) return;
-      cur.jogador2 = currentUser;
-      cur.status = "em_andamento";
-      return cur;
-    }).then(function(r){
-      if(!r.committed){ alert("Sala já ocupada"); escutarSalas(); return; }
-      document.getElementById("sala-overlay").classList.remove("show");
-      iniciarJogoOnline(salaId, r.snapshot.val());
-    }).catch(function(err){ alert(err.message); });
-  }
-
-  // ============================================================
-  // APLICAR ESTADO DO JOGO
-  // ============================================================
-  function aplicarEstado(data){
-    if(!data) return;
-    G.p1Name = data.jogador1 || G.p1Name;
-    G.p2Name = data.jogador2 || G.p2Name;
-    G.pos = data.posicoes || G.pos;
-    G.walls = data.paredesRestantes || G.walls;
-    G.turn = (typeof data.turno === "number") ? data.turno : G.turn;
-    G.pH = [];
-    G.pV = [];
-    G.wallOwnerH = [];
-    G.wallOwnerV = [];
-    (data.paredesH||[]).forEach(function(w){
-      if(Array.isArray(w)){ G.pH.push([w[0],w[1]]); G.wallOwnerH.push(0); }
-      else if(w){ G.pH.push([w.r,w.c]); G.wallOwnerH.push(w.dono||0); }
-    });
-    (data.paredesV||[]).forEach(function(w){
-      if(Array.isArray(w)){ G.pV.push([w[0],w[1]]); G.wallOwnerV.push(0); }
-      else if(w){ G.pV.push([w.r,w.c]); G.wallOwnerV.push(w.dono||0); }
-    });
-    // Atualiza nomes na interface
-    var a=document.getElementById("p1-nome"); if(a) a.textContent=G.p1Name;
-    var b=document.getElementById("nomeJ2"); if(b) b.textContent=G.p2Name;
-    if(typeof updateWallIndicators === "function") updateWallIndicators();
-    if(typeof draw === "function") draw();
-  }
-
-  // ============================================================
-  // INICIAR JOGO ONLINE
-  // ============================================================
-  function iniciarJogoOnline(salaId, data){
-    isOnlineMode = true;
-    salaAtual = salaId;
-    G.vsIA = false;
-    G.over = false;
-    G.mode = "move";
-    G.sel = null;
-    G.moves = [];
-    gameActive = true;
-    matchFinished = false;
-    aplicarEstado(data);
-    // Define quem é o jogador local
-    if(currentUser === G.p1Name) meuJogadorIndex = 0;
-    else if(currentUser === G.p2Name) meuJogadorIndex = 1;
-    document.getElementById("p2-controls").style.display = "none";
-    document.getElementById("game-screen").classList.remove("p2-active","modo-2p");
-    showScreen("game-screen");
-    requestAnimationFrame(function(){
-      requestAnimationFrame(function(){
-        if(typeof resize === "function") resize();
-        if(typeof updateWallIndicators === "function") updateWallIndicators();
-        if(typeof draw === "function") draw();
-        autoPeao();
-      });
-    });
-    // Escuta mudanças no jogo
-    var rtdb=getRtdb(), ref=rtdb.ref("salas/"+salaId);
-    if(_jogoHandler){ try{ ref.off("value", _jogoHandler); }catch(e){} }
-    _jogoHandler = function(snap){
-      var novo=snap.val();
-      if(!novo) return;
-      if(novo.status==="finalizada"){
-        if(!G.over){
-          G.over = true;
-          var vencedor = novo.vencedor || "";
-          var idx = (vencedor === G.p1Name) ? 0 : 1;
-          if(typeof showWinOverlay === "function"){
-            showWinOverlay("◈ " + vencedor + " venceu!", idx);
-          }
-        }
-        return;
-      }
-      aplicarEstado(novo);
-      autoPeao();
-    };
-    ref.on("value", _jogoHandler);
-  }
-
-  // ============================================================
-  // ENVIAR ESTADO DO JOGO
-  // ============================================================
-  function enviarEstado(){
-    if(!salaAtual || !isOnlineMode) return;
-    // Só envia se for a vez do jogador local
-    if(!ehMinhaVez()) return;
-    var rtdb=getRtdb(); if(!rtdb) return;
-    var paredesH=[], paredesV=[];
-    for(var i=0;i<G.pH.length;i++) paredesH.push({r:G.pH[i][0], c:G.pH[i][1], dono:G.wallOwnerH[i]||0});
-    for(var j=0;j<G.pV.length;j++) paredesV.push({r:G.pV[j][0], c:G.pV[j][1], dono:G.wallOwnerV[j]||0});
-    var upd = {
-      posicoes: [[G.pos[0][0], G.pos[0][1]], [G.pos[1][0], G.pos[1][1]]],
-      paredesH: paredesH,
-      paredesV: paredesV,
-      paredesRestantes: [G.walls[0], G.walls[1]],
-      turno: G.turn
-    };
-    if(G.over || G.pos[0][0] === 0 || G.pos[1][0] === 8){
-      upd.status = "finalizada";
-      upd.vencedor = (G.pos[0][0] === 0) ? G.p1Name : G.p2Name;
-    }
-    rtdb.ref("salas/"+salaAtual).update(upd);
-  }
-
-  // ============================================================
-  // SOBRESCREVER FUNÇÕES DO JOGO PARA ENVIAR ESTADO
-  // ============================================================
-  if(typeof doMove === "function"){
-    var _dm = doMove;
-    doMove = function(r,c){
-      if(isOnlineMode && !ehMinhaVez()){
-        if(typeof st === "function") st("Não é sua vez");
-        return;
-      }
-      var o = _dm.apply(this, arguments);
-      if(isOnlineMode) enviarEstado();
-      setTimeout(autoPeao, 50);
-      return o;
-    };
-  }
-
-  if(typeof placeWall === "function"){
-    var _pw = placeWall;
-    placeWall = function(ni,nj,ori){
-      if(isOnlineMode && !ehMinhaVez()){
-        if(typeof st === "function") st("Não é sua vez");
-        return;
-      }
-      var o = _pw.apply(this, arguments);
-      if(isOnlineMode) enviarEstado();
-      setTimeout(autoPeao, 50);
-      return o;
-    };
-  }
-
-  // ============================================================
-  // ABRIR/FECHAR OVERLAY
-  // ============================================================
-  function abrir(){
-    if(!currentUser){ alert("Faça login"); return; }
-    document.getElementById("sala-overlay").classList.add("show");
-    setStatus("Crie ou entre numa sala");
-    escutarSalas();
-  }
-
-  function bind(id, fn){
-    var el=document.getElementById(id);
-    if(!el) return;
-    var n=el.cloneNode(true);
-    el.parentNode.replaceChild(n, el);
-    n.addEventListener("click", fn);
-  }
-
-  bind("btn-online", abrir);
-  bind("btn-criar-sala", criarSala);
-  bind("btn-close-sala", function(){
-    document.getElementById("sala-overlay").classList.remove("show");
-  });
-  bind("sala-close", function(){
-    document.getElementById("sala-overlay").classList.remove("show");
-  });
-
-  console.log("✅ ONLINE CORRIGIDO ativo (turnos sincronizados)!");
-})();
-</script>
-
+<!-- OVERLAY CHAT -->
+<div id="chat-overlay">
+  <div id="chat-card">
+    <h2>💬 CHAT ONLINE <button class="close-btn" id="chat-close">✕</button></h2>
+    <div id="chat-messages"></div>
+    <div id="chat-input-area">
+      <input type="text" id="chat-input" placeholder="Digite sua mensagem...">
+      <button id="chat-send">Enviar</button>
+    </div>
+    <button id="btn-close-chat">FECHAR</button>
+  </div>
+</div>
 </body>
 </html>
