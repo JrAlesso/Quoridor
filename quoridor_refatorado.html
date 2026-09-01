@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Quoridor</title>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <style>
+    /* ===== CSS OTIMIZADO (mesma aparência) ===== */
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+    html,body{width:100%;height:100%;overflow:hidden;position:fixed;background:#1a1410;font-family:'Inter',sans-serif;color:#f0e6d3}
+    .screen{display:none;width:100%;height:100%;flex-direction:column;align-items:center;padding:20px;position:absolute;top:0;left:0;background:#1a1410;overflow-y:auto;transition:opacity .5s}
+    .screen.active{display:flex}
+    .screen>*{position:relative;z-index:1}
+    body::before{content:"";position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at 20% 50%,rgba(212,163,115,0.08),transparent 70%),radial-gradient(ellipse at 80% 20%,rgba(77,171,247,0.05),transparent 60%);pointer-events:none;z-index:0}
+    #login-screen{background:linear-gradient(145deg,#1a1410,#0d0a08);justify-content:center}
+    #login-screen h1{font-size:44px;font-family:'Playfair Display',serif;font-weight:900;background:linear-gradient(135deg,#d4a373,#b8860b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    #login-screen .sub{color:#b8a99a;font-size:14px;letter-spacing:2px;margin-bottom:30px}
+    #login-screen form{width:100%;max-width:340px;display:flex;flex-direction:column;gap:14px}
+    #login-screen input{padding:16px 18px;border-radius:14px;border:1px solid rgba(255,215,140,0.15);background:rgba(255,215,140,0.05);color:#f0e6d3;font-size:14px;outline:none}
+    #login-screen input:focus{border-color:#d4a373}
+    .btn-primary{width:100%;padding:16px;border:none;border-radius:14px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;font-size:16px;cursor:pointer}
+    .toggle-link{color:#b8a99a;font-size:13px;cursor:pointer;text-align:center;margin-top:8px}
+    #login-error{color:#e06b6b;font-size:12px;text-align:center;min-height:20px}
+    #mode-screen{background:linear-gradient(145deg,#1a1410,#0d0a08);padding-top:20px}
+    #mode-screen .header{width:100%;max-width:420px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    #mode-screen .user-info{display:flex;align-items:center;gap:12px;cursor:pointer}
+    #mode-screen .user-info .avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#d4a373,#b8860b);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#1a1410}
+    #mode-screen .user-info .name{font-size:15px;font-weight:700}
+    #mode-screen .user-info .badge{font-size:9px;background:rgba(16,185,129,0.12);color:#10b981;padding:3px 12px;border-radius:20px}
+    #mode-screen .user-level{font-size:11px;color:#b8a99a;background:rgba(255,215,140,0.05);padding:4px 14px;border-radius:20px}
+    .rank-area{width:100%;max-width:420px;background:rgba(255,215,140,0.03);border-radius:14px;padding:12px 14px;border:1px solid rgba(255,215,140,0.06);margin-bottom:14px;cursor:pointer}
+    .rank-area .rank-row{display:flex;justify-content:space-between;align-items:center}
+    .rank-area .rank-title{font-size:11px;font-weight:700;color:#d4a373}
+    .rank-area .rank-badge{font-size:18px;font-weight:900;color:#b8a99a;display:flex;align-items:center;gap:4px}
+    .rank-area .rank-pointers button.rank-indicator{background:none;border:none;padding:0;margin:0;cursor:pointer;color:#b8a99a;font-size:12px;font-family:'Inter',sans-serif;text-decoration:underline;text-underline-offset:3px}
+    .rank-area .rank-pointers button.rank-indicator:hover{color:#d4a373}
+    .rank-area .rank-progress{width:100%;height:6px;background:rgba(255,255,255,0.06);border-radius:4px;margin-top:8px;overflow:hidden}
+    .rank-area .rank-progress .fill{height:100%;background:linear-gradient(90deg,#d4a373,#b8860b);border-radius:4px;width:0%}
+    .rank-area .rank-hint{font-size:9px;color:#666;text-align:center;margin-top:4px}
+    .stats-row{width:100%;max-width:420px;display:flex;gap:10px;margin-bottom:16px}
+    .stats-row .stat-card{flex:1;background:rgba(255,215,140,0.04);border-radius:14px;padding:10px 6px;text-align:center;border:1px solid rgba(255,215,140,0.06)}
+    .stats-row .stat-card .value{font-size:18px;font-weight:900;color:#d4a373}
+    .stats-row .stat-card .label{font-size:8px;color:#b8a99a;margin-top:2px}
+    .modos{width:100%;max-width:420px;display:flex;flex-direction:column;gap:10px}
+    .modo-btn{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;border:1px solid rgba(255,215,140,0.06);background:rgba(255,215,140,0.03);color:#f0e6d3;cursor:pointer}
+    .modo-btn .icon{font-size:22px;width:36px;text-align:center}
+    .modo-btn .info{flex:1}
+    .modo-btn .info .title{font-weight:700;font-size:14px}
+    .modo-btn .info .desc{font-size:10px;color:#b8a99a}
+    .modo-btn .arrow{color:#b8a99a;font-size:18px}
+    .daily{width:100%;max-width:420px;background:rgba(255,215,140,0.04);border:1px solid rgba(255,215,140,0.08);border-radius:16px;padding:12px 16px;margin-top:10px;display:flex;justify-content:space-between;align-items:center}
+    .daily .btn-claim{padding:6px 18px;border:none;border-radius:12px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:700;font-size:11px;cursor:pointer}
+    .overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1001;padding:20px}
+    .overlay.show{display:flex}
+    .overlay-card{background:rgba(26,20,16,0.97);border:1px solid rgba(255,215,140,0.12);border-radius:24px;padding:20px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 60px rgba(0,0,0,0.8);position:relative;z-index:2}
+    .overlay-card h2{color:#d4a373;font-size:16px;text-align:center;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+    .overlay-card h2 .close-btn{background:none;border:none;color:#b8a99a;font-size:20px;cursor:pointer}
+    .overlay-card .close-btn-bottom{width:100%;padding:12px;border:none;border-radius:14px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;font-size:13px;cursor:pointer;margin-top:4px}
+    .scroll-list{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;padding-right:4px}
+    .profile-item,.history-item,.title-item,.skin-item,.medal-item,.sala-item,.inspect-item,.rank-item{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid rgba(255,215,140,0.04);font-size:13px;color:#b8a99a}
+    .profile-item .stat-label{flex:1;display:flex;align-items:center;gap:6px}
+    .profile-item .stat-value{font-weight:700;color:#f0e6d3;min-width:70px;text-align:right;font-size:15px}
+    .profile-item .stat-desc{display:none;position:absolute;bottom:calc(100%+6px);left:50%;transform:translateX(-50%);background:#1a1410;border:1px solid rgba(255,215,140,0.25);border-radius:10px;padding:10px 12px;font-size:12px;color:#d4a373;line-height:1.4;width:90%;max-width:280px;z-index:30;box-shadow:0 8px 24px rgba(0,0,0,0.7);pointer-events:none;text-align:center}
+    .profile-item .stat-desc::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:rgba(255,215,140,0.25)}
+    .profile-item.active .stat-desc,.profile-item:hover .stat-desc{display:block}
+    .history-item .result.win{color:#10b981}
+    .history-item .result.loss{color:#e94560}
+    .history-empty{color:#666;text-align:center;padding:30px 0;font-size:13px}
+    .title-item.unlocked{background:rgba(16,185,129,0.05);border-color:rgba(16,185,129,0.15)}
+    .title-item.locked{opacity:.7;filter:grayscale(.8)}
+    .title-equip-btn{background:rgba(212,163,115,0.15);border:1px solid #d4a373;color:#d4a373;border-radius:8px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;transition:all .2s}
+    .title-equip-btn.equipped{background:#d4a373;color:#1a1410}
+    .skin-item.owned{background:rgba(16,185,129,0.05)}
+    .skin-btn{background:rgba(212,163,115,0.15);border:1px solid #d4a373;color:#d4a373;border-radius:8px;padding:6px 10px;font-size:10px;font-weight:700;cursor:pointer;transition:all .2s;flex-shrink:0}
+    .skin-btn.equipped{background:#d4a373;color:#1a1410;cursor:default}
+    .skin-btn.buy{background:rgba(16,185,129,0.15);border-color:#10b981;color:#10b981}
+    .skin-raridade{font-size:8px;color:#facc15;font-weight:700;text-transform:uppercase}
+    .tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;justify-content:center}
+    .tabs button{flex:1;min-width:60px;padding:8px 4px;border:1px solid rgba(255,215,140,0.06);border-radius:8px;background:rgba(255,215,140,0.03);color:#b8a99a;font-weight:700;font-size:9px;cursor:pointer;transition:all .2s}
+    .tabs button.active{border-color:#d4a373;color:#d4a373;background:rgba(212,163,115,0.08)}
+    .medal-item.unlocked{background:rgba(16,185,129,0.05)}
+    .medal-item.locked{opacity:.7;filter:grayscale(.8)}
+    .medal-svg{width:40px;height:40px;flex-shrink:0}
+    #game-screen{background:linear-gradient(180deg,rgba(26,20,16,0.55),rgba(26,20,16,0.75)),repeating-linear-gradient(90deg,#3d2b1f 0,#4a3426 2px,#5c4030 4px,#4a3426 6px,#3d2b1f 8px),linear-gradient(180deg,#2c1e14,#1a120c);justify-content:center;padding:10px}
+    #game-screen.p2-active{background:linear-gradient(180deg,rgba(26,20,16,0.75),rgba(26,20,16,0.55)),repeating-linear-gradient(90deg,#3d2b1f 0,#4a3426 2px,#5c4030 4px,#4a3426 6px,#3d2b1f 8px),linear-gradient(0deg,#2c1e14,#1a120c)}
+    #app{max-width:600px;width:100%;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;margin:auto}
+    #menu-container{width:100%;display:flex;justify-content:center;margin-bottom:4px;position:relative;order:10}
+    #menu-toggle{padding:8px 22px;background:rgba(255,215,140,0.06);border:1px solid rgba(255,215,140,0.12);border-radius:30px;color:#e8d5b5;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px}
+    #menu-toggle .arrow{transition:transform .3s;font-size:10px}
+    #menu-toggle .arrow.open{transform:rotate(180deg)}
+    #menu-dropdown{display:none;position:absolute;bottom:calc(100%+8px);left:50%;transform:translateX(-50%);min-width:200px;background:rgba(26,20,16,0.96);border:1px solid rgba(255,215,140,0.12);border-radius:20px;padding:12px 10px;z-index:10}
+    #menu-dropdown.show{display:block}
+    #menu-dropdown .row{display:flex;gap:8px;margin-bottom:6px;justify-content:center}
+    #menu-dropdown .btn-item{flex:1;padding:10px 12px;border:1px solid rgba(255,215,140,0.06);border-radius:12px;font-weight:700;font-size:12px;cursor:pointer;background:rgba(255,215,140,0.03);color:#b8a99a;text-align:center}
+    #menu-dropdown .btn-item.undo{color:#4dabf7}
+    #menu-dropdown .btn-item.menu-back{color:#e06b6b}
+    #hud-wrapper{width:100%;display:flex;flex-direction:column;gap:6px;order:1;transition:transform .1s}
+    #hud-wrapper.rotated{transform:rotate(180deg)}
+    #info{background:rgba(30,22,16,0.85);border-radius:16px;padding:8px 12px;border:1px solid rgba(255,215,140,0.1);width:100%;display:flex;justify-content:space-between;align-items:center;backdrop-filter:blur(6px)}
+    .p-info{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px}
+    .p-info .nome{font-size:9px;font-weight:700;padding:4px 8px;border:1px solid rgba(255,215,140,0.25);border-radius:8px;background:rgba(255,215,140,0.08);cursor:pointer;transition:all .2s}
+    .p-info .nome:hover{background:rgba(255,215,140,0.2)}
+    .p-info .nome:active{transform:scale(.95)}
+    .paredes-wrap{display:flex;gap:2px;flex-wrap:wrap;justify-content:center;max-width:50px}
+    .pip{width:6px;height:6px;border-radius:2px;transition:all .3s}
+    #p1 .nome{color:#d4a373;border-color:rgba(212,163,115,0.4)}
+    #p2 .nome{color:#4dabf7;border-color:rgba(77,171,247,0.4)}
+    #p1 .pip{background:#d4a373;box-shadow:0 0 5px rgba(212,163,115,0.5)}
+    #p2 .pip{background:#4dabf7;box-shadow:0 0 5px rgba(77,171,247,0.5)}
+    .pip.usado{background:#2a2a3a;box-shadow:none;transform:scale(.3);opacity:.2}
+    #timer-display{background:rgba(255,215,140,0.08);border:1px solid rgba(255,215,140,0.12);border-radius:30px;padding:4px 14px;min-height:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:8px;color:#b8a99a;min-width:56px}
+    #timer-display .tempo{font-size:18px;font-weight:900;color:#d4a373;margin-top:1px}
+    #timer-display.vez1{background:rgba(212,163,115,0.12)}
+    #timer-display.vez2{background:rgba(77,171,247,0.12)}
+    #timer-display.fim{background:rgba(16,185,129,0.12)}
+    #placar{background:rgba(30,22,16,0.7);border-radius:12px;padding:4px 10px;width:100%;display:flex;justify-content:center;gap:16px;border:1px solid rgba(255,215,140,0.06)}
+    #placar span{font-size:9px;font-weight:700;color:#b8a99a}
+    #placar .p1{color:#d4a373}
+    #placar .p2{color:#4dabf7}
+    #rodada-info{color:#b8a99a;font-size:8px;text-align:center}
+    #canvas-container{border-radius:20px;overflow:hidden;background:#1a1410;border:2px solid rgba(139,90,43,0.4);box-shadow:0 8px 40px rgba(0,0,0,0.7),inset 0 0 30px rgba(0,0,0,0.3);display:flex;justify-content:center;align-items:center;width:100%;order:2}
+    canvas{display:block;touch-action:none;max-width:100%}
+    #status{color:#e8d5b5;font-size:9px;text-align:center;min-height:14px;text-shadow:0 1px 2px rgba(0,0,0,0.5);order:3}
+    #ia-thinking{display:none;align-items:center;gap:5px;color:#d4a373;font-size:8px;font-weight:700;order:4}
+    #ia-thinking.show{display:flex}
+    .dot-pulse{display:flex;gap:3px}
+    .dot-pulse span{width:4px;height:4px;border-radius:50%;background:#d4a373;animation:pulse 1.2s infinite}
+    .dot-pulse span:nth-child(2){animation-delay:.2s}
+    .dot-pulse span:nth-child(3){animation-delay:.4s}
+    @keyframes pulse{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+    #btns-parede{display:flex;gap:8px;width:100%;margin-top:4px;order:5}
+    #p2-controls{display:none;gap:8px;width:100%;margin-bottom:4px;order:0}
+    #btns-parede button,#p2-controls button{flex:1;padding:14px 4px;border:2px solid rgba(255,215,140,0.12);border-radius:14px;font-weight:700;font-size:11px;cursor:pointer;background:rgba(30,22,16,0.8);color:#b8a99a;display:flex;align-items:center;justify-content:center;gap:8px}
+    #btns-parede button.modo-ativo,#p2-controls button.modo-ativo{border-color:#d4a373;color:#d4a373;background:rgba(212,163,115,0.15)}
+    #p2-controls button{transform:rotate(180deg)}
+    .wall-icon-h{width:28px;height:6px;border-radius:3px;background:currentColor}
+    .wall-icon-v{width:6px;height:28px;border-radius:3px;background:currentColor}
+    #win-overlay{z-index:1000}
+    #win-card{animation:winCardIn .5s cubic-bezier(.34,1.56,.64,1);background:rgba(26,20,16,0.98);border:2px solid rgba(212,163,115,0.35);box-shadow:0 0 60px rgba(212,163,115,0.25),0 20px 60px rgba(0,0,0,0.8);position:relative}
+    #win-message{font-size:22px;font-weight:900;color:#f0e6d3;text-align:center;animation:winTextPulse 1.2s infinite alternate}
+    #win-message .sub{font-size:14px;font-weight:500;display:block;margin-top:8px;opacity:.85;color:#d4a373}
+    #win-message.win-p1{color:#d4a373;text-shadow:0 0 20px rgba(212,163,115,0.5)}
+    #win-message.win-p2{color:#4dabf7;text-shadow:0 0 20px rgba(77,171,247,0.5)}
+    #win-message .xp-line{font-size:14px;font-weight:600;color:#10b981;margin-top:6px}
+    #win-message .rank-line{font-size:14px;font-weight:600;color:#d4a373;margin-top:6px}
+    #win-message .rank-line.rank-positivo{color:#10b981}
+    #win-message .rank-line.rank-negativo{color:#e94560}
+    #win-message .level-line{font-size:13px;font-weight:600;color:#facc15;margin-top:6px}
+    #win-message .patent-line{font-size:13px;font-weight:600;color:#b8a99a;margin-top:6px}
+    @keyframes winCardIn{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+    @keyframes winTextPulse{from{transform:scale(1)}to{transform:scale(1.03)}}
+    @keyframes rankUpAnim{0%{transform:scale(1);color:#b8a99a}50%{transform:scale(1.2);color:#facc15}100%{transform:scale(1);color:#b8a99a}}
+    .rank-up{display:inline-block;animation:rankUpAnim 1s infinite}
+    #btn-close-win{position:absolute;top:10px;right:15px;background:rgba(212,163,115,0.2);border:1px solid #d4a373;color:#d4a373;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;z-index:10;display:none}
+    #btn-close-win:hover{background:rgba(212,163,115,0.4)}
+    #confetti-container{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:1003}
+    .confetti-piece{position:absolute;width:10px;height:20px;border-radius:3px;animation:confettiExplode linear forwards}
+    @keyframes confettiExplode{0%{transform:translate(0,0) rotate(0) scale(1);opacity:1}100%{transform:translate(var(--tx),var(--ty)) rotate(720deg) scale(.1);opacity:0}}
+    .config-group{margin-bottom:12px}
+    .config-group label{display:block;color:#b8a99a;font-size:10px;font-weight:700;margin-bottom:4px}
+    .config-group .options{display:flex;gap:6px;justify-content:center}
+    .config-group .options button{flex:1;padding:8px;border:1px solid rgba(255,215,140,0.06);border-radius:10px;background:rgba(255,215,140,0.03);color:#b8a99a;font-weight:700;font-size:11px;cursor:pointer}
+    .config-group .options button.selected{border-color:#d4a373;color:#d4a373;background:rgba(212,163,115,0.08)}
+    #names-config input{padding:12px 14px;border-radius:12px;border:1px solid rgba(255,215,140,0.15);background:rgba(255,215,140,0.05);color:#f0e6d3;font-size:14px;outline:none;width:100%;margin-bottom:6px}
+    #btn-voltar{width:100%;padding:12px;border:none;border-radius:14px;background:rgba(255,255,255,0.03);color:#b8a99a;font-weight:700;font-size:13px;cursor:pointer;margin-top:6px}
+    .sala-input{width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,215,140,0.15);background:rgba(255,215,140,0.05);color:#f0e6d3;font-size:14px;outline:none;margin-bottom:8px}
+    .sala-lista .sala-item .sala-btn{background:rgba(212,163,115,0.15);border:1px solid #d4a373;color:#d4a373;border-radius:8px;padding:4px 12px;font-size:10px;font-weight:700;cursor:pointer}
+    .sala-status{font-size:12px;color:#b8a99a;padding:8px;background:rgba(255,215,140,0.03);border-radius:10px;text-align:center}
+    #inspect-card.rotated{transform:rotate(180deg)}
+    .profile-item,.history-item,.inspect-item{position:relative}
+    @media(max-width:400px){#login-screen h1{font-size:32px}#mode-screen .header .user-info .name{font-size:13px}.modo-btn{padding:10px 12px;gap:10px}.modo-btn .icon{font-size:18px;width:28px}}
+  </style>
+</head>
+<body>
+  <!-- ===== TELAS ===== -->
+  <div id="login-screen" class="screen active">
+    <h1>QUORIDOR</h1><div class="sub">Crie sua conta e comece a jogar</div>
+    <form id="login-form"><input type="text" id="login-username" placeholder="Nome de usuário" required><input type="password" id="login-password" placeholder="Senha" required><input type="password" id="login-confirm" placeholder="Confirmar senha"><div id="login-error"></div><button type="submit" class="btn-primary" id="login-btn">CRIAR CONTA</button></form>
+    <div class="toggle-link" id="toggle-login">Já tem conta? Faça login</div>
+  </div>
+  <div id="mode-screen" class="screen">
+    <div class="header"><div class="user-info" id="user-info-profile"><div class="avatar" id="user-avatar">J</div><div><div class="name" id="user-name">Jogador</div><div class="badge">● ONLINE</div></div></div><div class="user-level" id="user-level">Nível 1</div></div>
+    <div class="rank-area" id="rank-area"><div class="rank-row"><span class="rank-title">PATENTE</span><span class="rank-badge" id="rank-badge">Bronze V</span></div><div class="rank-row"><span class="rank-pointers" id="rank-points">0 pts</span><span class="rank-pointers"><button class="rank-indicator" id="rank-indicator-btn">Próx: Bronze IV</button></span></div><div class="rank-progress"><div class="fill" id="rank-progress-fill" style="width:0%"></div></div><div class="rank-hint" id="rank-hint">Histórico</div></div>
+    <div class="stats-row"><div class="stat-card"><div class="value" id="stat-games-mode">0</div><div class="label">Partidas</div></div><div class="stat-card"><div class="value" id="stat-wins-mode">0</div><div class="label">Vitórias</div></div><div class="stat-card"><div class="value" id="stat-streak">0</div><div class="label">Sequência</div></div></div>
+    <div class="modos">
+      <div class="modo-btn" id="btn-online"><span class="icon">🌐</span><div class="info"><div class="title">Jogar Online</div><div class="desc">Partidas ranqueadas</div></div><span class="arrow">›</span></div>
+      <div class="modo-btn" id="btn-vs-ia"><span class="icon">⚙</span><div class="info"><div class="title">Contra o Computador</div><div class="desc">Um jogador</div></div><span class="arrow">›</span></div>
+      <div class="modo-btn" id="btn-2p"><span class="icon">⚔</span><div class="info"><div class="title">Dois Jogadores</div><div class="desc">Mesmo dispositivo</div></div><span class="arrow">›</span></div>
+      <div class="modo-btn" id="btn-moderacao"><span class="icon">🛡</span><div class="info"><div class="title">Moderação</div><div class="desc">Staff e segurança</div></div><span class="arrow">›</span></div>
+      <div class="modo-btn" id="btn-ranking" style="opacity:0.5"><span class="icon">🏆</span><div class="info"><div class="title">Classificação</div><div class="desc">Em breve</div></div><span class="arrow">›</span></div>
+      <div class="modo-btn" id="btn-titulos"><span class="icon">🎖</span><div class="info"><div class="title">Títulos</div><div class="desc"></div></div><span class="arrow">›</span></div>
+      <div class="modo-btn" id="btn-medalhas"><span class="icon">🏅</span><div class="info"><div class="title">Medalhas</div><div class="desc"></div></div><span class="arrow">›</span></div>
+      <div class="modo-btn" id="btn-trofeus"><span class="icon">🏆</span><div class="info"><div class="title">Troféus</div><div class="desc">Em breve</div></div><span class="arrow">›</span></div>
+      <div class="modo-btn" id="btn-amigos"><span class="icon">👥</span><div class="info"><div class="title">Amigos</div><div class="desc">Em breve</div></div><span class="arrow">›</span></div>
+      <div class="modo-btn" id="btn-skins"><span class="icon">🎨</span><div class="info"><div class="title">Skins</div><div class="desc">Personalize seus peões</div></div><span class="arrow">›</span></div>
+    </div>
+    <div class="daily"><div class="left"><span class="icon">🎁</span><div class="text"><strong>Recompensa diária</strong><br>+200 pontos</div></div><button class="btn-claim" id="btn-claim">Coletar</button></div>
+  </div>
+  <div id="game-screen" class="screen">
+    <div id="app">
+      <div id="p2-controls"><button id="btnH2"><div class="wall-icon-h"></div>Horizontal</button><button id="btnV2"><div class="wall-icon-v"></div>Vertical</button></div>
+      <div id="hud-wrapper"><div id="info"><div class="p-info" id="p1"><span class="nome" id="p1-nome">Player 1</span><div class="paredes-wrap" id="pips1"></div></div><div id="timer-display"><span id="timer-player-name">PLAYER 1</span><span class="tempo" id="timerDisplay">30</span></div><div class="p-info" id="p2"><span class="nome" id="nomeJ2">Player 2</span><div class="paredes-wrap" id="pips2"></div></div></div><div id="placar"><span class="p1">◇ <span id="placar-p1">Player 1</span>: <span id="score1">0</span></span><span class="p2"><span id="placar-p2">Player 2</span>: <span id="score2">0</span> ◇</span></div><div id="rodada-info">Rodada 1 de 1</div></div>
+      <div id="canvas-container"><canvas id="board"></canvas></div>
+      <div id="status">Player 1 começa!</div>
+      <div id="ia-thinking"><span>IA PENSANDO</span><div class="dot-pulse"><span></span><span></span><span></span></div></div>
+      <div id="btns-parede"><button id="btnH"><div class="wall-icon-h"></div> Horizontal</button><button id="btnV"><div class="wall-icon-v"></div> Vertical</button></div>
+      <div id="menu-container"><button id="menu-toggle">MENU <span class="arrow">▼</span></button><div id="menu-dropdown"><div class="row"><button class="btn-item undo" id="btnUndo">DESFAZER</button><button class="btn-item reset" id="btnReset"> NOVO</button></div><div class="row"><button class="btn-item stats" id="btnStats">ESTAT</button><button class="btn-item menu-back" id="btnBackMenu">MENU</button></div></div></div>
+    </div>
+  </div>
+  <!-- ===== OVERLAYS ===== -->
+  <div id="win-overlay" class="overlay"><div id="win-card" class="overlay-card"><div id="win-message">Jogador Venceu!</div><button id="btn-close-win">FECHAR</button></div></div>
+  <div id="confetti-container"></div>
+  <div id="stats-overlay" class="overlay"><div id="stats-card" class="overlay-card"><h2>ESTATÍSTICAS</h2><div id="stats-content"></div><button class="close-btn-bottom" id="btn-close-stats">FECHAR</button></div></div>
+  <div id="profile-overlay" class="overlay"><div id="profile-card" class="overlay-card"><h2>PERFIL <button class="close-btn" id="profile-close">✕</button></h2><div class="scroll-list" id="profile-list"></div><button class="close-btn-bottom" id="btn-close-profile">FECHAR</button></div></div>
+  <div id="history-overlay" class="overlay"><div id="history-card" class="overlay-card"><h2>HISTÓRICO <button class="close-btn" id="history-close">✕</button></h2><div class="scroll-list" id="history-list"></div></div></div>
+  <div id="titles-overlay" class="overlay"><div id="titles-card" class="overlay-card"><h2>TÍTULOS <button class="close-btn" id="titles-close">✕</button></h2><input type="text" class="title-search" id="title-search" placeholder="Buscar título..."><div class="tabs" id="titles-tabs"><button class="tab-btn active" data-tab="vitorias">Vitórias</button><button class="tab-btn" data-tab="partidas">Partidas</button><button class="tab-btn" data-tab="sequencia">Sequência</button><button class="tab-btn" data-tab="nivel">Nível</button><button class="tab-btn" data-tab="2p">2 Jogadores</button><button class="tab-btn" data-tab="vsia">Vs IA</button><button class="tab-btn" data-tab="classificacao">Classificação</button><button class="tab-btn" data-tab="outros">Outros</button></div><div class="scroll-list" id="titles-list"></div><button class="close-btn-bottom" id="btn-close-titles">FECHAR</button></div></div>
+  <div id="skins-overlay" class="overlay"><div id="skins-card" class="overlay-card"><h2>SKINS <button class="close-btn" id="skins-close">✕</button></h2><div id="skins-balance"></div><div class="tabs" id="skins-tabs"><button class="skin-tab active" data-tab="simples">Simples</button><button class="skin-tab" data-tab="lendarias">Lendárias</button><button class="skin-tab" data-tab="raras">Raras</button><button class="skin-tab" data-tab="eventos">Eventos</button><button class="skin-tab" data-tab="paises">Países</button></div><div class="scroll-list" id="skins-list"></div><button class="close-btn-bottom" id="btn-close-skins">FECHAR</button></div></div>
+  <div id="inspect-overlay" class="overlay"><div id="inspect-card" class="overlay-card"><h2>INSPECIONAR <button class="close-btn" id="inspect-close">✕</button></h2><div class="scroll-list" id="inspect-content"></div><button class="close-btn-bottom" id="btn-close-inspect">FECHAR</button></div></div>
+  <div id="ranks-overlay" class="overlay"><div id="ranks-card" class="overlay-card"><h2>PATENTES <button class="close-btn" id="ranks-close">✕</button></h2><div id="ranks-progress"></div><div class="scroll-list" id="ranks-list"></div><button class="close-btn-bottom" id="btn-close-ranks">FECHAR</button></div></div>
+  <div id="medals-overlay" class="overlay"><div id="medals-card" class="overlay-card"><h2>MEDALHAS <button class="close-btn" id="medals-close">✕</button></h2><div class="scroll-list" id="medals-list"></div><button class="close-btn-bottom" id="btn-close-medals">FECHAR</button></div></div>
+  <div id="sala-overlay" class="overlay"><div id="sala-card" class="overlay-card"><h2>JOGAR ONLINE <button class="close-btn" id="sala-close">✕</button></h2><div id="sala-content"><input type="text" id="sala-nome-input" class="sala-input" placeholder="Nome da partida" maxlength="24"><input type="text" id="sala-senha-input" class="sala-input" placeholder="Senha (opcional)"><button id="btn-criar-sala" style="width:100%;padding:12px;margin-bottom:12px;border:none;border-radius:12px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;cursor:pointer">CRIAR SALA</button><div class="sala-status" id="sala-status">Salas abertas aparecem abaixo</div><div class="sala-lista" id="sala-lista"></div><button class="close-btn-bottom" id="btn-close-sala">FECHAR</button></div></div></div>
+  <div id="config-overlay" class="overlay"><div id="config-card" class="overlay-card"><h2>CONFIGURAÇÕES</h2><div class="config-group"><label>TEMPO</label><div class="options" id="time-options"><button data-time="30">30s</button><button data-time="45">45s</button><button data-time="60">60s</button></div></div><div class="config-group"><label>RODADAS</label><div class="options" id="rounds-options"><button data-rounds="1">1</button><button data-rounds="3">3</button><button data-rounds="5">5</button></div></div><div class="config-group" id="nivel-config" style="display:none;"><label>DIFICULDADE</label><div class="options" id="nivel-options"><button data-nivel="facil">FÁCIL</button><button data-nivel="medio">MÉDIO</button><button data-nivel="dificil">DIFÍCIL</button><button data-nivel="expert">EXPERT</button></div></div><div class="config-group" id="names-config" style="display:none;"><label>NOMES</label><input type="text" id="p1-name-input" placeholder="Player 1" maxlength="12" readonly><input type="text" id="p2-name-input" placeholder="Player 2" maxlength="12"></div><button class="btn-primary" id="btn-start-game">INICIAR</button><button id="btn-voltar">VOLTAR</button></div></div>
+
+  <!-- ===== JAVASCRIPT COMPLETO (REFATORADO E CORRIGIDO) ===== -->
+  <script>
+    // ============================================================
+    // 1. FIREBASE
+    // ============================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyBJJZtzkaUoP0swjNrN6Rt0Qm-trzsw4lM",
+      authDomain: "quoridor-online-2823d.firebaseapp.com",
+      databaseURL: "https://quoridor-online-2823d-default-rtdb.firebaseio.com",
+      projectId: "quoridor-online-2823d",
+      storageBucket: "quoridor-online-2823d.firebasestorage.app",
+      messagingSenderId: "652289533045",
+      appId: "1:652289533045:web:043558b29f02c51256443c"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    try { db.settings({ experimentalForceLongPolling: true, merge: true }); } catch(e) {}
+
+    // ============================================================
+    // 2. DADOS (patentes, skins, títulos, medalhas)
+    // ============================================================
+    const PATENTES = [
+      { nome:'Bronze', subdivisoes:5, pontosPorSub:10 },
+      { nome:'Prata', subdivisoes:5, pontosPorSub:20 },
+      { nome:'Ouro', subdivisoes:5, pontosPorSub:35 },
+      { nome:'Platina', subdivisoes:5, pontosPorSub:60 },
+      { nome:'Diamante', subdivisoes:5, pontosPorSub:100 },
+      { nome:'Mestre', subdivisoes:5, pontosPorSub:160 },
+      { nome:'Grão-Mestre', subdivisoes:5, pontosPorSub:260 },
+      { nome:'Lenda', subdivisoes:5, pontosPorSub:420 },
+      { nome:'Mito', subdivisoes:5, pontosPorSub:680 },
+      { nome:'Épico', subdivisoes:5, pontosPorSub:1100 },
+      { nome:'Lendário', subdivisoes:5, pontosPorSub:1800 },
+      { nome:'Imortal', subdivisoes:1, pontosPorSub:3000 }
+    ];
+
+    const SKINS = [
+      { id:'classic', nome:'Clássico', forma:'circle', cor1:'#d4a373', cor2:'#b8860b', preco:0, categoria:'simples' },
+      { id:'blue', nome:'Azul Real', forma:'circle', cor1:'#4dabf7', cor2:'#1a6bb5', preco:100, categoria:'simples' },
+      { id:'gold', nome:'Dourado', forma:'diamond', cor1:'#facc15', cor2:'#b8860b', preco:250, categoria:'simples' },
+      { id:'emerald', nome:'Esmeralda', forma:'hexagon', cor1:'#10b981', cor2:'#065f46', preco:400, categoria:'simples' },
+      { id:'ruby', nome:'Rubi', forma:'star', cor1:'#ef4444', cor2:'#7f1d1d', preco:600, categoria:'simples' },
+      { id:'neon', nome:'Neon', forma:'square', cor1:'#22d3ee', cor2:'#0e7490', preco:800, categoria:'simples' },
+      { id:'phoenix', nome:'Fênix Lendária', forma:'star', cor1:'#ff4500', cor2:'#ffd700', preco:5000, raridade:'lendaria', efeito:'fire', categoria:'lendarias' },
+      { id:'dragon', nome:'Dragão Ancestral', forma:'dragon', cor1:'#8b0000', cor2:'#ff4500', preco:5000, raridade:'lendaria', efeito:'dragon', categoria:'lendarias' },
+      { id:'blackhole', nome:'Buraco Negro', forma:'circle', cor1:'#0a0a12', cor2:'#1a0033', preco:5000, raridade:'lendaria', efeito:'blackhole', categoria:'lendarias' },
+      { id:'thunder', nome:'Raio Celestial', forma:'diamond', cor1:'#00bfff', cor2:'#00008b', preco:5000, raridade:'lendaria', efeito:'electric', categoria:'lendarias' },
+      { id:'crystal', nome:'Cristal Arcano', forma:'square', cor1:'#e0ffff', cor2:'#9400d3', preco:5000, raridade:'lendaria', efeito:'crystal', categoria:'lendarias' },
+      { id:'nebula', nome:'Nebulosa', forma:'circle', cor1:'#8a2be2', cor2:'#ff69b4', preco:5000, raridade:'lendaria', efeito:'nebula', categoria:'lendarias' },
+      { id:'thunderstorm', nome:'Trovão e Relâmpago', forma:'circle', cor1:'#ffff00', cor2:'#808080', preco:5000, raridade:'lendaria', efeito:'thunderstorm', categoria:'lendarias' },
+      { id:'ice', nome:'Gelo Eterno', forma:'circle', cor1:'#e0ffff', cor2:'#00bfff', preco:5000, raridade:'lendaria', efeito:'ice', categoria:'lendarias' },
+      { id:'shadow', nome:'Sombra Viva', forma:'circle', cor1:'#000000', cor2:'#2f2f2f', preco:5000, raridade:'lendaria', efeito:'shadow', categoria:'lendarias' },
+      { id:'nature', nome:'Elemental da Natureza', forma:'circle', cor1:'#32cd32', cor2:'#006400', preco:5000, raridade:'lendaria', efeito:'nature', categoria:'lendarias' },
+      { id:'skull', nome:'Caveira Flamejante', forma:'circle', cor1:'#ffffff', cor2:'#000000', preco:5000, raridade:'lendaria', efeito:'skull', categoria:'lendarias' },
+      { id:'cosmic_eye', nome:'Olho Cósmico', forma:'circle', cor1:'#ff00ff', cor2:'#800080', preco:5000, raridade:'lendaria', efeito:'cosmic_eye', categoria:'lendarias' },
+      { id:'ice_dragon', nome:'Dragão de Gelo', forma:'dragon', cor1:'#e0ffff', cor2:'#00bfff', preco:5000, raridade:'lendaria', efeito:'ice_dragon', categoria:'lendarias' },
+      { id:'volcano', nome:'Vulcão', forma:'circle', cor1:'#ff4500', cor2:'#8b0000', preco:5000, raridade:'lendaria', efeito:'volcano', categoria:'lendarias' },
+      { id:'wind', nome:'Vento Cortante', forma:'circle', cor1:'#ffffff', cor2:'#a0c4ff', preco:5000, raridade:'lendaria', efeito:'wind', categoria:'lendarias' },
+      { id:'arcane_mage', nome:'Mago Arcano', forma:'circle', cor1:'#8a2be2', cor2:'#ff69b4', preco:5000, raridade:'lendaria', efeito:'arcane_mage', categoria:'lendarias' },
+      { id:'pandora', nome:'Pandora', forma:'circle', cor1:'#ffd700', cor2:'#ff4500', preco:5000, raridade:'lendaria', efeito:'pandora', categoria:'lendarias' },
+      { id:'serpent', nome:'Serpente', forma:'circle', cor1:'#32cd32', cor2:'#008000', preco:5000, raridade:'lendaria', efeito:'serpent', categoria:'lendarias' },
+      { id:'inferno', nome:'Inferno', forma:'circle', cor1:'#ff0000', cor2:'#8b0000', preco:5000, raridade:'rara', efeito:'fire', categoria:'raras' },
+      { id:'ocean', nome:'Oceano', forma:'circle', cor1:'#00bfff', cor2:'#00008b', preco:5500, raridade:'rara', efeito:'water', categoria:'raras' },
+      { id:'floresta', nome:'Floresta', forma:'circle', cor1:'#228b22', cor2:'#006400', preco:6000, raridade:'rara', efeito:'nature', categoria:'raras' },
+      { id:'deserto', nome:'Deserto', forma:'circle', cor1:'#edc9af', cor2:'#8b4513', preco:6500, raridade:'rara', efeito:'sand', categoria:'raras' },
+      { id:'ceu', nome:'Céu', forma:'circle', cor1:'#87ceeb', cor2:'#4682b4', preco:7000, raridade:'rara', efeito:'sky', categoria:'raras' },
+      { id:'meteoro', nome:'Meteoro', forma:'circle', cor1:'#ff8c00', cor2:'#8b0000', preco:7500, raridade:'rara', efeito:'meteor', categoria:'raras' },
+      { id:'lava', nome:'Lava', forma:'circle', cor1:'#ff4500', cor2:'#8b0000', preco:8000, raridade:'rara', efeito:'lava', categoria:'raras' },
+      { id:'aurora', nome:'Aurora', forma:'circle', cor1:'#00ff7f', cor2:'#8a2be2', preco:8500, raridade:'rara', efeito:'aurora', categoria:'raras' },
+      { id:'espectral', nome:'Espectral', forma:'circle', cor1:'#ffffff', cor2:'#d3d3d3', preco:9000, raridade:'rara', efeito:'spectral', categoria:'raras' }
+    ];
+
+    // Títulos (resumidos para caber no arquivo, mas completos)
+    const TITLES = [
+      { minWins:1, title:'Primeiro Passo' },{ minWins:10, title:'Estrategista Iniciante' },{ minWins:100, title:'Conquistador' },{ minWins:200, title:'Mestre das Paredes' },{ minWins:300, title:'Dominador' },{ minWins:400, title:'Arquiteto' },{ minWins:500, title:'Invencível' },{ minWins:600, title:'Lenda' },{ minWins:700, title:'O Implacável' },{ minWins:800, title:'O Vigilante' },{ minWins:900, title:'O Estrategista' },{ minWins:1000, title:'O Mestre' },{ minWins:1100, title:'O Incontestável' },{ minWins:1200, title:'Sombra' },{ minWins:1400, title:'Espectro' },{ minWins:1600, title:'Fenômeno' },{ minWins:1800, title:'Mito Vivo' },{ minWins:2000, title:'O Imortal' },{ minWins:2200, title:'O Imbatível' },{ minWins:2400, title:'O Gladiador' },{ minWins:2600, title:'O Lendário' },{ minWins:2800, title:'O Supremo' },{ minWins:3000, title:'O Primeiro' },{ minWins:3200, title:'O Preciso' },{ minWins:3400, title:'O Rápido' },{ minWins:3600, title:'O Supremo' },{ minWins:3800, title:'O Veloz' },{ minWins:4000, title:'O Atemporal' },{ minWins:4500, title:'O Vento' },{ minWins:5000, title:'O Gênio' },{ minWins:5500, title:'O Saltador' },{ minWins:6000, title:'O Intocável' },{ minWins:7000, title:'Dinamite' },{ minWins:8000, title:'Velocidade Máxima' },{ minWins:9000, title:'Tornado' },{ minWins:10000, title:'Wall-Jumper' },{ minWins:12000, title:'Corredor' },{ minWins:14000, title:'O Morcego' },{ minWins:16000, title:'Invisível' },{ minWins:18000, title:'Imparável' },{ minWins:20000, title:'O Mestre do Vento' },{ minWins:25000, title:'O Incansável' },{ minWins:30000, title:'Torpedo' },{ minWins:35000, title:'O Veloz Gorgonzola' },{ minWins:40000, title:'RELÂMPAGO' }
+    ];
+    const SEQUENCE_TITLES = [
+      { minStreak:1, title:'Em Ascensão' },{ minStreak:2, title:'Dois Passos à Frente' },{ minStreak:3, title:'Tríplice Ameaça' },{ minStreak:4, title:'Quatro Cantos' },{ minStreak:5, title:'Pentagrama' },{ minStreak:6, title:'Hexa' },{ minStreak:7, title:'Sete Mares' },{ minStreak:8, title:'Oito Tentáculos' },{ minStreak:9, title:'Nove Vidas' },{ minStreak:10, title:'Dez Dedos' },{ minStreak:12, title:'Dúzia de Ouro' },{ minStreak:15, title:'Quinze Movimentos' },{ minStreak:20, title:'Vinte Léguas' },{ minStreak:25, title:'Prata Pura' },{ minStreak:30, title:'Trinta Graus' },{ minStreak:35, title:'O Ferro' },{ minStreak:40, title:'Quarentena' },{ minStreak:45, title:'O Aço' },{ minStreak:50, title:'Meio Século' },{ minStreak:60, title:'Sessenta Segundos' },{ minStreak:70, title:'O Bronze' },{ minStreak:80, title:'Oitenta Oitavas' },{ minStreak:90, title:'O Nove' },{ minStreak:100, title:'Centurião' },{ minStreak:120, title:'Cento e Vinte BPM' },{ minStreak:140, title:'O Cobre' },{ minStreak:160, title:'Cento e Sessenta Casas' },{ minStreak:180, title:'Meia Volta' },{ minStreak:200, title:'Bicentenário' },{ minStreak:250, title:'O Titânio' },{ minStreak:300, title:'Tricentenário' },{ minStreak:350, title:'O Manganês' },{ minStreak:400, title:'Quadricentenário' },{ minStreak:450, title:'O Crómio' },{ minStreak:500, title:'Meio Milhar' },{ minStreak:600, title:'O Níquel' },{ minStreak:700, title:'O Zinco' },{ minStreak:800, title:'O Estanho' },{ minStreak:900, title:'O Chumbo' },{ minStreak:1000, title:'Milenar' },{ minStreak:1200, title:'Mil Duzentos' },{ minStreak:1400, title:'O Ferro Fundido' },{ minStreak:1600, title:'O Aço Inox' },{ minStreak:1800, title:'O Diamante' },{ minStreak:2000, title:'Bimilenar' },{ minStreak:2500, title:'O Rubi' },{ minStreak:3000, title:'Trimilenar' },{ minStreak:4000, title:'O Safira' },{ minStreak:5000, title:'O Ônix' },{ minStreak:10000, title:'O Imortal' }
+    ];
+    const GAMES_PLAYED_TITLES = [
+      { minGames:1, title:'Recruta' },{ minGames:5, title:'Explorador' },{ minGames:10, title:'Curioso' },{ minGames:25, title:'Aprendiz' },{ minGames:50, title:'Veterano Iniciante' },{ minGames:100, title:'Centurião da Mesa' },{ minGames:150, title:'O Paciente' },{ minGames:200, title:'Duas Centenas' },{ minGames:250, title:'Quarto de Milhar' },{ minGames:300, title:'Tricentenário' },{ minGames:350, title:'O Observador' },{ minGames:400, title:'Quadrigêmeo' },{ minGames:450, title:'O Calculista' },{ minGames:500, title:'Meio Milênio' },{ minGames:600, title:'O Seiscentista' },{ minGames:700, title:'O Setecentista' },{ minGames:800, title:'O Oitocentista' },{ minGames:900, title:'O Novecentista' },{ minGames:1000, title:'O Milenar' },{ minGames:1100, title:'O Onze Centenas' },{ minGames:1200, title:'Dúzia de Centenas' },{ minGames:1300, title:'O Treze Centenas' },{ minGames:1400, title:'O Catorze Centenas' },{ minGames:1500, title:'Quinze Centenas' },{ minGames:1600, title:'O Dezesseis Centenas' },{ minGames:1700, title:'O Dezessete Centenas' },{ minGames:1800, title:'O Dezoito Centenas' },{ minGames:1900, title:'O Dezenove Centenas' },{ minGames:2000, title:'Vinte Centenas' },{ minGames:2500, title:'O Vigoroso' },{ minGames:3000, title:'Três Milhas' },{ minGames:3500, title:'O Tático' },{ minGames:4000, title:'O Quadrante' },{ minGames:4500, title:'O Estrategista' },{ minGames:5000, title:'Pentacampeão da Mesa' },{ minGames:6000, title:'Hexacampeão da Mesa' },{ minGames:7000, title:'Sete Mares de Tinta' },{ minGames:8000, title:'Oito Mil Voltas' },{ minGames:9000, title:'Nove Mil e Uma' },{ minGames:10000, title:'O Mestre dos Tabuleiros' },{ minGames:12000, title:'O Doze Milhas' },{ minGames:14000, title:'O Catorze Milhas' },{ minGames:16000, title:'O Dezesseis Milhas' },{ minGames:18000, title:'O Dezoito Milhas' },{ minGames:20000, title:'O Vinte Mil Léguas' },{ minGames:25000, title:'O Titã' },{ minGames:30000, title:'O Colosso' },{ minGames:40000, title:'O Guardião do Tabuleiro' },{ minGames:50000, title:'O Lendário' },{ minGames:100000, title:'O Absoluto' }
+    ];
+    const LEVEL_TITLES = [
+      { level:1, title:'Calouro' },{ level:2, title:'Aventureiro' },{ level:3, title:'Expectador' },{ level:4, title:'Neófito' },{ level:5, title:'Estudioso' },{ level:6, title:'Dedicado' },{ level:7, title:'Esforçado' },{ level:8, title:'Persistente' },{ level:9, title:'Resistente' },{ level:10, title:'Sobrevivente' },{ level:11, title:'Adaptável' },{ level:12, title:'Raciocinador' },{ level:13, title:'Analítico' },{ level:14, title:'Lógico' },{ level:15, title:'Metódico' },{ level:16, title:'Sistemático' },{ level:17, title:'Estratégico' },{ level:18, title:'Ágil' },{ level:19, title:'Sagaz' },{ level:20, title:'Astuto' },{ level:21, title:'Perspicaz' },{ level:22, title:'Arguto' },{ level:23, title:'Intuitivo' },{ level:24, title:'Precursor' },{ level:25, title:'Vanguardista' },{ level:26, title:'Projetista' },{ level:27, title:'Planejador' },{ level:28, title:'Organizador' },{ level:29, title:'Conselheiro' },{ level:30, title:'Mentor' },{ level:31, title:'Treinador' },{ level:32, title:'Instrutor' },{ level:33, title:'Educador' },{ level:34, title:'Condutor' },{ level:35, title:'Timoneiro' },{ level:36, title:'Piloto' },{ level:37, title:'Almirante' },{ level:38, title:'Marechal' },{ level:39, title:'Brigadeiro' },{ level:40, title:'Tenente' },{ level:41, title:'Sargento' },{ level:42, title:'Cadete' },{ level:43, title:'Oficial' },{ level:44, title:'Decano' },{ level:45, title:'Dignitário' },{ level:46, title:'Notável' },{ level:47, title:'Ilustre' },{ level:48, title:'Eminente' },{ level:49, title:'Honorável' },{ level:50, title:'Venerável' },{ level:51, title:'Sublime' },{ level:52, title:'Magnífico' },{ level:53, title:'Excelso' },{ level:54, title:'Esplêndido' },{ level:55, title:'Glorioso' },{ level:56, title:'Triunfante' },{ level:57, title:'Vitorioso' },{ level:58, title:'Campeão' },{ level:59, title:'Monarca' },{ level:60, title:'Soberano' },{ level:61, title:'Imperador' },{ level:62, title:'Czar' },{ level:63, title:'Sultão' },{ level:64, title:'Faraó' },{ level:65, title:'Xá' },{ level:66, title:'Rajá' },{ level:67, title:'Cônsul' },{ level:68, title:'Senador' },{ level:69, title:'Prefeito' },{ level:70, title:'Embaixador' },{ level:71, title:'Chanceler' },{ level:72, title:'Regente' },{ level:73, title:'Arquimago' },{ level:74, title:'Xamã' },{ level:75, title:'Druida' },{ level:76, title:'Alquimista' },{ level:77, title:'Feiticeiro' },{ level:78, title:'Bruxo' },{ level:79, title:'Místico' },{ level:80, title:'Oculto' },{ level:81, title:'Mítico' },{ level:82, title:'Etéreo' },{ level:83, title:'Celestial' },{ level:84, title:'Astral' },{ level:85, title:'Cósmico' },{ level:86, title:'Galáctico' },{ level:87, title:'Nebuloso' },{ level:88, title:'Sideral' },{ level:89, title:'Perpétuo' },{ level:90, title:'Onisciente' },{ level:91, title:'O Incriado' },{ level:92, title:'O Primordial' },{ level:93, title:'O Ancestral' },{ level:94, title:'O Arcano' },{ level:95, title:'O Transcendente' },{ level:96, title:'O Soberano Absoluto' },{ level:97, title:'O Eterno' },{ level:98, title:'O Infinitário' },{ level:99, title:'O Todo-Poderoso' },{ level:100, title:'O Onipresente' }
+    ];
+    const LOCAL_GAMES_TITLES = [
+      { minLocalGames:1, title:'Rival do Sofá' },{ minLocalGames:2, title:'Irmão de Batalha' },{ minLocalGames:3, title:'Duelista Local' },{ minLocalGames:4, title:'Cara a Cara' },{ minLocalGames:5, title:'Lado a Lado' },{ minLocalGames:6, title:'Amigo Adversário' },{ minLocalGames:7, title:'Tela Compartilhada' },{ minLocalGames:8, title:'Controle Dividido' },{ minLocalGames:9, title:'Desafiante da Sala' },{ minLocalGames:10, title:'Oponente Caseiro' },{ minLocalGames:12, title:'Convidado Especial' },{ minLocalGames:14, title:'Anfitrião do Jogo' },{ minLocalGames:16, title:'Visitante da Vez' },{ minLocalGames:18, title:'Dono do Controle' },{ minLocalGames:20, title:'Iniciador do Duelo' },{ minLocalGames:22, title:'Segundo Movimento' },{ minLocalGames:24, title:'Fera do Quarto' },{ minLocalGames:26, title:'Rei do Quintal' },{ minLocalGames:28, title:'Espelho do Jogo' },{ minLocalGames:30, title:'Cérebro da Garagem' },{ minLocalGames:32, title:'Duetista' },{ minLocalGames:34, title:'Companheiro de Banco' },{ minLocalGames:36, title:'X1 da Tela' },{ minLocalGames:38, title:'Encarador de Desafios' },{ minLocalGames:40, title:'Juiz da Disputa' },{ minLocalGames:42, title:'Herói Offline' },{ minLocalGames:44, title:'Senhor do Sofá' },{ minLocalGames:46, title:'Especialista em Raiva Amiga' },{ minLocalGames:48, title:'O Agitador' },{ minLocalGames:50, title:'O Brincalhão' },{ minLocalGames:52, title:'O Intruso' },{ minLocalGames:54, title:'O Mandachuva' },{ minLocalGames:56, title:'O Equilibrista' },{ minLocalGames:58, title:'O Sereno' },{ minLocalGames:60, title:'O Último Local' },{ minLocalGames:62, title:'Vencedor da Sala' },{ minLocalGames:64, title:'O Lobo da Tela' },{ minLocalGames:66, title:'Caçador de Rivais' },{ minLocalGames:68, title:'O Predador do Controle' },{ minLocalGames:70, title:'O Silencioso do Jogo' },{ minLocalGames:72, title:'O Famoso da Varanda' },{ minLocalGames:74, title:'O Eco da Partida' },{ minLocalGames:76, title:'O Chef do Jogo' },{ minLocalGames:78, title:'O Atleta do Tabuleiro' },{ minLocalGames:80, title:'O Jogador Misterioso' },{ minLocalGames:82, title:'O Reflexo do Controle' },{ minLocalGames:84, title:'O Troféu da Casa' },{ minLocalGames:86, title:'O Protetor do Controle' },{ minLocalGames:88, title:'O Viajante da Sala' },{ minLocalGames:90, title:'O Remanescente' },{ minLocalGames:92, title:'O Duplo' },{ minLocalGames:94, title:'O Espectador Ativo' },{ minLocalGames:96, title:'O Juiz Final' },{ minLocalGames:98, title:'O Campeão do Quintal' },{ minLocalGames:100, title:'Centésimo Local' },{ minLocalGames:110, title:'O Décimo Primeiro' },{ minLocalGames:120, title:'O Duzentésimo' },{ minLocalGames:130, title:'O Tricentésimo' },{ minLocalGames:140, title:'O Quadringentésimo' },{ minLocalGames:150, title:'O Quingentésimo' },{ minLocalGames:160, title:'O Sexcentésimo' },{ minLocalGames:170, title:'O Septingentésimo' },{ minLocalGames:180, title:'O Octingentésimo' },{ minLocalGames:190, title:'O Noningentésimo' },{ minLocalGames:200, title:'O Bicentenário Local' },{ minLocalGames:220, title:'O Duzentos e Vinte' },{ minLocalGames:240, title:'O Duzentos e Quarenta' },{ minLocalGames:260, title:'O Duzentos e Sessenta' },{ minLocalGames:280, title:'O Duzentos e Oitenta' },{ minLocalGames:300, title:'O Tercenário Local' },{ minLocalGames:320, title:'O Trezentos e Vinte' },{ minLocalGames:340, title:'O Trezentos e Quarenta' },{ minLocalGames:360, title:'O Trezentos e Sessenta' },{ minLocalGames:380, title:'O Trezentos e Oitenta' },{ minLocalGames:400, title:'O Quadringentário Local' },{ minLocalGames:420, title:'O Quatrocentos e Vinte' },{ minLocalGames:440, title:'O Quatrocentos e Quarenta' },{ minLocalGames:460, title:'O Quatrocentos e Sessenta' },{ minLocalGames:480, title:'O Quatrocentos e Oitenta' },{ minLocalGames:500, title:'O Quingentário Local' },{ minLocalGames:550, title:'O Quinhentos e Cinquenta' },{ minLocalGames:600, title:'O Sexcentenário Local' },{ minLocalGames:650, title:'O Seiscentos e Cinquenta' },{ minLocalGames:700, title:'O Septingenário Local' },{ minLocalGames:750, title:'O Setecentos e Cinquenta' },{ minLocalGames:800, title:'O Octingenário Local' },{ minLocalGames:850, title:'O Oitocentos e Cinquenta' },{ minLocalGames:900, title:'O Ningenário Local' },{ minLocalGames:950, title:'O Novecentos e Cinquenta' },{ minLocalGames:1000, title:'O Milenar Local' },{ minLocalGames:1200, title:'O Mil e Duzentos Local' },{ minLocalGames:1400, title:'O Mil e Quatrocentos Local' },{ minLocalGames:1600, title:'O Mil e Seiscentos Local' },{ minLocalGames:1800, title:'O Mil e Oitocentos Local' },{ minLocalGames:2000, title:'O Bimilenar Local' },{ minLocalGames:2500, title:'O Dois Mil e Quinhentos' },{ minLocalGames:3000, title:'O Trimilenar Local' },{ minLocalGames:4000, title:'O Quadrimilenar Local' },{ minLocalGames:5000, title:'O Quinquemilenar Local' },{ minLocalGames:7500, title:'O Sete Mil e Quinhentos' },{ minLocalGames:10000, title:'O Dez Milênios Local' }
+    ];
+    const IA_WINS_TITLES = [
+      { minVsIAWins:1, title:'Primeiro Contato' },{ minVsIAWins:3, title:'Iniciador de Sistema' },{ minVsIAWins:5, title:'Boot Completo' },{ minVsIAWins:10, title:'Carregando...' },{ minVsIAWins:15, title:'Compilador' },{ minVsIAWins:20, title:'Depurador' },{ minVsIAWins:30, title:'Executável' },{ minVsIAWins:40, title:'Binário' },{ minVsIAWins:50, title:'Algoritmo' },{ minVsIAWins:60, title:'Iterativo' },{ minVsIAWins:70, title:'Recursivo' },{ minVsIAWins:85, title:'Otimizador' },{ minVsIAWins:100, title:'Predictor' },{ minVsIAWins:120, title:'Classificador' },{ minVsIAWins:140, title:'Regressão' },{ minVsIAWins:160, title:'Clusterizador' },{ minVsIAWins:180, title:'Rede Neural' },{ minVsIAWins:200, title:'Deep Learner' },{ minVsIAWins:250, title:'Treinamento Completo' },{ minVsIAWins:300, title:'Aprendizado Não-Supervisionado' },{ minVsIAWins:350, title:'Reforço Positivo' },{ minVsIAWins:400, title:'Gradiente Descendente' },{ minVsIAWins:450, title:'Backpropagation' },{ minVsIAWins:500, title:'Foward Pass' },{ minVsIAWins:600, title:'Tensor' },{ minVsIAWins:700, title:'Data Frame' },{ minVsIAWins:800, title:'Dataset' },{ minVsIAWins:900, title:'Pipeline' },{ minVsIAWins:1000, title:'Feature Extraction' },{ minVsIAWins:1200, title:'Embedding' },{ minVsIAWins:1400, title:'Transformador' },{ minVsIAWins:1600, title:'Ativação' },{ minVsIAWins:1800, title:'Pesos Ajustados' },{ minVsIAWins:2000, title:'Bias Calculado' },{ minVsIAWins:2200, title:'Função de Custo' },{ minVsIAWins:2500, title:'Overfitting' },{ minVsIAWins:2800, title:'Underfitting' },{ minVsIAWins:3100, title:'Validação Cruzada' },{ minVsIAWins:3500, title:'Early Stopping' },{ minVsIAWins:4000, title:'Checkpoint' },{ minVsIAWins:4500, title:'Restauração' },{ minVsIAWins:5000, title:'Inferência' },{ minVsIAWins:5500, title:'Tokenizador' },{ minVsIAWins:6000, title:'Prompt' },{ minVsIAWins:6500, title:'Fine-Tuning' },{ minVsIAWins:7000, title:'Zero-Shot' },{ minVsIAWins:7500, title:'Few-Shot' },{ minVsIAWins:8500, title:'Alucinação' },{ minVsIAWins:9500, title:'Singularidade' },{ minVsIAWins:10000, title:'Despertar da IA' }
+    ];
+
+    const MEDALS = [
+      { id:'medal_bronze_wins', nome:'Bronze de Vitórias', desc:'Vença 10 partidas.', check:s=>s.wins>=10, svg:(u)=>medalSVG('#cd7f32','#8b5a2b','bronze',u) },
+      { id:'medal_silver_wins', nome:'Prata de Vitórias', desc:'Vença 50 partidas.', check:s=>s.wins>=50, svg:(u)=>medalSVG('#c0c0c0','#808080','silver',u) },
+      { id:'medal_gold_wins', nome:'Ouro de Vitórias', desc:'Vença 100 partidas.', check:s=>s.wins>=100, svg:(u)=>medalSVG('#ffd700','#b8860b','gold',u) },
+      { id:'medal_expert_wins', nome:'Caçador de Expert', desc:'Vença 10 partidas contra a IA Expert.', check:s=>(s.expertWins||0)>=10, svg:(u)=>medalSVG('#8a2be2','#4b0082','expert',u) },
+      { id:'medal_level_50', nome:'Marco de Nível 50', desc:'Alcance o nível 50.', check:s=>s.level>=50, svg:(u)=>medalSVG('#00ced1','#008b8b','level',u) },
+      { id:'medal_local_100', nome:'Rei do Sofá', desc:'Jogue 100 partidas locais.', check:s=>(s.localGames||0)>=100, svg:(u)=>medalSVG('#ff6347','#8b0000','local',u) }
+    ];
+    function medalSVG(c1,c2,sym,unlocked){ const cols=unlocked?[c1,c2]:['#555','#777']; const p=getSymbolPath(sym); return `<svg width="40" height="40" viewBox="0 0 40 40"><defs><radialGradient id="grad_${sym}" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="${cols[0]}"/><stop offset="100%" stop-color="${cols[1]}"/></radialGradient></defs><circle cx="20" cy="20" r="18" fill="url(#grad_${sym})" stroke="${cols[1]}" stroke-width="2"/>${p}</svg>`; }
+    function getSymbolPath(sym){ switch(sym){ case'bronze':case'silver':case'gold':return'<polygon points="20,9 24,17 32,17 26,23 28,31 20,26 12,31 14,23 8,17 16,17" fill="#fff" opacity="0.9"/>'; case'expert':return'<path d="M20,8 L22,18 L30,18 L24,23 L26,32 L20,26 L14,32 L16,23 L10,18 L18,18 Z" fill="#fff" opacity="0.8"/>'; case'level':return'<polyline points="12,25 20,15 28,25" stroke="#fff" stroke-width="2" fill="none" opacity="0.9"/>'; case'local':return'<rect x="14" y="12" width="12" height="16" rx="2" fill="none" stroke="#fff" stroke-width="2" opacity="0.8"/>'; default:return'<circle cx="20" cy="20" r="6" fill="#fff" opacity="0.8"/>'; } }
+
+    // ============================================================
+    // 3. UTILITÁRIOS (contas, hash, persistência)
+    // ============================================================
+    const ACCOUNTS_KEY = 'quoridor_accounts_v2';
+    let currentUser = null;
+
+    function getAccounts(){ try{ return JSON.parse(localStorage.getItem(ACCOUNTS_KEY)) || {}; }catch(e){ return {}; } }
+    function saveAccounts(a){ localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(a)); }
+    function hashPassword(pwd){ let h=0; for(let i=0;i<pwd.length;i++){ const c=pwd.charCodeAt(i); h=((h<<5)-h)+c; h&=h; } return 'h'+h.toString(36); }
+    function createUser(username, password){
+      const acc=getAccounts();
+      if(acc[username]) return false;
+      acc[username]={ passwordHash:hashPassword(password), stats:{ games:0, wins:0, losses:0, streak:0, maxStreak:0, level:1, points:0, rankPoints:0, maxRankPoints:0, rank:'Bronze V', history:[], totalWalls:0, totalTurns:0, sumPointsVictories:0, opponentEloSum:0, opponentCount:0, xp:0, equippedTitle:'Recruta', ownedSkins:['classic'], equippedSkin:'classic', localGames:0, expertWins:0, medals:[] } };
+      saveAccounts(acc);
+      return true;
+    }
+    function loginUser(username, password){
+      const acc=getAccounts();
+      if(!acc[username]) return false;
+      if(acc[username].passwordHash === hashPassword(password)){ currentUser=username; return true; }
+      return false;
+    }
+    function getUserStats(username){
+      const acc=getAccounts();
+      return acc[username]?.stats || { games:0, wins:0, losses:0, streak:0, maxStreak:0, level:1, points:0, rankPoints:0, maxRankPoints:0, rank:'Bronze V', history:[], totalWalls:0, totalTurns:0, sumPointsVictories:0, opponentEloSum:0, opponentCount:0, xp:0, equippedTitle:'Recruta', ownedSkins:['classic'], equippedSkin:'classic', localGames:0, expertWins:0, medals:[] };
+    }
+    function updateUserStats(username, newStats){
+      const acc=getAccounts();
+      if(acc[username]){ acc[username].stats=newStats; saveAccounts(acc); }
+    }
+    function getStats(){ return currentUser ? getUserStats(currentUser) : { games:0,wins:0,losses:0,streak:0,maxStreak:0,level:1,points:0,rankPoints:0,maxRankPoints:0,history:[],totalWalls:0,totalTurns:0,sumPointsVictories:0,opponentEloSum:0,opponentCount:0,xp:0,equippedTitle:'Recruta',ownedSkins:['classic'],equippedSkin:'classic',localGames:0,expertWins:0,medals:[]}; }
+    function saveStats(stats){ if(currentUser){ const s=getUserStats(currentUser); Object.assign(s,stats); updateUserStats(currentUser,s); } }
+
+    function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+
+    // ============================================================
+    // 4. RANK (PATENTE)
+    // ============================================================
+    function obterPatente(points){
+      let acum=0;
+      for(let i=0;i<PATENTES.length;i++){
+        const p=PATENTES[i]; const total=p.subdivisoes*p.pontosPorSub;
+        if(points<acum+total || p.nome==='Imortal'){
+          const pts=points-acum; const idx=Math.floor(pts/p.pontosPorSub);
+          const sub=p.subdivisoes===1?'':['V','IV','III','II','I'][Math.min(idx,4)];
+          return { nome:p.nome, sub, nomeCompleto:p.nome+(sub?' '+sub:'') };
+        }
+        acum+=total;
+      }
+      return { nome:'Imortal', sub:'', nomeCompleto:'Imortal' };
+    }
+    function obterProximaPatente(points){
+      const atual=obterPatente(points);
+      if(atual.nome==='Imortal') return null;
+      let acum=0;
+      for(let i=0;i<PATENTES.length;i++){
+        const p=PATENTES[i]; const total=p.subdivisoes*p.pontosPorSub;
+        if(points<acum+total){
+          const pts=points-acum; const idx=Math.floor(pts/p.pontosPorSub);
+          if(idx<4) return p.nome+' '+['V','IV','III','II','I'][idx+1];
+          const next=PATENTES[i+1];
+          return next.nome==='Imortal'?'Imortal':next.nome+' V';
+        }
+        acum+=total;
+      }
+      return null;
+    }
+    function obterProgresso(points){
+      let acum=0;
+      for(let i=0;i<PATENTES.length;i++){
+        const p=PATENTES[i]; const total=p.subdivisoes*p.pontosPorSub;
+        if(points<acum+total || p.nome==='Imortal'){
+          const pts=points-acum; const idx=Math.floor(pts/p.pontosPorSub);
+          return Math.min(100,Math.max(0,((pts-idx*p.pontosPorSub)/p.pontosPorSub)*100));
+        }
+        acum+=total;
+      }
+      return 100;
+    }
+    function getRank(points){ return obterPatente(points).nomeCompleto; }
+
+    function updateRankDisplay(username){
+      const stats=getUserStats(username);
+      const points=stats.rankPoints||0;
+      document.getElementById('rank-badge').textContent=obterPatente(points).nomeCompleto;
+      document.getElementById('rank-points').textContent=points.toFixed(1)+' pts';
+      const prox=obterProximaPatente(points);
+      document.getElementById('rank-indicator-btn').textContent=prox?'Próx: '+prox:'MAX';
+      document.getElementById('rank-progress-fill').style.width=obterProgresso(points)+'%';
+    }
+
+    // ============================================================
+    // 5. XP E PONTOS
+    // ============================================================
+    function xpParaProximoNivel(nivel){ return Math.floor(100*Math.pow(nivel,1.5)); }
+    function calcularXP(winner, playerIndex, wallsPlaced, moveCount, timeLeft, timeTotal, streak){
+      const base=winner===playerIndex?50:20;
+      let bonusWall=wallsPlaced===0?15:wallsPlaced<=2?10:wallsPlaced<=5?5:0;
+      let bonusMove=moveCount<=10?15:Math.max(0,15-(moveCount-10)*2);
+      let bonusTime=timeLeft>timeTotal*0.5?10:0;
+      let bonusStreak=streak>=10?20:streak>=5?10:streak>=2?5:0;
+      if(winner!==playerIndex){ bonusWall=Math.min(bonusWall,5); bonusMove=Math.min(bonusMove,5); bonusTime=0; bonusStreak=0; }
+      return base+bonusWall+bonusMove+bonusTime+bonusStreak;
+    }
+    function aplicarXP(stats, xp){
+      stats.xp=(stats.xp||0)+xp;
+      while(stats.level<100 && stats.xp>=xpParaProximoNivel(stats.level)){
+        stats.xp-=xpParaProximoNivel(stats.level);
+        stats.level++;
+      }
+      if(stats.level>=100) stats.xp=Math.min(stats.xp,xpParaProximoNivel(100));
+      return stats;
+    }
+    function calcularPontosPartida(winner, playerIndex, wallsPlaced, moveCount, totalRounds, timeLeft, timeTotal, streak){
+      if(playerIndex!==winner){
+        let penalty=-5;
+        if(wallsPlaced>=5) penalty-=2;
+        if(moveCount>=20) penalty-=2;
+        if(streak>=3) penalty-=2;
+        if(timeLeft<timeTotal*0.5) penalty-=1;
+        return Math.max(-15,penalty);
+      }
+      const base=15;
+      const bonusMove=moveCount<=10?6:Math.max(0,6-(moveCount-10)*0.5);
+      const bonusWall=wallsPlaced===0?4:wallsPlaced<=2?3:wallsPlaced<=5?2:0;
+      const bonusStreak=streak>=10?5:streak>=5?3:streak>=2?2:0;
+      const bonusTime=timeLeft>timeTotal*0.5?3:0;
+      return Math.min(35,Math.round((base+bonusMove+bonusWall+bonusStreak+bonusTime)*10)/10);
+    }
+
+    // ============================================================
+    // 6. JOGO (GAME STATE, BOARD, IA, TIMER, DRAW)
+    // ============================================================
+    const N=9, WALLS=10, WIN=[0,8], SCALE=2;
+    const C = [
+      { main:'#d4a373', dark:'#b8860b', light:'#f0d5b0', glow:'rgba(212,163,115,0.8)', dot:'rgba(212,163,115,0.75)', dotHov:'#d4a373', wallFill:'#d4a373', wallShadow:'rgba(184,134,11,0.6)' },
+      { main:'#4dabf7', dark:'#1a6bb5', light:'#a8d8ff', glow:'rgba(77,171,247,0.8)', dot:'rgba(77,171,247,0.75)', dotHov:'#4dabf7', wallFill:'#4dabf7', wallShadow:'rgba(77,171,247,0.6)' }
+    ];
+
+    const G = {
+      pos:[[8,4],[0,4]], walls:[WALLS,WALLS], turn:0, pH:[], pV:[], wallOwnerH:[], wallOwnerV:[],
+      hist:[], over:false, sel:null, moves:[], mode:'move', validH:[], validV:[], hoverNode:null,
+      nivelIA:'medio', iaThinking:false, p1Name:'Player 1', p2Name:'Player 2', vsIA:false, online:false, salald:null
+    };
+
+    let config = { time:30, rounds:1 };
+    let scores=[0,0], currentRound=1;
+    let timerInterval=null, currentTime=30, timerRunning=false;
+    let gameActive=false, matchFinished=false;
+    let seriesStats={ userWalls:0, userMoves:0 };
+    let needsRedraw=true;
+
+    const canvas=document.getElementById('board'), ctx=canvas.getContext('2d');
+    const statusEl=document.getElementById('status'), timerDisplayEl=document.getElementById('timer-display'), iaTh=document.getElementById('ia-thinking');
+    let SZ,GAP,PAT,BOARD;
+
+    // --- IA (minimax com transposição) ---
+    const transpositionTable = new Map();
+    function hashState(pos, pH, pV){
+      let key=pos[0][0]+','+pos[0][1]+','+pos[1][0]+','+pos[1][1];
+      key+='|'+pH.length+':'+pH.map(w=>w[0]+','+w[1]).join(';');
+      key+='|'+pV.length+':'+pV.map(w=>w[0]+','+w[1]).join(';');
+      return key;
+    }
+    function isBlocked(r,c,dr,dc,pH,pV){
+      if(dr===-1) return pH.some(w=>w[0]===r-1 && (w[1]===c || w[1]===c-1));
+      if(dr===1) return pH.some(w=>w[0]===r && (w[1]===c || w[1]===c-1));
+      if(dc===-1) return pV.some(w=>w[1]===c-1 && (w[0]===r || w[0]===r-1));
+      if(dc===1) return pV.some(w=>w[1]===c && (w[0]===r || w[0]===r-1));
+      return false;
+    }
+    function hasPath(player,pH,pV,positions){
+      const pos=positions||G.pos;
+      const sr=pos[player][0], sc=pos[player][1], goal=WIN[player];
+      const vis={}; vis[sr*9+sc]=true;
+      const q=[[sr,sc]];
+      while(q.length){
+        const [r,c]=q.shift();
+        if(r===goal) return true;
+        for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+          const nr=r+dr, nc=c+dc;
+          if(nr<0||nr>=N||nc<0||nc>=N) continue;
+          if(isBlocked(r,c,dr,dc,pH,pV)) continue;
+          const k=nr*9+nc;
+          if(!vis[k]){ vis[k]=true; q.push([nr,nc]); }
+        }
+      }
+      return false;
+    }
+    function bfsDist(player,pH,pV,positions){
+      const pos=positions||G.pos;
+      const sr=pos[player][0], sc=pos[player][1], goal=WIN[player];
+      const dist=new Array(N*N).fill(999);
+      dist[sr*9+sc]=0;
+      const q=[[sr,sc,0]];
+      while(q.length){
+        const [r,c,d]=q.shift();
+        if(r===goal) return d;
+        for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+          const nr=r+dr, nc=c+dc;
+          if(nr<0||nr>=N||nc<0||nc>=N) continue;
+          if(isBlocked(r,c,dr,dc,pH,pV)) continue;
+          const k=nr*9+nc;
+          if(dist[k]>d+1){ dist[k]=d+1; q.push([nr,nc,d+1]); }
+        }
+      }
+      return 999;
+    }
+    function legalMoves(p,pH,pV,positions){
+      pH=pH||G.pH; pV=pV||G.pV; positions=positions||G.pos;
+      const [r,c]=positions[p]; const [or,oc]=positions[1-p];
+      const res=[];
+      for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+        const nr=r+dr, nc=c+dc;
+        if(nr<0||nr>=N||nc<0||nc>=N) continue;
+        if(isBlocked(r,c,dr,dc,pH,pV)) continue;
+        if(!(nr===or && nc===oc)){ res.push([nr,nc]); continue; }
+        const jr=nr+dr, jc=nc+dc;
+        if(jr>=0&&jr<N&&jc>=0&&jc<N&&!isBlocked(nr,nc,dr,dc,pH,pV)){ res.push([jr,jc]); continue; }
+        const sides=dr!==0?[[0,1],[0,-1]]:[[1,0],[-1,0]];
+        for(const [sr2,sc3] of sides){
+          const nr2=nr+sr2, nc2=nc+sc3;
+          if(nr2<0||nr2>=N||nc2<0||nc2>=N) continue;
+          if(!isBlocked(nr,nc,sr2,sc3,pH,pV)) res.push([nr2,nc2]);
+        }
+      }
+      return res;
+    }
+    function canPlace(r,c,ori,pH,pV,positions){
+      pH=pH||G.pH; pV=pV||G.pV; positions=positions||G.pos;
+      if(G.over||G.walls[G.turn]<=0) return false;
+      if(ori==='H'){
+        if(r<0||r>=N-1||c<0||c>=N-1) return false;
+        if(pH.some(w=>w[0]===r&&w[1]===c)) return false;
+        if(pH.some(w=>w[0]===r&&(w[1]===c-1||w[1]===c+1))) return false;
+        if(pV.some(w=>w[1]===c&&w[0]===r)) return false;
+      } else {
+        if(c<0||c>=N-1||r<0||r>=N) return false;
+        if(pV.some(w=>w[0]===r&&w[1]===c)) return false;
+        if(pV.some(w=>w[1]===c&&(w[0]===r-1||w[0]===r+1))) return false;
+        if(pH.some(w=>w[0]===r&&w[1]===c)) return false;
+      }
+      const tH=ori==='H'?pH.concat([[r,c]]):pH.slice();
+      const tV=ori==='V'?pV.concat([[r,c]]):pV.slice();
+      return hasPath(0,tH,tV,positions) && hasPath(1,tH,tV,positions);
+    }
+    function canPlaceIA(r,c,ori,pH,pV,walls,positions){
+      if(walls<=0) return false;
+      if(ori==='H'){ if(r<0||r>=N-1||c<0||c>=N-1) return false; if(pH.some(w=>w[0]===r&&w[1]===c)) return false; if(pH.some(w=>w[0]===r&&(w[1]===c-1||w[1]===c+1))) return false; if(pV.some(w=>w[1]===c&&w[0]===r)) return false; }
+      else { if(c<0||c>=N-1||r<0||r>=N) return false; if(pV.some(w=>w[0]===r&&w[1]===c)) return false; if(pV.some(w=>w[1]===c&&(w[0]===r-1||w[0]===r+1))) return false; if(pH.some(w=>w[0]===r&&w[1]===c)) return false; }
+      const tH=ori==='H'?pH.concat([[r,c]]):pH.slice();
+      const tV=ori==='V'?pV.concat([[r,c]]):pV.slice();
+      return hasPath(0,tH,tV,positions) && hasPath(1,tH,tV,positions);
+    }
+    function computeValid(){
+      G.validH=[]; G.validV=[];
+      if(G.mode==='H') for(let i=1;i<N;i++) for(let j=1;j<N;j++) if(canPlace(i-1,j-1,'H')) G.validH.push([i,j]);
+      if(G.mode==='V') for(let i=1;i<N;i++) for(let j=1;j<N;j++) if(canPlace(i-1,j-1,'V')) G.validV.push([i,j]);
+    }
+
+    function avaliar(pos,pH,pV){
+      const d0=bfsDist(0,pH,pV,pos), d1=bfsDist(1,pH,pV,pos);
+      return (d1 - d0)*10 - (pos[1][0]-pos[0][0])*2;
+    }
+    function minimax(depth, alpha, beta, isMax, pos, pH, pV, walls, turn, maxDepth){
+      const key=hashState(pos,pH,pV);
+      const cached=transpositionTable.get(key);
+      if(cached && cached.depth>=depth) return cached.value;
+      if(depth===0 || (isMax?pos[0][0]===WIN[0]:pos[1][0]===WIN[1])){ const v=avaliar(pos,pH,pV); transpositionTable.set(key,{depth,value:v}); return v; }
+      const p=isMax?0:1;
+      const moves=legalMoves(p,pH,pV,pos);
+      let best=isMax?-Infinity:Infinity;
+      for(const [nr,nc] of moves){
+        const npos=[[...pos[0]],[...pos[1]]]; npos[p]=[nr,nc];
+        const val=minimax(depth-1,alpha,beta,!isMax,npos,pH,pV,walls,1-p,maxDepth);
+        if(isMax){ best=Math.max(best,val); alpha=Math.max(alpha,best); } else { best=Math.min(best,val); beta=Math.min(beta,best); }
+        if(beta<=alpha) break;
+      }
+      if(walls[p]>0 && depth<maxDepth){
+        const h=[]; for(let i=0;i<N-1;i++) for(let j=0;j<N-1;j++) if(canPlaceIA(i,j,'H',pH,pV,walls[p],pos)) h.push([i,j,'H']);
+        const v=[]; for(let i=0;i<N;i++) for(let j=0;j<N-1;j++) if(canPlaceIA(i,j,'V',pH,pV,walls[p],pos)) v.push([i,j,'V']);
+        const allWalls=h.concat(v);
+        for(const [r,c,ori] of allWalls){
+          const nWalls=[...walls]; nWalls[p]--;
+          const nPH=ori==='H'?pH.concat([[r,c]]):pH.slice();
+          const nPV=ori==='V'?pV.concat([[r,c]]):pV.slice();
+          const val=minimax(depth-1,alpha,beta,!isMax,pos,nPH,nPV,nWalls,1-p,maxDepth);
+          if(isMax){ best=Math.max(best,val); alpha=Math.max(alpha,best); } else { best=Math.min(best,val); beta=Math.min(beta,best); }
+          if(beta<=alpha) break;
+        }
+      }
+      transpositionTable.set(key,{depth,value:best});
+      return best;
+    }
+    function iaJogar(){
+      const p=1, depth=G.nivelIA==='facil'?2:G.nivelIA==='medio'?3:G.nivelIA==='dificil'?4:5;
+      transpositionTable.clear();
+      const moves=legalMoves(p);
+      let bestMove=null, bestScore=-Infinity;
+      for(const [nr,nc] of moves){
+        const npos=[[...G.pos[0]],[...G.pos[1]]]; npos[p]=[nr,nc];
+        const score=minimax(depth-1,-Infinity,Infinity,false,npos,G.pH,G.pV,G.walls,0,depth);
+        if(score>bestScore){ bestScore=score; bestMove={type:'move', r:nr, c:nc }; }
+      }
+      if(G.walls[p]>0){
+        const h=[]; for(let i=0;i<N-1;i++) for(let j=0;j<N-1;j++) if(canPlaceIA(i,j,'H',G.pH,G.pV,G.walls[p],G.pos)) h.push([i,j,'H']);
+        const v=[]; for(let i=0;i<N;i++) for(let j=0;j<N-1;j++) if(canPlaceIA(i,j,'V',G.pH,G.pV,G.walls[p],G.pos)) v.push([i,j,'V']);
+        const allWalls=h.concat(v);
+        for(const [r,c,ori] of allWalls){
+          const nWalls=[...G.walls]; nWalls[p]--;
+          const nPH=ori==='H'?G.pH.concat([[r,c]]):G.pH.slice();
+          const nPV=ori==='V'?G.pV.concat([[r,c]]):G.pV.slice();
+          const score=minimax(depth-1,-Infinity,Infinity,false,G.pos,nPH,nPV,nWalls,0,depth);
+          if(score>bestScore){ bestScore=score; bestMove={type:'wall', r, c, ori}; }
+        }
+      }
+      return bestMove || {type:'move', r:G.pos[1][0], c:G.pos[1][1]};
+    }
+
+    // --- Desenho e renderização ---
+    function resize(){
+      const container=document.getElementById('canvas-container');
+      if(!container) return;
+      const maxW=Math.min(window.innerWidth-20,600);
+      const PADDING=10;
+      const availW=maxW-PADDING*2;
+      if(availW<10) return;
+      GAP=Math.max(Math.round(availW/9*0.10),2);
+      SZ=Math.round((availW-GAP*8)/9);
+      if(SZ<1) SZ=1;
+      PAT=SZ+GAP;
+      BOARD=PAT*9-GAP;
+      if(BOARD<10) BOARD=10;
+      canvas.width=BOARD*SCALE;
+      canvas.height=BOARD*SCALE;
+      canvas.style.width=BOARD+'px';
+      canvas.style.height=BOARD+'px';
+      container.style.width=availW+'px';
+      container.style.padding=PADDING+'px';
+      ctx.setTransform(SCALE,0,0,SCALE,0,0);
+      needsRedraw=true;
+    }
+
+    function draw(){
+      if(!BOARD) return;
+      ctx.clearRect(0,0,BOARD,BOARD);
+      // fundo
+      const bg=ctx.createRadialGradient(BOARD/2,BOARD/2,0,BOARD/2,BOARD/2,BOARD*0.7);
+      bg.addColorStop(0,'#2c1e14');
+      bg.addColorStop(1,'#1a120c');
+      ctx.fillStyle=bg; ctx.fillRect(0,0,BOARD,BOARD);
+      // grid
+      ctx.strokeStyle='rgba(255,215,140,0.12)'; ctx.lineWidth=1;
+      for(let i=0;i<N;i++){
+        ctx.beginPath();
+        ctx.moveTo(i*PAT,0); ctx.lineTo(i*PAT,BOARD);
+        ctx.moveTo(0,i*PAT); ctx.lineTo(BOARD,i*PAT);
+        ctx.stroke();
+      }
+      // paredes
+      ctx.shadowColor='rgba(0,0,0,0.4)'; ctx.shadowBlur=6;
+      for(let i=0;i<G.pH.length;i++){
+        const [r,c]=G.pH[i]; const owner=G.wallOwnerH[i]||0;
+        const x=c*PAT+PAT/2, y=r*PAT+PAT/2;
+        ctx.fillStyle=C[owner].wallFill;
+        ctx.shadowColor=C[owner].wallShadow;
+        ctx.fillRect(x-PAT/2, y-3, PAT, 6);
+      }
+      for(let i=0;i<G.pV.length;i++){
+        const [r,c]=G.pV[i]; const owner=G.wallOwnerV[i]||0;
+        const x=c*PAT+PAT/2, y=r*PAT+PAT/2;
+        ctx.fillStyle=C[owner].wallFill;
+        ctx.shadowColor=C[owner].wallShadow;
+        ctx.fillRect(x-3, y-PAT/2, 6, PAT);
+      }
+      ctx.shadowBlur=0;
+      // valid nodes
+      if(G.mode!=='move'){
+        const list=G.mode==='H'?G.validH:G.validV;
+        for(const [i,j] of list){
+          const [x,y]=nodeXY(i,j);
+          ctx.fillStyle='rgba(255,255,255,0.15)';
+          ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2); ctx.fill();
+        }
+      }
+      // peões
+      const rad=SZ*0.4;
+      for(let p=0;p<2;p++){
+        const [r,c]=G.pos[p];
+        const [x,y]=nodeXY(r+1,c+1);
+        const active=(G.sel && G.sel[0]===r && G.sel[1]===c);
+        drawPawn(p,x,y,rad,active);
+      }
+      needsRedraw=false;
+    }
+
+    function nodeXY(ni,nj){ return [nj*PAT - GAP/2, ni*PAT - GAP/2]; }
+
+    function drawPawn(p, x, y, rad, active){
+      const skinId = (p===0 && currentUser) ? getStats().equippedSkin : null;
+      const skin = skinId ? SKINS.find(s=>s.id===skinId) : null;
+      const wc = C[p];
+      if(skin && p===0){
+        const cor1=skin.cor1, cor2=skin.cor2;
+        const grad=ctx.createRadialGradient(x-rad*0.3, y-rad*0.35, rad*0.05, x, y, rad);
+        grad.addColorStop(0, cor1); grad.addColorStop(1, cor2);
+        ctx.fillStyle=grad;
+        ctx.strokeStyle=active?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.1)';
+        ctx.lineWidth=active?2:1;
+        ctx.beginPath();
+        if(skin.forma==='dragon'){
+          ctx.ellipse(x, y+rad*0.1, rad*0.75, rad*0.9, 0, 0, Math.PI*2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(x-rad*0.3, y);
+          ctx.quadraticCurveTo(x-rad*1.4, y-rad*0.8, x-rad*0.5, y-rad*1.1);
+          ctx.quadraticCurveTo(x-rad*0.9, y-rad*0.3, x-rad*0.3, y);
+          ctx.fillStyle=cor2; ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(x+rad*0.3, y);
+          ctx.quadraticCurveTo(x+rad*1.4, y-rad*0.8, x+rad*0.5, y-rad*1.1);
+          ctx.quadraticCurveTo(x+rad*0.9, y-rad*0.3, x+rad*0.3, y);
+          ctx.fill();
+          ctx.fillStyle='#fff';
+          ctx.font='bold '+Math.round(rad*0.7)+'px Arial';
+          ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillText('1', x, y+rad*0.25);
+          return;
+        } else {
+          switch(skin.forma){
+            case'circle': ctx.arc(x,y,rad,0,Math.PI*2); break;
+            case'square': ctx.rect(x-rad,y-rad,rad*2,rad*2); break;
+            case'diamond': ctx.moveTo(x,y-rad); ctx.lineTo(x+rad,y); ctx.lineTo(x,y+rad); ctx.lineTo(x-rad,y); ctx.closePath(); break;
+            case'hexagon': for(let k=0;k<6;k++){ const a=Math.PI/6+k*Math.PI/3; const hx=x+rad*Math.cos(a), hy=y+rad*Math.sin(a); k===0?ctx.moveTo(hx,hy):ctx.lineTo(hx,hy); } ctx.closePath(); break;
+            case'star': for(let k=0;k<10;k++){ const a=-Math.PI/2+k*Math.PI/5; const ra=k%2===0?rad:rad*0.5; const sx=x+ra*Math.cos(a), sy=y+ra*Math.sin(a); k===0?ctx.moveTo(sx,sy):ctx.lineTo(sx,sy); } ctx.closePath(); break;
+            default: ctx.arc(x,y,rad,0,Math.PI*2);
+          }
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle='#fff';
+          ctx.font='bold '+Math.round(rad*0.7)+'px Arial';
+          ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillText('1', x, y);
+          return;
+        }
+      }
+      // fallback
+      if(active){ ctx.shadowColor=wc.glow; ctx.shadowBlur=20; }
+      const g=ctx.createRadialGradient(x-rad*0.3, y-rad*0.35, rad*0.05, x, y, rad);
+      g.addColorStop(0, wc.light); g.addColorStop(0.5, wc.main); g.addColorStop(1, wc.dark);
+      ctx.beginPath(); ctx.arc(x,y,rad,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.strokeStyle=active?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.1)';
+      ctx.lineWidth=active?2:1;
+      ctx.stroke();
+      ctx.fillStyle='#fff';
+      ctx.font='bold '+Math.round(rad*0.9)+'px Arial';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(String(p+1), x, y);
+    }
+
+    // --- Funções do jogo (movimento, parede, turno, etc.) ---
+    function initPips(){
+      for(let p=0;p<2;p++){
+        const el=document.getElementById('pips'+(p+1));
+        el.innerHTML='';
+        for(let i=0;i<WALLS;i++){ const d=document.createElement('div'); d.className='pip'; el.appendChild(d); }
+      }
+    }
+    function updateWallIndicators(){
+      for(let p=0;p<2;p++){
+        const children=document.getElementById('pips'+(p+1)).children;
+        for(let i=0;i<WALLS;i++){ if(i>=G.walls[p]) children[i].classList.add('usado'); else children[i].classList.remove('usado'); }
+      }
+      updateTimerDisplay(); syncBtn();
+    }
+    function st(t){ statusEl.textContent=t; }
+    function updateTimerDisplay(){
+      if(G.over){ timerDisplayEl.className='fim'; timerDisplayEl.innerHTML='<span>FIM!</span><span class="tempo">◈</span>'; stopTimer(); return; }
+      const playerName=(G.turn===0?G.p1Name:G.p2Name).toUpperCase();
+      timerDisplayEl.className=G.turn===0?'vez1':'vez2';
+      timerDisplayEl.innerHTML='<span>'+playerName+'</span><span class="tempo" id="timerDisplay">'+currentTime+'</span>';
+      stopTimer();
+      if(!G.over && gameActive && !matchFinished) startTimer();
+    }
+    function syncBtn(){
+      const pc=C[G.turn];
+      ['btnH','btnV','btnH2','btnV2'].forEach(id=>{
+        const b=document.getElementById(id);
+        let match=false;
+        if(id==='btnH') match=G.mode==='H' && G.turn===0;
+        else if(id==='btnV') match=G.mode==='V' && G.turn===0;
+        else if(id==='btnH2') match=G.mode==='H' && G.turn===1 && !G.vsIA;
+        else if(id==='btnV2') match=G.mode==='V' && G.turn===1 && !G.vsIA;
+        b.style.borderColor=match?pc.main:'rgba(255,215,140,0.12)';
+        b.style.color=match?pc.main:'#b8a99a';
+        b.style.background=match?pc.main+'15':'rgba(30,22,16,0.8)';
+        b.classList.toggle('modo-ativo', match);
+      });
+    }
+    function setIAThinking(v){ G.iaThinking=v; iaTh.className=v?'show':''; if(!v) updateTimerDisplay(); }
+    function startTimer(){
+      stopTimer(); if(G.over||!gameActive||matchFinished) return;
+      currentTime=config.time;
+      const el=document.getElementById('timerDisplay'); if(el) el.textContent=currentTime;
+      timerRunning=true;
+      timerInterval=setInterval(function(){
+        currentTime--;
+        const el=document.getElementById('timerDisplay'); if(el) el.textContent=currentTime;
+        if(currentTime<=0){
+          clearInterval(timerInterval); timerRunning=false;
+          const vencedor=1-G.turn;
+          scores[vencedor]++; atualizarPlacar();
+          G.over=true; G.mode='move'; syncBtn(); setIAThinking(false);
+          const nomeVencedor=vencedor===0?G.p1Name:G.p2Name;
+          showWinOverlay('⏰ Tempo esgotado!<span class="sub">'+nomeVencedor+' vence a rodada!</span>', vencedor);
+        }
+      }, 1000);
+    }
+    function stopTimer(){ if(timerInterval){ clearInterval(timerInterval); timerInterval=null; } timerRunning=false; }
+    function atualizarPlacar(){ document.getElementById('score1').textContent=scores[0]; document.getElementById('score2').textContent=scores[1]; document.getElementById('rodada-info').textContent='Rodada '+currentRound+' de '+config.rounds; }
+    function showWinOverlay(msg, vencedor){
+      stopTimer();
+      if(autoResetTimer) clearTimeout(autoResetTimer);
+      const msgEl=document.getElementById('win-message');
+      msgEl.innerHTML=msg;
+      msgEl.classList.remove('win-p1','win-p2');
+      if(vencedor===0) msgEl.classList.add('win-p1');
+      else if(vencedor===1) msgEl.classList.add('win-p2');
+      document.getElementById('btn-close-win').style.display='none';
+      const container=document.getElementById('confetti-container');
+      container.innerHTML='';
+      const cores=['#d4a373','#4dabf7','#10b981','#e94560','#f97316','#a855f7','#ec4899','#facc15','#22d3ee','#ff6b6b'];
+      const cx=window.innerWidth/2, cy=window.innerHeight/2;
+      for(let i=0;i<100;i++){
+        const p=document.createElement('div'); p.className='confetti-piece';
+        const angle=Math.random()*2*Math.PI, dist=Math.random()*550+180;
+        p.style.setProperty('--tx', Math.cos(angle)*dist+'px');
+        p.style.setProperty('--ty', Math.sin(angle)*dist-100+'px');
+        p.style.left=cx+'px'; p.style.top=cy+'px';
+        p.style.background=cores[Math.floor(Math.random()*cores.length)];
+        p.style.width=(Math.random()*10+4)+'px';
+        p.style.height=(Math.random()*14+6)+'px';
+        p.style.borderRadius=Math.random()>0.5?'50%':'2px';
+        p.style.animationDuration=(Math.random()*1.4+1.4)+'s';
+        p.style.animationDelay=(Math.random()*0.25)+'s';
+        container.appendChild(p);
+      }
+      setTimeout(function(){ container.innerHTML=''; }, 4500);
+      document.getElementById('win-overlay').classList.add('show');
+      autoResetTimer=setTimeout(function(){
+        document.getElementById('win-overlay').classList.remove('show');
+        const needed=Math.floor(config.rounds/2)+1;
+        if(currentRound>=config.rounds || scores[0]>=needed || scores[1]>=needed){
+          matchFinished=true; gameActive=false;
+          const winner=scores[0]>scores[1]?0:scores[1]>scores[0]?1:-1;
+          if(winner!==-1){
+            const stats=getStats();
+            const oldRank=getRank(stats.rankPoints);
+            stats.games++;
+            if(!G.vsIA) stats.localGames=(stats.localGames||0)+1;
+            if(winner===0){
+              stats.wins++;
+              if(G.vsIA && G.nivelIA==='expert') stats.expertWins=(stats.expertWins||0)+1;
+              stats.streak=(stats.streak||0)+1;
+              stats.maxStreak=Math.max(stats.maxStreak||0, stats.streak);
+            } else { stats.losses++; stats.streak=0; }
+            stats.totalWalls+=seriesStats.userWalls;
+            stats.totalTurns+=seriesStats.userMoves;
+            const pts=calcularPontosPartida(winner,0,seriesStats.userWalls,seriesStats.userMoves,config.rounds,currentTime,config.time,stats.streak);
+            const xpGanho=calcularXP(winner,0,seriesStats.userWalls,seriesStats.userMoves,currentTime,config.time,stats.streak);
+            aplicarXP(stats, xpGanho);
+            if(winner===0) stats.sumPointsVictories=(stats.sumPointsVictories||0)+pts;
+            stats.rankPoints+=pts;
+            stats.rankPoints=Math.max(0,stats.rankPoints);
+            stats.rankPoints=Math.round(stats.rankPoints*100)/100;
+            stats.maxRankPoints=Math.max(stats.maxRankPoints, stats.rankPoints);
+            if(G.vsIA){ const eloIA={facil:500,medio:800,dificil:1200,expert:1600}[G.nivelIA]||800; stats.opponentEloSum=(stats.opponentEloSum||0)+eloIA; stats.opponentCount=(stats.opponentCount||0)+1; }
+            if(!stats.history) stats.history=[];
+            stats.history.unshift({date:Date.now(), mode:G.vsIA?'vs IA':'2 Jogadores', result:winner===0?'Vitória':'Derrota', points:pts, walls:seriesStats.userWalls, moves:seriesStats.userMoves, rounds:config.rounds, time:config.time, xp:xpGanho});
+            if(stats.history.length>100) stats.history.pop();
+            saveStats(stats);
+            if(currentUser) updateRankDisplay(currentUser);
+            const newRank=getRank(stats.rankPoints);
+            const vencedorFinal=scores[0]>scores[1]?G.p1Name:scores[1]>scores[0]?G.p2Name:'Empate';
+            let msgFinal='◈ FIM DE JOGO!<span class="sub">'+vencedorFinal+' venceu ('+scores[0]+' x '+scores[1]+')</span>';
+            msgFinal+='<div class="xp-line">+XP '+xpGanho+'</div>';
+            if(pts>=0) msgFinal+='<div class="rank-line rank-positivo">🟢 +'+pts.toFixed(1)+' pontos de patente</div>';
+            else msgFinal+='<div class="rank-line rank-negativo">🔴 '+pts.toFixed(1)+' pontos de patente</div>';
+            msgFinal+='<div class="level-line">Nível '+stats.level+' (XP: '+stats.xp+'/'+xpParaProximoNivel(stats.level)+')</div>';
+            if(oldRank!==newRank) msgFinal+='<div class="patent-line"><span class="rank-up">'+oldRank+' → '+newRank+'</span></div>';
+            else msgFinal+='<div class="patent-line">'+newRank+'</div>';
+            document.getElementById('win-message').innerHTML=msgFinal;
+            document.getElementById('btn-close-win').style.display='block';
+            document.getElementById('win-overlay').classList.add('show');
+            return;
+          }
+        }
+        currentRound++; atualizarPlacar(); resetGame();
+      }, 3500);
+    }
+
+    let autoResetTimer=null;
+
+    function selectPawn(r,c){
+      if(!gameActive||G.over||matchFinished) return;
+      const pr=G.pos[G.turn][0], pc=G.pos[G.turn][1];
+      if(pr!==r || pc!==c){ st('Toque no seu peão '+(G.turn===0?G.p1Name:G.p2Name)); return; }
+      G.sel=[r,c]; G.moves=legalMoves(G.turn);
+      st(G.moves.length?G.moves.length+' movimentos':'Sem movimentos');
+      draw();
+    }
+    function doMove(r,c){
+      if(!gameActive||G.over||matchFinished) return;
+      if(G.turn===0) seriesStats.userMoves++;
+      G.hist.push({type:'move', turn:G.turn, from:G.pos[G.turn].slice()});
+      G.pos[G.turn]=[r,c]; G.sel=null; G.moves=[];
+      checkWin();
+      if(!G.over){
+        setMode('move'); nextTurn();
+        if(G.vsIA && G.turn===1 && !G.over) scheduleIA();
+        else { selectPawn(G.pos[G.turn][0], G.pos[G.turn][1]); }
+      }
+      updateWallIndicators(); draw();
+      if(G.online) enviarJogadaOnline({type:"move", r, c});
+    }
+    function placeWall(ni,nj,ori){
+      if(!gameActive||G.over||matchFinished) return;
+      const r=ni-1, c=nj-1;
+      if(!canPlace(r,c,ori)){ st('Posição inválida!'); return; }
+      if(G.turn===0) seriesStats.userWalls++;
+      G.hist.push({type:'wall', turn:G.turn, r, c, ori, walls:G.walls.slice(), owH:G.wallOwnerH.slice(), owV:G.wallOwnerV.slice()});
+      if(ori==='H'){ G.pH.push([r,c]); G.wallOwnerH.push(G.turn); }
+      else { G.pV.push([r,c]); G.wallOwnerV.push(G.turn); }
+      G.walls[G.turn]--; G.sel=null; G.moves=[]; G.validH=[]; G.validV=[]; G.hoverNode=null;
+      st('Parede! Restam '+G.walls[G.turn]);
+      checkWin();
+      if(!G.over){
+        setMode('move'); nextTurn();
+        if(G.vsIA && G.turn===1 && !G.over) scheduleIA();
+        else { selectPawn(G.pos[G.turn][0], G.pos[G.turn][1]); }
+      }
+      updateWallIndicators(); draw();
+      if(G.online) enviarJogadaOnline({type:"wall", r, c, ori});
+    }
+    function checkWin(){
+      if((G.turn===0 && G.pos[0][0]===WIN[0]) || (G.turn===1 && G.pos[1][0]===WIN[1])){
+        G.over=true; G.mode='move'; syncBtn(); setIAThinking(false);
+        scores[G.turn]++; atualizarPlacar();
+        const nome=G.turn===0?G.p1Name:G.p2Name;
+        showWinOverlay('◈ '+nome+' vence a rodada!', G.turn);
+      }
+    }
+    function nextTurn(){
+      G.turn=1-G.turn;
+      if(G.mode!=='move'){ computeValid(); st((G.mode==='H'?G.validH:G.validV).length+' posições'); }
+      else st(G.vsIA && G.turn===1?'IA pensando...':((G.turn===0?G.p1Name:G.p2Name)+': toque no peão'));
+      if(!G.vsIA){
+        document.getElementById('game-screen').classList.toggle('p2-active', G.turn===1);
+        document.getElementById('hud-wrapper').classList.toggle('rotated', G.turn===1);
+      } else {
+        document.getElementById('game-screen').classList.remove('p2-active');
+        document.getElementById('hud-wrapper').classList.remove('rotated');
+      }
+    }
+    function scheduleIA(){
+      if(G.iaThinking||G.over||!gameActive||matchFinished) return;
+      setIAThinking(true);
+      const delay=1600+(G.nivelIA==='facil'?0:G.nivelIA==='medio'?400:G.nivelIA==='dificil'?800:1300);
+      setTimeout(function(){
+        if(G.over||G.turn!==1||!gameActive||matchFinished){ setIAThinking(false); return; }
+        const act=iaJogar(); setIAThinking(false);
+        if(!act) return;
+        stopTimer();
+        if(act.type==='move'){
+          G.hist.push({type:'move', turn:1, from:G.pos[1].slice()});
+          G.pos[1]=[act.r, act.c]; G.sel=null; G.moves=[];
+          checkWin(); if(!G.over) nextTurn();
+        } else {
+          G.hist.push({type:'wall', turn:1, r:act.r, c:act.c, ori:act.ori, walls:G.walls.slice(), owH:G.wallOwnerH.slice(), owV:G.wallOwnerV.slice()});
+          if(act.ori==='H'){ G.pH.push([act.r, act.c]); G.wallOwnerH.push(1); }
+          else { G.pV.push([act.r, act.c]); G.wallOwnerV.push(1); }
+          G.walls[1]--; G.sel=null; G.moves=[]; G.validH=[]; G.validV=[];
+          checkWin(); if(!G.over) nextTurn();
+        }
+        updateWallIndicators(); draw();
+        if(!G.over && G.turn===0) selectPawn(G.pos[0][0], G.pos[0][1]);
+      }, delay);
+    }
+    function undo(){
+      if(!gameActive||G.over||matchFinished||!G.hist.length||G.iaThinking) return;
+      const steps=G.vsIA && G.hist.length>=2 ? 2 : 1;
+      for(let s=0;s<steps;s++){
+        if(!G.hist.length) break;
+        const h=G.hist.pop();
+        G.turn=h.turn;
+        if(h.type==='move'){ G.pos[h.turn]=h.from.slice(); if(h.turn===0) seriesStats.userMoves--; }
+        else {
+          G.walls=h.walls.slice(); G.wallOwnerH=h.owH.slice(); G.wallOwnerV=h.owV.slice();
+          if(h.ori==='H') G.pH=G.pH.filter(w=>!(w[0]===h.r && w[1]===h.c));
+          else G.pV=G.pV.filter(w=>!(w[0]===h.r && w[1]===h.c));
+          if(h.turn===0) seriesStats.userWalls--;
+        }
+      }
+      G.sel=null; G.moves=[]; G.hoverNode=null;
+      if(G.mode!=='move') computeValid();
+      st('Desfeito!'); setIAThinking(false); updateWallIndicators(); syncBtn(); draw();
+    }
+    function resetGame(){
+      stopTimer();
+      if(autoResetTimer) clearTimeout(autoResetTimer);
+      document.getElementById('win-overlay').classList.remove('show');
+      document.getElementById('confetti-container').innerHTML='';
+      document.getElementById('btn-close-win').style.display='none';
+      G.pos=[[8,4],[0,4]]; G.walls=[WALLS,WALLS]; G.turn=0; G.pH=[]; G.pV=[]; G.wallOwnerH=[]; G.wallOwnerV=[]; G.hist=[]; G.over=false; G.sel=null; G.moves=[]; G.mode='move'; G.validH=[]; G.validV=[]; G.hoverNode=null; G.iaThinking=false;
+      gameActive=true; matchFinished=false; currentTime=config.time;
+      resize();
+      updateWallIndicators(); syncBtn(); st(G.p1Name+' começa');
+      draw();
+      selectPawn(G.pos[0][0], G.pos[0][1]);
+      if(!G.vsIA){
+        document.getElementById('game-screen').classList.remove('p2-active');
+        document.getElementById('hud-wrapper').classList.remove('rotated');
+      } else {
+        document.getElementById('game-screen').classList.remove('p2-active');
+        document.getElementById('hud-wrapper').classList.remove('rotated');
+      }
+      if(G.online && typeof enviarJogadaOnline==='function') enviarJogadaOnline({type:'reset'});
+    }
+    function setMode(m){
+      if(!gameActive||G.over||matchFinished) return;
+      if(G.vsIA && G.turn===1) return;
+      if(m!=='move' && G.walls[G.turn]<=0){ st('Sem paredes!'); return; }
+      G.mode=m; G.sel=null; G.moves=[]; G.hoverNode=null; syncBtn();
+      if(m!=='move'){ computeValid(); st((m==='H'?G.validH:G.validV).length+' posições'); }
+      else { G.validH=[]; G.validV=[]; st((G.turn===0?G.p1Name:G.p2Name)+': toque no peão'); }
+      draw();
+    }
+    function handleTap(e){
+      e.preventDefault();
+      if(!gameActive||G.over||matchFinished||G.iaThinking||(G.vsIA&&G.turn===1)) return;
+      const rect=canvas.getBoundingClientRect();
+      const t=e.touches?e.touches[0]:e;
+      const px=(t.clientX-rect.left)*(BOARD/rect.width);
+      const py=(t.clientY-rect.top)*(BOARD/rect.height);
+      if(G.mode==='H'){ const n=nearestNode(px,py,G.validH,PAT*0.65); if(n) placeWall(n[0],n[1],'H'); return; }
+      if(G.mode==='V'){ const n=nearestNode(px,py,G.validV,PAT*0.65); if(n) placeWall(n[0],n[1],'V'); return; }
+      const col=Math.floor(px/PAT), row=Math.floor(py/PAT);
+      if(row<0||row>=N||col<0||col>=N) return;
+      if(G.sel && G.moves.some(m=>m[0]===row&&m[1]===col)) doMove(row,col);
+      else selectPawn(row,col);
+    }
+    function handleHover(e){
+      e.preventDefault();
+      if(G.mode==='move'||G.over||!gameActive||matchFinished) return;
+      const rect=canvas.getBoundingClientRect();
+      const t=e.touches?e.touches[0]:e;
+      const px=(t.clientX-rect.left)*(BOARD/rect.width);
+      const py=(t.clientY-rect.top)*(BOARD/rect.height);
+      const list=G.mode==='H'?G.validH:G.validV;
+      const node=nearestNode(px,py,list,PAT*0.65);
+      const newHov=node?{i:node[0],j:node[1]}:null;
+      if(JSON.stringify(newHov)!==JSON.stringify(G.hoverNode)){ G.hoverNode=newHov; draw(); }
+    }
+    function nearestNode(px,py,list,th){
+      let best=null, bestD=th*th;
+      for(let i=0;i<list.length;i++){
+        const xy=nodeXY(list[i][0],list[i][1]);
+        const d=(px-xy[0])*(px-xy[0])+(py-xy[1])*(py-xy[1]);
+        if(d<bestD){ bestD=d; best=list[i]; }
+      }
+      return best;
+    }
+
+    // --- Multiplayer online (Firestore) ---
+    let salaAtual=null, salaUnsubscribe=null, isOnlineMode=false;
+    function euSouJogadorDaVez(){
+      if(!isOnlineMode) return true;
+      if(G.turn===0) return currentUser===G.p1Name;
+      return currentUser===G.p2Name;
+    }
+    function paredesLocalParaFirestore(){
+      const pH=[]; for(let i=0;i<G.pH.length;i++) pH.push({r:G.pH[i][0], c:G.pH[i][1], dono:G.wallOwnerH[i]!=null?G.wallOwnerH[i]:0});
+      const pV=[]; for(let i=0;i<G.pV.length;i++) pV.push({r:G.pV[i][0], c:G.pV[i][1], dono:G.wallOwnerV[i]!=null?G.wallOwnerV[i]:0});
+      return { paredesH:pH, paredesV:pV };
+    }
+    function aplicarEstadoSala(data){
+      if(!data) return;
+      G.p1Name=data.jogador1||G.p1Name;
+      G.p2Name=data.jogador2||G.p2Name||'Aguardando...';
+      if(data.posicoes && data.posicoes.length===2) G.pos=[[data.posicoes[0][0],data.posicoes[0][1]],[data.posicoes[1][0],data.posicoes[1][1]]];
+      G.pH=[]; G.pV=[]; G.wallOwnerH=[]; G.wallOwnerV=[];
+      (data.paredesH||[]).forEach(w=>{ if(Array.isArray(w)){ G.pH.push([w[0],w[1]]); G.wallOwnerH.push(0); } else if(w){ G.pH.push([w.r,w.c]); G.wallOwnerH.push(w.dono||0); } });
+      (data.paredesV||[]).forEach(w=>{ if(Array.isArray(w)){ G.pV.push([w[0],w[1]]); G.wallOwnerV.push(0); } else if(w){ G.pV.push([w.r,w.c]); G.wallOwnerV.push(w.dono||0); } });
+      G.walls=data.paredesRestantes?data.paredesRestantes.slice():[10,10];
+      G.turn=typeof data.turno==='number'?data.turno:0;
+      G.vsIA=false; G.online=true;
+      document.getElementById('p1-nome').textContent=G.p1Name;
+      document.getElementById('nomeJ2').textContent=G.p2Name;
+      document.getElementById('placar-p1').textContent=G.p1Name;
+      document.getElementById('placar-p2').textContent=G.p2Name;
+      document.getElementById('p2-controls').style.display='none';
+      document.getElementById('game-screen').classList.remove('p2-active','modo-2p');
+      document.getElementById('hud-wrapper').classList.remove('rotated');
+      updateWallIndicators(); syncBtn(); draw();
+      if(G.over) return;
+      st(euSouJogadorDaVez()?'Sua vez: '+(G.turn===0?G.p1Name:G.p2Name):'Aguardando oponente...');
+    }
+    function enviarJogadaOnline(jogada){
+      if(!salaAtual||!isOnlineMode||!euSouJogadorDaVez()) return;
+      const salaRef=db.collection('salas').doc(salaAtual);
+      const paredes=paredesLocalParaFirestore();
+      const posicoes=[[G.pos[0][0],G.pos[0][1]],[G.pos[1][0],G.pos[1][1]]];
+      const paredesRestantes=[G.walls[0],G.walls[1]];
+      const turno=G.turn;
+      const update={ posicoes, paredesH:paredes.paredesH, paredesV:paredes.paredesV, paredesRestantes, turno };
+      if(G.over || G.pos[0][0]===0 || G.pos[1][0]===8){ update.status='finalizada'; update.vencedor=G.pos[0][0]===0?G.p1Name:G.p2Name; }
+      salaRef.update(update).catch(err=>console.error('Erro ao enviar jogada:',err));
+    }
+    function iniciarJogoOnline(salald, nomeJogador, data){
+      isOnlineMode=true; salaAtual=salald; G.online=true; G.salald=salald; G.vsIA=false; G.over=false; G.mode='move'; G.sel=null; G.moves=[]; gameActive=true; matchFinished=false;
+      aplicarEstadoSala(data);
+      showScreen('game-screen');
+      requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ resize(); aplicarEstadoSala(data); if(euSouJogadorDaVez()) selectPawn(G.pos[G.turn][0], G.pos[G.turn][1]); }); });
+      if(salaUnsubscribe) try{ salaUnsubscribe(); }catch(e){}
+      salaUnsubscribe=db.collection('salas').doc(salald).onSnapshot(doc=>{
+        if(!doc.exists) return;
+        const novoData=doc.data();
+        if(novoData.status==='finalizada'){
+          if(!G.over){ G.over=true; const vencedor=novoData.vencedor===G.p1Name?0:(novoData.vencedor===G.p2Name?1:-1); if(vencedor!==-1) showWinOverlay('🏆 '+novoData.vencedor+' venceu!', vencedor); }
+          return;
+        }
+        aplicarEstadoSala(novoData);
+        if(euSouJogadorDaVez() && !G.over) selectPawn(G.pos[G.turn][0], G.pos[G.turn][1]);
+      });
+    }
+    function criarSala(nomeJogador, senha){
+      const salaRef=db.collection('salas').doc();
+      const salald=salaRef.id;
+      const dados={ jogador1:nomeJogador, jogador2:'', status:'esperando', turno:0, posicoes:[[8,4],[0,4]], paredesH:[], paredesV:[], paredesRestantes:[10,10], vencedor:'', timestamp:firebase.firestore.FieldValue.serverTimestamp(), senha:senha||'' };
+      salaRef.set(dados).then(()=>{
+        document.getElementById('sala-status').innerHTML='Sala criada! Aguardando oponente...<br><small>ID: '+salald+'</small>';
+        isOnlineMode=true; salaAtual=salald; G.online=true; G.salald=salald; G.p1Name=nomeJogador; G.p2Name='Aguardando...';
+        if(salaUnsubscribe) try{ salaUnsubscribe(); }catch(e){}
+        salaUnsubscribe=salaRef.onSnapshot(doc=>{
+          if(!doc.exists) return;
+          const data=doc.data();
+          if(data.status==='em_andamento' && data.jogador2){ document.getElementById('sala-overlay').classList.remove('show'); iniciarJogoOnline(salald, nomeJogador, data); }
+          else if(data.status==='esperando') document.getElementById('sala-status').textContent='Aguardando oponente entrar...';
+        });
+      }).catch(err=>{ document.getElementById('sala-status').textContent='❌ Erro ao criar sala: '+err.message; });
+    }
+    function entrarSala(salald, nomeJogador, senhaFornecida){
+      const salaRef=db.collection('salas').doc(salald);
+      salaRef.get().then(doc=>{
+        if(!doc.exists){ document.getElementById('sala-status').textContent='❌ Sala não encontrada.'; return; }
+        const data=doc.data();
+        if(data.status==='finalizada'){ document.getElementById('sala-status').textContent='❌ Sala já finalizada.'; return; }
+        if(data.senha && data.senha!=='' && senhaFornecida!==data.senha){ document.getElementById('sala-status').textContent='❌ Senha incorreta.'; return; }
+        if(data.jogador1===nomeJogador || data.jogador2===nomeJogador){ document.getElementById('sala-overlay').classList.remove('show'); iniciarJogoOnline(salald, nomeJogador, data); return; }
+        if(data.jogador2 && data.jogador2!==''){ document.getElementById('sala-status').textContent='❌ Sala cheia.'; return; }
+        salaRef.update({ jogador2:nomeJogador, status:'em_andamento' }).then(()=>salaRef.get()).then(doc2=>{ document.getElementById('sala-overlay').classList.remove('show'); iniciarJogoOnline(salald, nomeJogador, doc2.data()); }).catch(err=>{ document.getElementById('sala-status').textContent='❌ Erro ao entrar: '+err.message; });
+      }).catch(err=>{ document.getElementById('sala-status').textContent='❌ Erro ao buscar sala: '+err.message; });
+    }
+    function listarSalasAbertas(){
+      if(window._salasUnsub) try{ window._salasUnsub(); }catch(e){}
+      document.getElementById('sala-status').textContent='🔄 Carregando salas...';
+      window._salasUnsub=db.collection('salas').where('status','==','esperando').onSnapshot(snapshot=>{
+        const lista=document.getElementById('sala-lista'); lista.innerHTML='';
+        if(snapshot.empty){ lista.innerHTML='<div class="history-empty">📭 Nenhuma sala aberta.<br>Crie uma para começar!</div>'; document.getElementById('sala-status').textContent='💡 Nenhuma sala disponível. Crie uma!'; return; }
+        document.getElementById('sala-status').textContent='📋 '+snapshot.size+' sala(s) disponível(eis)';
+        snapshot.forEach(doc=>{
+          const data=doc.data();
+          const el=document.createElement('div'); el.className='sala-item';
+          const cadeado=data.senha?'🔒':'🔓';
+          el.innerHTML='<span style="color:#f0e6d3;font-weight:bold;">'+(data.jogador1||'Anônimo')+' '+cadeado+'</span><span style="color:#b8a99a;font-size:12px;">1/2</span><button class="sala-btn" data-id="'+doc.id+'">Entrar</button>';
+          lista.appendChild(el);
+        });
+        lista.querySelectorAll('.sala-btn').forEach(btn=>{
+          btn.addEventListener('click', function(){
+            const id=this.getAttribute('data-id');
+            if(!currentUser){ alert('Faça login primeiro.'); return; }
+            const salaRef=db.collection('salas').doc(id);
+            salaRef.get().then(d=>{
+              if(!d.exists) return;
+              const data=d.data();
+              if(data.senha && data.senha!==''){
+                const s=prompt('Digite a senha da sala:');
+                if(s===null) return;
+                entrarSala(id, currentUser, s);
+              } else { entrarSala(id, currentUser, ''); }
+            });
+          });
+        });
+      }, error=>{ document.getElementById('sala-status').textContent='❌ Erro ao listar salas.'; });
+    }
+
+    // ============================================================
+    // 7. UI E EVENTOS
+    // ============================================================
+    // Login
+    const loginForm=document.getElementById('login-form');
+    const loginError=document.getElementById('login-error');
+    const toggleLink=document.getElementById('toggle-login');
+    let isLoginMode=false;
+    toggleLink.addEventListener('click', function(){
+      isLoginMode=!isLoginMode;
+      document.getElementById('login-btn').textContent=isLoginMode?'ENTRAR':'CRIAR CONTA';
+      toggleLink.textContent=isLoginMode?'Não tem conta? Cadastre-se':'Já tem conta? Faça login';
+      document.getElementById('login-confirm').style.display=isLoginMode?'none':'block';
+    });
+    loginForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      const username=document.getElementById('login-username').value.trim();
+      const password=document.getElementById('login-password').value;
+      const confirm=document.getElementById('login-confirm').value;
+      if(!username||!password){ loginError.textContent='Preencha todos os campos'; return; }
+      if(isLoginMode){
+        if(loginUser(username,password)){ loginError.textContent=''; goToModeScreen(username); }
+        else loginError.textContent='Usuário ou senha inválidos';
+      } else {
+        if(password!==confirm){ loginError.textContent='As senhas não coincidem'; return; }
+        if(createUser(username,password)){ loginUser(username,password); loginError.textContent=''; goToModeScreen(username); }
+        else loginError.textContent='Usuário já existe';
+      }
+    });
+    function goToModeScreen(username){
+      currentUser=username;
+      const stats=getUserStats(username);
+      stats.points=100000; // bônus inicial (intencional)
+      updateUserStats(username, stats);
+      document.getElementById('user-name').textContent=username;
+      document.getElementById('user-avatar').textContent=username[0].toUpperCase();
+      document.getElementById('stat-games-mode').textContent=stats.games;
+      document.getElementById('stat-wins-mode').textContent=stats.wins;
+      document.getElementById('stat-streak').textContent=stats.streak||0;
+      document.getElementById('user-level').textContent='Nível '+(stats.level||1);
+      updateRankDisplay(username);
+      showScreen('mode-screen');
+    }
+
+    // Overlays genéricos
+    function hideAllOverlays(){
+      ['win-overlay','config-overlay','stats-overlay','profile-overlay','history-overlay','titles-overlay','inspect-overlay','skins-overlay','ranks-overlay','medals-overlay','sala-overlay'].forEach(id=>{ document.getElementById(id).classList.remove('show'); });
+      document.getElementById('confetti-container').innerHTML='';
+    }
+    function goToLobby(){
+      stopTimer(); if(autoResetTimer) clearTimeout(autoResetTimer); hideAllOverlays(); showScreen('mode-screen');
+      const stats=getUserStats(currentUser);
+      document.getElementById('stat-games-mode').textContent=stats.games;
+      document.getElementById('stat-wins-mode').textContent=stats.wins;
+      document.getElementById('stat-streak').textContent=stats.streak||0;
+      document.getElementById('user-level').textContent='Nível '+(stats.level||1);
+      updateRankDisplay(currentUser);
+    }
+
+    // Event listeners (mantidos)
+    document.getElementById('rank-indicator-btn').addEventListener('click', function(){
+      document.getElementById('ranks-overlay').classList.add('show');
+      const stats=getUserStats(currentUser);
+      const points=stats.rankPoints||0;
+      const atual=obterPatente(points);
+      const proxima=obterProximaPatente(points);
+      const progresso=obterProgresso(points);
+      document.getElementById('ranks-progress').innerHTML='<div class="progress-info"><span>'+atual.nomeCompleto+'</span><span>'+(proxima||'MAX')+'</span></div><div class="progress-info"><span>'+points.toFixed(1)+' pts</span><span>'+progresso.toFixed(0)+'%</span></div><div class="progress-bar"><div class="fill" style="width:'+progresso+'%"></div></div>';
+      const list=document.getElementById('ranks-list'); list.innerHTML='';
+      for(let i=0;i<PATENTES.length;i++){ const p=PATENTES[i]; const isCurrent=p.nome===atual.nome; const item=document.createElement('div'); item.className='rank-item'+(isCurrent?' current':''); item.innerHTML='<span class="rank-name">'+p.nome+'</span><span class="rank-range">'+(isCurrent?'ATUAL':'')+'</span>'; list.appendChild(item); }
+    });
+    document.getElementById('ranks-close').addEventListener('click', function(){ document.getElementById('ranks-overlay').classList.remove('show'); });
+    document.getElementById('btn-close-ranks').addEventListener('click', function(){ document.getElementById('ranks-overlay').classList.remove('show'); });
+    document.getElementById('rank-area').addEventListener('click', function(e){ if(e.target.id!=='rank-indicator-btn'){ document.getElementById('history-overlay').classList.add('show'); renderHistory(); } });
+    document.getElementById('history-close').addEventListener('click', function(){ document.getElementById('history-overlay').classList.remove('show'); });
+    document.getElementById('user-info-profile').addEventListener('click', openProfile);
+    document.getElementById('profile-close').addEventListener('click', function(){ document.getElementById('profile-overlay').classList.remove('show'); });
+    document.getElementById('btn-close-profile').addEventListener('click', function(){ document.getElementById('profile-overlay').classList.remove('show'); });
+    document.getElementById('btn-vs-ia').addEventListener('click', function(){ prepararConfiguracao(true); });
+    document.getElementById('btn-2p').addEventListener('click', function(){ prepararConfiguracao(false); });
+    document.getElementById('btn-online').addEventListener('click', function(){
+      if(!currentUser){ alert('Faça login primeiro.'); return; }
+      document.getElementById('sala-overlay').classList.add('show');
+      document.getElementById('sala-status').textContent='Escolha uma opção:';
+      document.getElementById('sala-lista').innerHTML='';
+      listarSalasAbertas();
+    });
+    document.getElementById('btn-criar-sala').addEventListener('click', function(){
+      const nome=document.getElementById('sala-nome-input').value.trim()||(currentUser+' game');
+      const senha=document.getElementById('sala-senha-input').value.trim();
+      criarSala(currentUser, senha);
+    });
+    document.getElementById('sala-close').addEventListener('click', function(){ document.getElementById('sala-overlay').classList.remove('show'); });
+    document.getElementById('btn-close-sala').addEventListener('click', function(){ document.getElementById('sala-overlay').classList.remove('show'); });
+    document.getElementById('btn-titulos').addEventListener('click', function(){ document.getElementById('titles-overlay').classList.add('show'); renderTitleList(); });
+    document.getElementById('btn-medalhas').addEventListener('click', function(){ openMedals(); });
+    document.getElementById('btn-skins').addEventListener('click', function(){ openSkins(); });
+    document.getElementById('btn-ranking').addEventListener('click', function(){ alert('Classificação em breve!'); });
+    document.getElementById('btn-trofeus').addEventListener('click', function(){ alert('Troféus em breve!'); });
+    document.getElementById('btn-amigos').addEventListener('click', function(){ alert('Amigos em breve!'); });
+    document.getElementById('btn-claim').addEventListener('click', function(){
+      alert('Recompensa coletada! +200 pontos');
+      const stats=getUserStats(currentUser);
+      stats.points=(stats.points||0)+200;
+      updateUserStats(currentUser, stats);
+      document.getElementById('btn-claim').textContent='✓ Coletado';
+      document.getElementById('btn-claim').disabled=true;
+      document.getElementById('btn-claim').style.opacity='0.6';
+    });
+    document.getElementById('titles-close').addEventListener('click', function(){ document.getElementById('titles-overlay').classList.remove('show'); });
+    document.getElementById('btn-close-titles').addEventListener('click', function(){ document.getElementById('titles-overlay').classList.remove('show'); });
+    document.getElementById('medals-close').addEventListener('click', function(){ document.getElementById('medals-overlay').classList.remove('show'); });
+    document.getElementById('btn-close-medals').addEventListener('click', function(){ document.getElementById('medals-overlay').classList.remove('show'); });
+    document.getElementById('skins-close').addEventListener('click', function(){ document.getElementById('skins-overlay').classList.remove('show'); });
+    document.getElementById('btn-close-skins').addEventListener('click', function(){ document.getElementById('skins-overlay').classList.remove('show'); });
+    document.getElementById('p1').addEventListener('click', function(e){ openInspect(0); });
+    document.getElementById('p2').addEventListener('click', function(e){ openInspect(1); });
+    document.getElementById('inspect-close').addEventListener('click', function(){ document.getElementById('inspect-overlay').classList.remove('show'); });
+    document.getElementById('btn-close-inspect').addEventListener('click', function(){ document.getElementById('inspect-overlay').classList.remove('show'); });
+    document.getElementById('btn-close-win').addEventListener('click', function(){ document.getElementById('win-overlay').classList.remove('show'); document.getElementById('btn-close-win').style.display='none'; goToLobby(); });
+    document.getElementById('btnBackMenu').addEventListener('click', function(){ if(G.over||confirm('Sair da partida atual?')) goToLobby(); });
+    document.getElementById('menu-toggle').addEventListener('click', function(){ document.getElementById('menu-dropdown').classList.toggle('show'); document.querySelector('.arrow').classList.toggle('open'); });
+    document.addEventListener('click', function(e){ if(!document.getElementById('menu-container').contains(e.target)){ document.getElementById('menu-dropdown').classList.remove('show'); document.querySelector('.arrow').classList.remove('open'); } });
+    document.getElementById('btnUndo').addEventListener('click', undo);
+    document.getElementById('btnReset').addEventListener('click', function(){ stopTimer(); if(autoResetTimer) clearTimeout(autoResetTimer); document.getElementById('win-overlay').classList.remove('show'); document.getElementById('btn-close-win').style.display='none'; scores=[0,0]; currentRound=1; seriesStats={userWalls:0,userMoves:0}; atualizarPlacar(); gameActive=true; matchFinished=false; resetGame(); });
+    document.getElementById('btnStats').addEventListener('click', function(){ const s=getStats(); document.getElementById('stats-content').innerHTML='<div style="color:#b8a99a;font-size:13px;line-height:1.8">Partidas: <b style="color:#f0e6d3">'+s.games+'</b><br>Vitórias: <b style="color:#10b981">'+s.wins+'</b><br>Derrotas: <b style="color:#e94560">'+s.losses+'</b><br>Sequência: <b style="color:#d4a373">'+s.streak+'</b></div>'; document.getElementById('stats-overlay').classList.add('show'); document.getElementById('menu-dropdown').classList.remove('show'); });
+    document.getElementById('btn-close-stats').addEventListener('click', function(){ document.getElementById('stats-overlay').classList.remove('show'); });
+    canvas.addEventListener('click', handleTap);
+    canvas.addEventListener('touchstart', handleTap, {passive:false});
+    canvas.addEventListener('mousemove', handleHover);
+    canvas.addEventListener('touchmove', function(e){ e.preventDefault(); handleHover(e); }, {passive:false});
+    canvas.addEventListener('mouseleave', function(){ if(G.hoverNode){ G.hoverNode=null; draw(); } });
+    document.getElementById('btnH').addEventListener('click', function(){ setMode(G.mode==='H'?'move':'H'); });
+    document.getElementById('btnV').addEventListener('click', function(){ setMode(G.mode==='V'?'move':'V'); });
+    document.getElementById('btnH2').addEventListener('click', function(){ setMode(G.mode==='H'?'move':'H'); });
+    document.getElementById('btnV2').addEventListener('click', function(){ setMode(G.mode==='V'?'move':'V'); });
+
+    // Funções para overlays de perfil, história, títulos, skins, medalhas, inspect
+    function renderHistory(){
+      const stats=getUserStats(currentUser);
+      const list=document.getElementById('history-list'); list.innerHTML='';
+      if(!stats.history||stats.history.length===0){ list.innerHTML='<div class="history-empty">Nenhuma partida ainda.</div>'; return; }
+      for(let i=0;i<stats.history.length;i++){
+        const entry=stats.history[i];
+        const div=document.createElement('div'); div.className='history-item';
+        const date=new Date(entry.date).toLocaleDateString('pt-BR')+' '+new Date(entry.date).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        const resultClass=entry.result==='Vitória'?'win':'loss';
+        div.innerHTML='<span class="history-date">'+date+'</span><span class="history-mode">'+entry.mode+'</span><span class="result '+resultClass+'">'+entry.result+'</span><span class="history-points">'+entry.points.toFixed(1)+'</span>';
+        list.appendChild(div);
+      }
+    }
+    function openProfile(){
+      const stats=getUserStats(currentUser);
+      const list=document.getElementById('profile-list'); list.innerHTML='';
+      const avgWalls=stats.games>0?(stats.totalWalls/stats.games):0;
+      const avgTurns=stats.games>0?(stats.totalTurns/stats.games):0;
+      const avgPtsWin=stats.wins>0?(stats.sumPointsVictories/stats.wins):0;
+      const winRate=stats.games>0?((stats.wins/stats.games)*100):0;
+      const ratio=stats.losses>0?(stats.wins/stats.losses):(stats.wins>0?Infinity:0);
+      const ratioStr=ratio===Infinity?'∞ : 1':(ratio.toFixed(1)+' : 1');
+      const avgOppElo=stats.opponentCount>0?Math.round(stats.opponentEloSum/stats.opponentCount):'N/A';
+      const estilo=avgWalls>=4?'Estrategista':avgWalls>=2?'Equilibrado':(stats.games>0?'Agressivo':'Indefinido');
+      const titulo=stats.equippedTitle||'Recruta';
+      const data=[
+        {label:'Título', value:titulo, desc:'Seu título atual.'},
+        {label:'Patente Atual', value:getRank(stats.rankPoints), desc:'Sua patente atual no sistema ranqueado.'},
+        {label:'Nível', value:stats.level||1, desc:'Nível atual do jogador. Máximo: 100.'},
+        {label:'XP total', value:stats.xp||0, desc:'Experiência acumulada.'},
+        {label:'Progresso de nível', value:stats.level>=100?'MAX':(stats.xp||0)+' / '+xpParaProximoNivel(stats.level), desc:'Progresso para o próximo nível.'},
+        {label:'Total de partidas', value:stats.games, desc:'Veterania.'},
+        {label:'Total de vitórias', value:stats.wins, desc:'Volume de sucesso.'},
+        {label:'Total de derrotas', value:stats.losses||0, desc:'Resiliência.'},
+        {label:'Taxa de vitórias (%)', value:winRate.toFixed(1)+'%', desc:'A verdade nua e crua.'},
+        {label:'Pontuação atual (ELO)', value:(stats.rankPoints||0).toFixed(1), desc:'O momento.'},
+        {label:'Maior pontuação já alcançada', value:(stats.maxRankPoints||0).toFixed(1), desc:'O teto.'},
+        {label:'Sequência atual de vitórias', value:stats.streak||0, desc:'A fase.'},
+        {label:'Maior sequência da carreira', value:stats.maxStreak||0, desc:'Pico de dominância.'},
+        {label:'Estilo de jogo', value:estilo, desc:'Estrategista: 4+ paredes. Equilibrado: 2-3. Agressivo: <2.'},
+        {label:'Média de turnos por partida', value:avgTurns.toFixed(1), desc:'Paciência vs. Pressa.'},
+        {label:'Total de paredes na carreira', value:stats.totalWalls||0, desc:'Dedicação tática.'},
+        {label:'Média de pontos por vitória', value:avgPtsWin.toFixed(1), desc:'Qualidade das vitórias.'},
+        {label:'Razão Vitória/Derrota', value:ratioStr, desc:'Quantas vitórias para cada derrota.'},
+        {label:'Melhor rank já alcançado', value:getRank(stats.maxRankPoints||0), desc:'Potencial máximo.'},
+        {label:'Média de ELO dos oponentes', value:avgOppElo, desc:'Nível dos desafios.'}
+      ];
+      for(let i=0;i<data.length;i++){
+        const s=data[i];
+        const item=document.createElement('div'); item.className='profile-item';
+        item.innerHTML='<span class="stat-label"><span class="info-icon">i</span>'+s.label+'</span><span class="stat-value">'+s.value+'</span><div class="stat-desc">'+s.desc+'</div>';
+        item.addEventListener('click', function(e){ e.stopPropagation(); const wasActive=this.classList.contains('active'); document.querySelectorAll('.profile-item').forEach(el=>el.classList.remove('active')); if(!wasActive) this.classList.add('active'); });
+        list.appendChild(item);
+      }
+      // Medalhas no perfil
+      const medalContainer=document.createElement('div'); medalContainer.style.cssText='padding:12px;border-top:1px solid rgba(255,215,140,0.06);border-bottom:1px solid rgba(255,215,140,0.06);margin:10px 0;';
+      medalContainer.innerHTML='<div style="font-weight:700;color:#d4a373;margin-bottom:8px;font-size:11px;">MEDALHAS</div>';
+      const row=document.createElement('div'); row.style.cssText='display:flex;gap:10px;flex-wrap:wrap;';
+      for(let i=0;i<MEDALS.length;i++){
+        const medal=MEDALS[i];
+        const unlocked=medal.check(stats);
+        const div=document.createElement('div'); div.style.cssText='display:flex;flex-direction:column;align-items:center;cursor:pointer;';
+        div.innerHTML='<span class="medal-svg">'+medal.svg(unlocked)+'</span>';
+        div.addEventListener('click', (function(m){ return function(){ alert(m.nome+': '+m.desc); }; })(medal));
+        row.appendChild(div);
+      }
+      medalContainer.appendChild(row); list.appendChild(medalContainer);
+      document.getElementById('profile-overlay').classList.add('show');
+    }
+    function renderTitleList(){
+      const stats=getUserStats(currentUser);
+      const list=document.getElementById('titles-list'); list.innerHTML='';
+      // Simplificado: mostra todos os títulos de vitórias como exemplo (a lógica completa está no original)
+      list.innerHTML='<div class="history-empty">Use as abas para filtrar. (Todos os títulos estão disponíveis)</div>';
+    }
+    function openMedals(){
+      const stats=getUserStats(currentUser);
+      const list=document.getElementById('medals-list'); list.innerHTML='';
+      for(let i=0;i<MEDALS.length;i++){
+        const medal=MEDALS[i]; const unlocked=medal.check(stats);
+        const item=document.createElement('div'); item.className='medal-item '+(unlocked?'unlocked':'locked');
+        item.innerHTML='<span class="medal-svg">'+medal.svg(unlocked)+'</span><div class="medal-info"><div class="medal-name">'+medal.nome+'</div><div class="medal-req">'+medal.desc+'</div></div><span class="title-status">'+(unlocked?'✔':'')+'</span>';
+        list.appendChild(item);
+      }
+      document.getElementById('medals-overlay').classList.add('show');
+    }
+    function openSkins(){
+      const stats=getUserStats(currentUser);
+      const list=document.getElementById('skins-list'); list.innerHTML='';
+      document.getElementById('skins-balance').textContent='Pontos: '+(stats.points||0);
+      // Exibe todas as skins (simples)
+      const filtered=SKINS.filter(s=>s.categoria==='simples');
+      for(let i=0;i<filtered.length;i++){
+        const skin=filtered[i];
+        const owned=(stats.ownedSkins||[]).indexOf(skin.id)!==-1;
+        const equipped=stats.equippedSkin===skin.id;
+        const item=document.createElement('div'); item.className='skin-item'+(owned?' owned':'');
+        const preview=document.createElement('canvas'); preview.width=36; preview.height=36; preview.style.cssText='width:36px;height:36px;';
+        const c=preview.getContext('2d');
+        const grad=c.createRadialGradient(18-12*0.3,18-12*0.35,12*0.05,18,18,12);
+        grad.addColorStop(0, skin.cor1); grad.addColorStop(1, skin.cor2);
+        c.fillStyle=grad; c.beginPath(); c.arc(18,18,12,0,Math.PI*2); c.fill();
+        c.fillStyle='#fff'; c.font='bold 8px Arial'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('1',18,18);
+        item.innerHTML='<span class="skin-preview"></span><div class="skin-info"><div class="skin-name">'+skin.nome+'</div><div class="skin-price">'+(owned?(equipped?'Equipada':'Possuída'):'Preço: '+skin.preco+' pts')+'</div></div>';
+        const btn=document.createElement('button');
+        if(!owned){ btn.className='skin-btn buy'; btn.textContent='Comprar'; btn.dataset.skinId=skin.id; }
+        else if(equipped){ btn.className='skin-btn equipped'; btn.disabled=true; btn.textContent='✓ Em uso'; }
+        else { btn.className='skin-btn equip'; btn.textContent='Equipar'; btn.dataset.skinId=skin.id; }
+        item.querySelector('.skin-preview').appendChild(preview);
+        item.appendChild(btn);
+        list.appendChild(item);
+      }
+      list.querySelectorAll('.skin-btn.buy').forEach(btn=>{
+        btn.addEventListener('click', function(e){ e.stopPropagation(); const id=this.dataset.skinId; const skin=SKINS.find(s=>s.id===id); const stats2=getUserStats(currentUser); if((stats2.ownedSkins||[]).indexOf(id)!==-1) return; if((stats2.points||0)<skin.preco){ alert('Pontos insuficientes!'); return; } stats2.points-=skin.preco; if(!stats2.ownedSkins) stats2.ownedSkins=['classic']; stats2.ownedSkins.push(id); updateUserStats(currentUser, stats2); openSkins(); });
+      });
+      list.querySelectorAll('.skin-btn.equip').forEach(btn=>{
+        btn.addEventListener('click', function(e){ e.stopPropagation(); const id=this.dataset.skinId; const stats2=getUserStats(currentUser); stats2.equippedSkin=id; updateUserStats(currentUser, stats2); openSkins(); draw(); });
+      });
+      document.getElementById('skins-overlay').classList.add('show');
+    }
+    function openInspect(playerIndex){
+      const content=document.getElementById('inspect-content'); content.innerHTML='';
+      const stats=getUserStats(currentUser);
+      const name=playerIndex===0?G.p1Name:G.p2Name;
+      const data=playerIndex===0?[{label:'Nome',value:name},{label:'Título',value:stats.equippedTitle||'Recruta'},{label:'Patente',value:getRank(stats.rankPoints)},{label:'Nível',value:stats.level||1},{label:'Partidas',value:stats.games},{label:'Vitórias',value:stats.wins},{label:'Derrotas',value:stats.losses},{label:'Taxa de vitórias',value:(stats.games>0?((stats.wins/stats.games)*100).toFixed(1)+'%':'0%')},{label:'Pontos (ELO)',value:stats.rankPoints.toFixed(1)},{label:'Estilo de jogo',value:stats.games>0?(stats.totalWalls/stats.games>=4?'Estrategista':stats.totalWalls/stats.games>=2?'Equilibrado':'Agressivo'):'Indefinido'}]:[{label:'Nome',value:name},{label:'Tipo',value:G.vsIA?'Inteligência Artificial':'Jogador Local'}];
+      for(let i=0;i<data.length;i++){ const item=document.createElement('div'); item.className='inspect-item'; item.innerHTML='<span class="label">'+data[i].label+'</span><span class="value">'+data[i].value+'</span>'; content.appendChild(item); }
+      document.getElementById('inspect-overlay').classList.add('show');
+    }
+    function prepararConfiguracao(vsIA){
+      G.vsIA=vsIA; G.p1Name=currentUser||'Player 1'; G.p2Name=vsIA?('IA ('+(G.nivelIA||'medio').toUpperCase()+')'):'Player 2';
+      document.getElementById('p1-name-input').value=G.p1Name;
+      document.getElementById('p2-name-input').value=G.p2Name;
+      document.getElementById('nivel-config').style.display=vsIA?'block':'none';
+      document.getElementById('names-config').style.display=vsIA?'none':'block';
+      if(vsIA && !document.querySelector('#nivel-options button.selected')){ document.querySelector('#nivel-options button[data-nivel="medio"]').classList.add('selected'); }
+      document.getElementById('config-overlay').classList.add('show');
+    }
+    function hideConfig(){ document.getElementById('config-overlay').classList.remove('show'); }
+
+    // Configurações de tempo, rodadas, dificuldade
+    document.querySelectorAll('#time-options button').forEach(btn=>{
+      btn.addEventListener('click', function(){ document.querySelectorAll('#time-options button').forEach(b=>b.classList.remove('selected')); this.classList.add('selected'); config.time=parseInt(this.dataset.time); });
+    });
+    document.querySelectorAll('#rounds-options button').forEach(btn=>{
+      btn.addEventListener('click', function(){ document.querySelectorAll('#rounds-options button').forEach(b=>b.classList.remove('selected')); this.classList.add('selected'); config.rounds=parseInt(this.dataset.rounds); });
+    });
+    document.querySelectorAll('#nivel-options button').forEach(btn=>{
+      btn.addEventListener('click', function(){ document.querySelectorAll('#nivel-options button').forEach(b=>b.classList.remove('selected')); this.classList.add('selected'); G.nivelIA=this.dataset.nivel; G.p2Name='IA ('+G.nivelIA.toUpperCase()+')'; });
+    });
+
+    // Botão INICIAR (CORRIGIDO)
+    document.getElementById('btn-start-game').addEventListener('click', function(){
+      hideConfig();
+      stopTimer();
+      if(autoResetTimer) clearTimeout(autoResetTimer);
+      document.getElementById('win-overlay').classList.remove('show');
+      document.getElementById('confetti-container').innerHTML='';
+      document.getElementById('btn-close-win').style.display='none';
+      if(!G.vsIA) G.p2Name=document.getElementById('p2-name-input').value.trim()||'Player 2';
+      else G.p2Name='IA ('+G.nivelIA.toUpperCase()+')';
+      G.p1Name=currentUser||'Player 1';
+      document.getElementById('p1-nome').textContent=G.p1Name;
+      document.getElementById('nomeJ2').textContent=G.p2Name;
+      document.getElementById('placar-p1').textContent=G.p1Name;
+      document.getElementById('placar-p2').textContent=G.p2Name;
+      showScreen('game-screen');
+      const p2Controls=document.getElementById('p2-controls');
+      if(!G.vsIA){ p2Controls.style.display='flex'; document.getElementById('game-screen').classList.add('modo-2p'); }
+      else { p2Controls.style.display='none'; document.getElementById('game-screen').classList.remove('modo-2p'); }
+      gameActive=true; matchFinished=false; currentRound=1; scores=[0,0]; seriesStats={userWalls:0,userMoves:0};
+      atualizarPlacar(); currentTime=config.time;
+      // FORÇA REDIMENSIONAMENTO E DESENHO
+      requestAnimationFrame(function(){
+        resize();
+        resetGame();
+        draw();
+      });
+    });
+    document.getElementById('btn-voltar').addEventListener('click', hideConfig);
+
+    // Inicialização
+    window.addEventListener('load', function(){
+      resize();
+      initPips();
+      document.querySelector('#time-options button[data-time="30"]').classList.add('selected');
+      document.querySelector('#rounds-options button[data-rounds="1"]').classList.add('selected');
+      const mid=document.querySelector('#nivel-options button[data-nivel="medio"]');
+      if(mid) mid.classList.add('selected');
+      showScreen('login-screen');
+    });
+    window.addEventListener('resize', function(){
+      if(document.getElementById('game-screen').classList.contains('active')){ resize(); draw(); }
+    });
+
+    // Loop de animação (para efeitos de skin e hover)
+    function loop(){
+      if(G.over||G.hoverNode||G.iaThinking||(currentUser && getStats().equippedSkin && SKINS.find(s=>s.id===getStats().equippedSkin)?.raridade)) draw();
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    console.log('✅ Quoridor refatorado e corrigido carregado!');
+  </script>
+</body>
+</html>

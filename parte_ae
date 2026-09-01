@@ -1,0 +1,300 @@
+          btn.setAttribute('data-skin-id', skin.id);
+        }
+        item.appendChild(btn);
+        list.appendChild(item);
+      }
+      list.querySelectorAll('.skin-btn.buy').forEach(function(btn) {
+        btn.addEventListener('click', function(e) { e.stopPropagation(); buySkin(this.getAttribute('data-skin-id')); });
+      });
+      list.querySelectorAll('.skin-btn.equip').forEach(function(btn) {
+        btn.addEventListener('click', function(e) { e.stopPropagation(); equipSkin(this.getAttribute('data-skin-id')); });
+      });
+    }
+
+    function buySkin(skinId) {
+      var stats = getUserStats(currentUser);
+      var skin = SKINS.find(function(s) { return s.id === skinId; });
+      if (!skin || (stats.ownedSkins || []).indexOf(skinId) !== -1) return;
+      if ((stats.points || 0) < skin.preco) { alert('Pontos insuficientes!'); return; }
+      stats.points -= skin.preco;
+      if (!stats.ownedSkins) stats.ownedSkins = ['classic'];
+      stats.ownedSkins.push(skinId);
+      updateUserStats(currentUser, stats);
+      renderSkinsList();
+    }
+
+    function equipSkin(skinId) {
+      var stats = getUserStats(currentUser);
+      if ((stats.ownedSkins || []).indexOf(skinId) === -1) return;
+      stats.equippedSkin = skinId;
+      updateUserStats(currentUser, stats);
+      renderSkinsList();
+      if (document.getElementById('game-screen').classList.contains('active')) draw();
+    }
+
+    function openSkins() {
+      renderSkinsList();
+      document.getElementById('skins-overlay').classList.add('show');
+    }
+    function closeSkins() {
+      document.getElementById('skins-overlay').classList.remove('show');
+    }
+
+    document.querySelectorAll('.skin-tab').forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.skin-tab').forEach(function(t) { t.classList.remove('active'); });
+        this.classList.add('active');
+        currentSkinsTab = this.getAttribute('data-tab');
+        renderSkinsList();
+      });
+    });
+
+    // ============================================================
+    // INSPECT OVERLAY
+    // ============================================================
+    function openInspect(playerIndex, viewer) {
+      var content = document.getElementById('inspect-content');
+      content.innerHTML = '';
+      var stats = getStats();
+      var name = playerIndex === 0 ? G.p1Name : G.p2Name;
+      var data = [];
+      if (playerIndex === 0 && currentUser) {
+        data = [
+          { label: 'Nome', value: name },
+          { label: 'Título', value: stats.equippedTitle || 'Recruta' },
+          { label: 'Patente', value: getRank(stats.rankPoints) },
+          { label: 'Nível', value: stats.level || 1 },
+          { label: 'Partidas', value: stats.games },
+          { label: 'Vitórias', value: stats.wins },
+          { label: 'Derrotas', value: stats.losses },
+          { label: 'Taxa de vitórias', value: (stats.games > 0 ? ((stats.wins / stats.games) * 100).toFixed(1) + '%' : '0%') },
+          { label: 'Pontos (ELO)', value: stats.rankPoints.toFixed(1) },
+          { label: 'Estilo de jogo', value: stats.games > 0 ? (stats.totalWalls / stats.games >= 4 ? 'Estrategista' : stats.totalWalls / stats.games >= 2 ? 'Equilibrado' : 'Agressivo') : 'Indefinido' }
+        ];
+      } else if (playerIndex === 1 && G.vsIA) {
+        data = [
+          { label: 'Nome', value: name },
+          { label: 'Tipo', value: 'Inteligência Artificial' },
+          { label: 'Dificuldade', value: G.nivelIA.toUpperCase() }
+        ];
+      } else {
+        data = [
+          { label: 'Nome', value: name },
+          { label: 'Tipo', value: 'Jogador Local' },
+          { label: 'Título', value: 'Nenhum' }
+        ];
+      }
+      for (var i = 0; i < data.length; i++) {
+        var item = document.createElement('div');
+        item.className = 'inspect-item';
+        item.innerHTML = '<span class="label">' + data[i].label + '</span><span class="value">' + data[i].value + '</span>';
+        content.appendChild(item);
+      }
+      var inspectCard = document.getElementById('inspect-card');
+      if (G.vsIA && G.turn === 1) {
+        inspectCard.classList.add('rotated');
+      } else {
+        inspectCard.classList.remove('rotated');
+      }
+      document.getElementById('inspect-overlay').classList.add('show');
+    }
+
+    function closeInspect() {
+      document.getElementById('inspect-overlay').classList.remove('show');
+      document.getElementById('inspect-card').classList.remove('rotated');
+    }
+
+    // ============================================================
+    // SISTEMA DE XP E PONTOS
+    // ============================================================
+    function xpParaProximoNivel(nivel) {
+      return Math.floor(100 * Math.pow(nivel, 1.5));
+    }
+
+    function calcularXP(winner, playerIndex, wallsPlaced, moveCount, timeLeft, timeTotal, streak) {
+      var base = winner === playerIndex ? 50 : 20;
+      var bonusWall = wallsPlaced === 0 ? 15 : wallsPlaced <= 2 ? 10 : wallsPlaced <= 5 ? 5 : 0;
+      var bonusMove = moveCount <= 10 ? 15 : Math.max(0, 15 - (moveCount - 10) * 2);
+      var bonusTime = timeLeft > timeTotal * 0.5 ? 10 : 0;
+      var bonusStreak = streak >= 10 ? 20 : streak >= 5 ? 10 : streak >= 2 ? 5 : 0;
+      if (winner !== playerIndex) {
+        bonusWall = Math.min(bonusWall, 5);
+        bonusMove = Math.min(bonusMove, 5);
+        bonusTime = 0;
+        bonusStreak = 0;
+      }
+      return base + bonusWall + bonusMove + bonusTime + bonusStreak;
+    }
+
+    function aplicarXP(stats, xp) {
+      stats.xp = (stats.xp || 0) + xp;
+      while (stats.level < 100 && stats.xp >= xpParaProximoNivel(stats.level)) {
+        stats.xp -= xpParaProximoNivel(stats.level);
+        stats.level++;
+      }
+      if (stats.level >= 100) stats.xp = Math.min(stats.xp, xpParaProximoNivel(100));
+      return stats;
+    }
+
+    function calcularPontosPartida(winner, playerIndex, wallsPlaced, moveCount, totalRounds, timeLeft, timeTotal, streak) {
+      if (playerIndex !== winner) {
+        var penalty = -5;
+        if (wallsPlaced >= 5) penalty -= 2;
+        if (moveCount >= 20) penalty -= 2;
+        if (streak >= 3) penalty -= 2;
+        if (timeLeft < timeTotal * 0.5) penalty -= 1;
+        return Math.max(-15, penalty);
+      }
+      var base = 15;
+      var bonusMove = moveCount <= 10 ? 6 : Math.max(0, 6 - (moveCount - 10) * 0.5);
+      var bonusWall = wallsPlaced === 0 ? 4 : wallsPlaced <= 2 ? 3 : wallsPlaced <= 5 ? 2 : 0;
+      var bonusStreak = streak >= 10 ? 5 : streak >= 5 ? 3 : streak >= 2 ? 2 : 0;
+      var bonusTime = timeLeft > timeTotal * 0.5 ? 3 : 0;
+      return Math.min(35, Math.round((base + bonusMove + bonusWall + bonusStreak + bonusTime) * 10) / 10);
+    }
+
+    // ============================================================
+    // RENDER HISTORY & PROFILE
+    // ============================================================
+    function renderHistory() {
+      var stats = getUserStats(currentUser);
+      var list = document.getElementById('history-list');
+      list.innerHTML = '';
+      if (!stats.history || stats.history.length === 0) {
+        list.innerHTML = '<div class="history-empty">Nenhuma partida ainda.</div>';
+        return;
+      }
+      for (var i = 0; i < stats.history.length; i++) {
+        var entry = stats.history[i];
+        var div = document.createElement('div');
+        div.className = 'history-item';
+        var date = new Date(entry.date).toLocaleDateString('pt-BR') + ' ' + new Date(entry.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        var resultClass = entry.result === 'Vitória' ? 'win' : 'loss';
+        div.innerHTML = '<span class="history-date">' + date + '</span><span class="history-mode">' + entry.mode + '</span><span class="result ' + resultClass + '">' + entry.result + '</span><span class="history-points">' + entry.points.toFixed(1) + '</span>';
+        list.appendChild(div);
+      }
+    }
+
+    function showHistory() {
+      document.getElementById('history-overlay').classList.add('show');
+      renderHistory();
+    }
+    function hideHistory() {
+      document.getElementById('history-overlay').classList.remove('show');
+    }
+
+    // ============================================================
+    // PERFIL COMPLETO (com todas as estatísticas)
+    // ============================================================
+    function openProfile() {
+      var stats = getUserStats(currentUser);
+      if (!stats) { alert("Erro: sem estatísticas"); return; }
+      var list = document.getElementById('profile-list');
+      if (!list) { alert("Elemento profile-list não encontrado"); return; }
+      list.innerHTML = '';
+
+      var avgWalls = stats.games > 0 ? (stats.totalWalls / stats.games) : 0;
+      var avgTurns = stats.games > 0 ? (stats.totalTurns / stats.games) : 0;
+      var avgPtsWin = stats.wins > 0 ? (stats.sumPointsVictories / stats.wins) : 0;
+      var winRate = stats.games > 0 ? ((stats.wins / stats.games) * 100) : 0;
+      var ratio = stats.losses > 0 ? (stats.wins / stats.losses) : (stats.wins > 0 ? Infinity : 0);
+      var ratioStr = ratio === Infinity ? '∞ : 1' : (ratio.toFixed(1) + ' : 1');
+      var avgOppElo = stats.opponentCount > 0 ? Math.round(stats.opponentEloSum / stats.opponentCount) : 'N/A';
+      var estilo = avgWalls >= 4 ? 'Estrategista' : avgWalls >= 2 ? 'Equilibrado' : (stats.games > 0 ? 'Agressivo' : 'Indefinido');
+      var titulo = stats.equippedTitle || 'Recruta';
+
+      var data = [
+        { label: 'Título', value: titulo, desc: getTitleRequirement(titulo) },
+        { label: 'Patente Atual', value: getRank(stats.rankPoints), desc: 'Sua patente atual no sistema ranqueado.' },
+        { label: 'Nível', value: stats.level || 1, desc: 'Nível atual do jogador. Máximo: 100.' },
+        { label: 'XP total', value: stats.xp || 0, desc: 'Experiência acumulada.' },
+        { label: 'Progresso de nível', value: stats.level >= 100 ? 'MAX' : (stats.xp || 0) + ' / ' + xpParaProximoNivel(stats.level), desc: 'Progresso para o próximo nível.' },
+        { label: 'Total de partidas', value: stats.games, desc: 'Veterania. Um número alto já impõe respeito.' },
+        { label: 'Total de vitórias', value: stats.wins, desc: 'Volume de sucesso.' },
+        { label: 'Total de derrotas', value: stats.losses || 0, desc: 'Resiliência.' },
+        { label: 'Taxa de vitórias (%)', value: winRate.toFixed(1) + '%', desc: 'A verdade nua e crua.' },
+        { label: 'Pontuação atual (ELO)', value: (stats.rankPoints || 0).toFixed(1), desc: 'O momento.' },
+        { label: 'Maior pontuação já alcançada', value: (stats.maxRankPoints || 0).toFixed(1), desc: 'O teto.' },
+        { label: 'Sequência atual de vitórias', value: stats.streak || 0, desc: 'A fase.' },
+        { label: 'Maior sequência da carreira', value: stats.maxStreak || 0, desc: 'Pico de dominância.' },
+        { label: 'Estilo de jogo', value: estilo, desc: 'Estrategista: 4+ paredes. Equilibrado: 2-3. Agressivo: <2.' },
+        { label: 'Média de turnos por partida', value: avgTurns.toFixed(1), desc: 'Paciência vs. Pressa.' },
+        { label: 'Total de paredes na carreira', value: stats.totalWalls || 0, desc: 'Dedicação tática.' },
+        { label: 'Média de pontos por vitória', value: avgPtsWin.toFixed(1), desc: 'Qualidade das vitórias.' },
+        { label: 'Razão Vitória/Derrota', value: ratioStr, desc: 'Quantas vitórias para cada derrota.' },
+        { label: 'Melhor rank já alcançado', value: getRank(stats.maxRankPoints || 0), desc: 'Potencial máximo.' },
+        { label: 'Média de ELO dos oponentes', value: avgOppElo, desc: 'Nível dos desafios.' }
+      ];
+
+      for (var i = 0; i < data.length; i++) {
+        var s = data[i];
+        var item = document.createElement('div');
+        item.className = 'profile-item';
+        item.innerHTML = '<span class="stat-label"><span class="info-icon">i</span>' + s.label + '</span><span class="stat-value">' + s.value + '</span><div class="stat-desc">' + s.desc + '</div>';
+        item.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var wasActive = this.classList.contains('active');
+          document.querySelectorAll('.profile-item').forEach(function(el) { el.classList.remove('active'); });
+          if (!wasActive) this.classList.add('active');
+        });
+        list.appendChild(item);
+      }
+
+      renderMedalsInProfile(list, stats);
+      document.getElementById('profile-overlay').classList.add('show');
+    }
+
+    function closeProfile() {
+      document.getElementById('profile-overlay').classList.remove('show');
+      document.querySelectorAll('.profile-item').forEach(function(el) { el.classList.remove('active'); });
+    }
+
+    function getTitleRequirement(title) {
+      if (title === 'Recruta') return 'Título inicial.';
+      var arrays = [TITLES, SEQUENCE_TITLES, GAMES_PLAYED_TITLES, LEVEL_TITLES, LOCAL_GAMES_TITLES, IA_WINS_TITLES];
+      var keys = ['minWins', 'minStreak', 'minGames', 'level', 'minLocalGames', 'minVsIAWins'];
+      var labels = ['vitórias', 'sequência de vitórias', 'partidas jogadas', 'nível', 'partidas locais', 'vitórias vs IA Expert'];
+      for (var a = 0; a < arrays.length; a++) {
+        for (var i = 0; i < arrays[a].length; i++) {
+          if (arrays[a][i].title === title) return 'Conquistado com ' + arrays[a][i][keys[a]] + ' ' + labels[a] + '.';
+        }
+      }
+      return 'Requisito desconhecido.';
+    }
+
+    // ============================================================
+    // MEDALS OVERLAY
+    // ============================================================
+    function openMedals() {
+      var stats = getUserStats(currentUser);
+      var list = document.getElementById('medals-list');
+      list.innerHTML = '';
+      for (var i = 0; i < MEDALS.length; i++) {
+        var medal = MEDALS[i];
+        var unlocked = medal.check(stats);
+        var item = document.createElement('div');
+        item.className = 'medal-item ' + (unlocked ? 'unlocked' : 'locked');
+        item.innerHTML = '<span class="medal-svg">' + medal.svg(unlocked) + '</span><div class="medal-info"><div class="medal-name">' + medal.nome + '</div><div class="medal-req">' + medal.desc + '</div></div><span class="title-status">' + (unlocked ? '✔' : '') + '</span>';
+        list.appendChild(item);
+      }
+      document.getElementById('medals-overlay').classList.add('show');
+    }
+
+    function closeMedals() {
+      document.getElementById('medals-overlay').classList.remove('show');
+    }
+
+    // ============================================================
+    // RANKS OVERLAY
+    // ============================================================
+    function openRanks() {
+      var stats = getUserStats(currentUser);
+      var points = stats.rankPoints || 0;
+      var atual = obterPatente(points);
+      var proxima = obterProximaPatente(points);
+      var progresso = obterProgresso(points);
+      document.getElementById('ranks-progress').innerHTML =
+        '<div class="progress-info"><span>' + atual.nomeCompleto + '</span><span>' + (proxima || 'MAX') + '</span></div>' +
+        '<div class="progress-info"><span>' + points.toFixed(1) + ' pts</span><span>' + progresso.toFixed(0) + '%</span></div>' +
+        '<div class="progress-bar"><div class="fill" style="width:' + progresso + '%"></div></div>';
+      var list = document.getElementById('ranks-list');

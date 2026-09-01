@@ -1,0 +1,300 @@
+      { level: 42, title: 'Cadete' },
+      { level: 43, title: 'Oficial' },
+      { level: 44, title: 'Decano' },
+      { level: 45, title: 'Dignitário' },
+      { level: 46, title: 'Notável' },
+      { level: 47, title: 'Ilustre' },
+      { level: 48, title: 'Eminente' },
+      { level: 49, title: 'Honorável' },
+      { level: 50, title: 'Venerável' },
+      { level: 51, title: 'Sublime' },
+      { level: 52, title: 'Magnífico' },
+      { level: 53, title: 'Excelso' },
+      { level: 54, title: 'Esplêndido' },
+      { level: 55, title: 'Glorioso' },
+      { level: 56, title: 'Triunfante' },
+      { level: 57, title: 'Vitorioso' },
+      { level: 58, title: 'Campeão' },
+      { level: 59, title: 'Monarca' },
+      { level: 60, title: 'Soberano' },
+      { level: 61, title: 'Imperador' },
+      { level: 62, title: 'Czar' },
+      { level: 63, title: 'Sultão' },
+      { level: 64, title: 'Faraó' },
+      { level: 65, title: 'Xá' },
+      { level: 66, title: 'Rajá' },
+      { level: 67, title: 'Cônsul' },
+      { level: 68, title: 'Senador' },
+      { level: 69, title: 'Prefeito' },
+      { level: 70, title: 'Embaixador' },
+      { level: 71, title: 'Chanceler' },
+      { level: 72, title: 'Regente' },
+      { level: 73, title: 'Arquimago' },
+      { level: 74, title: 'Xamã' },
+      { level: 75, title: 'Druida' },
+      { level: 76, title: 'Alquimista' },
+      { level: 77, title: 'Feiticeiro' },
+      { level: 78, title: 'Bruxo' },
+      { level: 79, title: 'Místico' },
+      { level: 80, title: 'Oculto' },
+      { level: 81, title: 'Mítico' },
+      { level: 82, title: 'Etéreo' },
+      { level: 83, title: 'Celestial' },
+      { level: 84, title: 'Astral' },
+      { level: 85, title: 'Cósmico' },
+      { level: 86, title: 'Galáctico' },
+      { level: 87, title: 'Nebuloso' },
+      { level: 88, title: 'Sideral' },
+      { level: 89, title: 'Perpétuo' },
+      { level: 90, title: 'Onisciente' },
+      { level: 91, title: 'O Incriado' },
+      { level: 92, title: 'O Primordial' },
+      { level: 93, title: 'O Ancestral' },
+      { level: 94, title: 'O Arcano' },
+      { level: 95, title: 'O Transcendente' },
+      { level: 96, title: 'O Soberano Absoluto' },
+      { level: 97, title: 'O Eterno' },
+      { level: 98, title: 'O Infinitário' },
+      { level: 99, title: 'O Todo-Poderoso' },
+      { level: 100, title: 'O Onipresente' }
+    ];
+
+    var LOCAL_GAMES_TITLES = [
+      { minLocalGames: 1, title: 'Rival do Sofá' },
+      { minLocalGames: 2, title: 'Irmão de Batalha' },
+      { minLocalGames: 3, title: 'Duelista Local' },
+      { minLocalGames: 4, title: 'Cara a Cara' },
+      { minLocalGames: 5, title: 'Lado a Lado' },
+      { minLocalGames: 6, title: 'Amigo Adversário' },
+      { minLocalGames: 7, title: 'Tela Compartilhada' },
+      { minLocalGames: 8, title: 'Controle Dividido' },
+      { minLocalGames: 9, title: 'Desafiante da Sala' },
+      { minLocalGames: 10, title: 'Oponente Caseiro' },
+      { minLocalGames: 12, title: 'Convidado Especial' },
+      { minLocalGames: 14, title: 'Anfitrião do Jogo' },
+      { minLocalGames: 16, title: 'Visitante da Vez' },
+      { minLocalGames: 18, title: 'Dono do Controle' },
+      { minLocalGames: 20, title: 'Iniciador do Duelo' },
+      { minLocalGames: 22, title: 'Segundo Movimento' },
+      { minLocalGames: 24, title: 'Fera do Quarto' },
+      { minLocalGames: 26, title: 'Rei do Quintal' },
+      { minLocalGames: 28, title: 'Espelho do Jogo' },
+      { minLocalGames: 30, title: 'Cérebro da Garagem' },
+      { minLocalGames: 32, title: 'Duetista' },
+      { minLocalGames: 34, title: 'Companheiro de Banco' },
+      { minLocalGames: 36, title: 'X1 da Tela' },
+      { minLocalGames: 38, title: 'Encarador de Desafios' },
+      { minLocalGames: 40, title: 'Juiz da Disputa' },
+      { minLocalGames: 42, title: 'Herói Offline' },
+      { minLocalGames: 44, title: 'Senhor do Sofá' },
+      { minLocalGames: 46, title: 'Especialista em Raiva Amiga' },
+      { minLocalGames: 48, title: 'O Agitador' },
+      { minLocalGames: 50, title: 'O Brincalhão' },
+      { minLocalGames: 52, title: 'O Intruso' },
+      { minLocalGames: 54, title: 'O Mandachuva' },
+      { minLocalGames: 56, title: 'O Equilibrista' },
+      { minLocalGames: 58, title: 'O Sereno' },
+      { minLocalGames: 60, title: 'O Último Local' },
+      { minLocalGames: 62, title: 'Vencedor da Sala' },
+      { minLocalGames: 64, title: 'O Lobo da Tela' },
+      { minLocalGames: 66, title: 'Caçador de Rivais' },
+      { minLocalGames: 68, title: 'O Predador do Controle' },
+      { minLocalGames: 70, title: 'O Silencioso do Jogo' },
+      { minLocalGames: 72, title: 'O Famoso da Varanda' },
+      { minLocalGames: 74, title: 'O Eco da Partida' },
+      { minLocalGames: 76, title: 'O Chef do Jogo' },
+      { minLocalGames: 78, title: 'O Atleta do Tabuleiro' },
+      { minLocalGames: 80, title: 'O Jogador Misterioso' },
+      { minLocalGames: 82, title: 'O Reflexo do Controle' },
+      { minLocalGames: 84, title: 'O Troféu da Casa' },
+      { minLocalGames: 86, title: 'O Protetor do Controle' },
+      { minLocalGames: 88, title: 'O Viajante da Sala' },
+      { minLocalGames: 90, title: 'O Remanescente' },
+      { minLocalGames: 92, title: 'O Duplo' },
+      { minLocalGames: 94, title: 'O Espectador Ativo' },
+      { minLocalGames: 96, title: 'O Juiz Final' },
+      { minLocalGames: 98, title: 'O Campeão do Quintal' },
+      { minLocalGames: 100, title: 'Centésimo Local' },
+      { minLocalGames: 110, title: 'O Décimo Primeiro' },
+      { minLocalGames: 120, title: 'O Duzentésimo' },
+      { minLocalGames: 130, title: 'O Tricentésimo' },
+      { minLocalGames: 140, title: 'O Quadringentésimo' },
+      { minLocalGames: 150, title: 'O Quingentésimo' },
+      { minLocalGames: 160, title: 'O Sexcentésimo' },
+      { minLocalGames: 170, title: 'O Septingentésimo' },
+      { minLocalGames: 180, title: 'O Octingentésimo' },
+      { minLocalGames: 190, title: 'O Noningentésimo' },
+      { minLocalGames: 200, title: 'O Bicentenário Local' },
+      { minLocalGames: 220, title: 'O Duzentos e Vinte' },
+      { minLocalGames: 240, title: 'O Duzentos e Quarenta' },
+      { minLocalGames: 260, title: 'O Duzentos e Sessenta' },
+      { minLocalGames: 280, title: 'O Duzentos e Oitenta' },
+      { minLocalGames: 300, title: 'O Tercenário Local' },
+      { minLocalGames: 320, title: 'O Trezentos e Vinte' },
+      { minLocalGames: 340, title: 'O Trezentos e Quarenta' },
+      { minLocalGames: 360, title: 'O Trezentos e Sessenta' },
+      { minLocalGames: 380, title: 'O Trezentos e Oitenta' },
+      { minLocalGames: 400, title: 'O Quadringentário Local' },
+      { minLocalGames: 420, title: 'O Quatrocentos e Vinte' },
+      { minLocalGames: 440, title: 'O Quatrocentos e Quarenta' },
+      { minLocalGames: 460, title: 'O Quatrocentos e Sessenta' },
+      { minLocalGames: 480, title: 'O Quatrocentos e Oitenta' },
+      { minLocalGames: 500, title: 'O Quingentário Local' },
+      { minLocalGames: 550, title: 'O Quinhentos e Cinquenta' },
+      { minLocalGames: 600, title: 'O Sexcentenário Local' },
+      { minLocalGames: 650, title: 'O Seiscentos e Cinquenta' },
+      { minLocalGames: 700, title: 'O Septingenário Local' },
+      { minLocalGames: 750, title: 'O Setecentos e Cinquenta' },
+      { minLocalGames: 800, title: 'O Octingenário Local' },
+      { minLocalGames: 850, title: 'O Oitocentos e Cinquenta' },
+      { minLocalGames: 900, title: 'O Ningenário Local' },
+      { minLocalGames: 950, title: 'O Novecentos e Cinquenta' },
+      { minLocalGames: 1000, title: 'O Milenar Local' },
+      { minLocalGames: 1200, title: 'O Mil e Duzentos Local' },
+      { minLocalGames: 1400, title: 'O Mil e Quatrocentos Local' },
+      { minLocalGames: 1600, title: 'O Mil e Seiscentos Local' },
+      { minLocalGames: 1800, title: 'O Mil e Oitocentos Local' },
+      { minLocalGames: 2000, title: 'O Bimilenar Local' },
+      { minLocalGames: 2500, title: 'O Dois Mil e Quinhentos' },
+      { minLocalGames: 3000, title: 'O Trimilenar Local' },
+      { minLocalGames: 4000, title: 'O Quadrimilenar Local' },
+      { minLocalGames: 5000, title: 'O Quinquemilenar Local' },
+      { minLocalGames: 7500, title: 'O Sete Mil e Quinhentos' },
+      { minLocalGames: 10000, title: 'O Dez Milênios Local' }
+    ];
+
+    var IA_WINS_TITLES = [
+      { minVsIAWins: 1, title: 'Primeiro Contato' },
+      { minVsIAWins: 3, title: 'Iniciador de Sistema' },
+      { minVsIAWins: 5, title: 'Boot Completo' },
+      { minVsIAWins: 10, title: 'Carregando...' },
+      { minVsIAWins: 15, title: 'Compilador' },
+      { minVsIAWins: 20, title: 'Depurador' },
+      { minVsIAWins: 30, title: 'Executável' },
+      { minVsIAWins: 40, title: 'Binário' },
+      { minVsIAWins: 50, title: 'Algoritmo' },
+      { minVsIAWins: 60, title: 'Iterativo' },
+      { minVsIAWins: 70, title: 'Recursivo' },
+      { minVsIAWins: 85, title: 'Otimizador' },
+      { minVsIAWins: 100, title: 'Predictor' },
+      { minVsIAWins: 120, title: 'Classificador' },
+      { minVsIAWins: 140, title: 'Regressão' },
+      { minVsIAWins: 160, title: 'Clusterizador' },
+      { minVsIAWins: 180, title: 'Rede Neural' },
+      { minVsIAWins: 200, title: 'Deep Learner' },
+      { minVsIAWins: 250, title: 'Treinamento Completo' },
+      { minVsIAWins: 300, title: 'Aprendizado Não-Supervisionado' },
+      { minVsIAWins: 350, title: 'Reforço Positivo' },
+      { minVsIAWins: 400, title: 'Gradiente Descendente' },
+      { minVsIAWins: 450, title: 'Backpropagation' },
+      { minVsIAWins: 500, title: 'Foward Pass' },
+      { minVsIAWins: 600, title: 'Tensor' },
+      { minVsIAWins: 700, title: 'Data Frame' },
+      { minVsIAWins: 800, title: 'Dataset' },
+      { minVsIAWins: 900, title: 'Pipeline' },
+      { minVsIAWins: 1000, title: 'Feature Extraction' },
+      { minVsIAWins: 1200, title: 'Embedding' },
+      { minVsIAWins: 1400, title: 'Transformador' },
+      { minVsIAWins: 1600, title: 'Ativação' },
+      { minVsIAWins: 1800, title: 'Pesos Ajustados' },
+      { minVsIAWins: 2000, title: 'Bias Calculado' },
+      { minVsIAWins: 2200, title: 'Função de Custo' },
+      { minVsIAWins: 2500, title: 'Overfitting' },
+      { minVsIAWins: 2800, title: 'Underfitting' },
+      { minVsIAWins: 3100, title: 'Validação Cruzada' },
+      { minVsIAWins: 3500, title: 'Early Stopping' },
+      { minVsIAWins: 4000, title: 'Checkpoint' },
+      { minVsIAWins: 4500, title: 'Restauração' },
+      { minVsIAWins: 5000, title: 'Inferência' },
+      { minVsIAWins: 5500, title: 'Tokenizador' },
+      { minVsIAWins: 6000, title: 'Prompt' },
+      { minVsIAWins: 6500, title: 'Fine-Tuning' },
+      { minVsIAWins: 7000, title: 'Zero-Shot' },
+      { minVsIAWins: 7500, title: 'Few-Shot' },
+      { minVsIAWins: 8500, title: 'Alucinação' },
+      { minVsIAWins: 9500, title: 'Singularidade' },
+      { minVsIAWins: 10000, title: 'Despertar da IA' }
+    ];
+
+    // ============================================================
+    // MEDALHAS
+    // ============================================================
+    var MEDALS = [
+      { id: 'medal_bronze_wins', nome: 'Bronze de Vitórias', desc: 'Vença 10 partidas.', check: function(stats){ return stats.wins >= 10; }, svg: function(unlocked) { return medalSVG('#cd7f32', '#8b5a2b', 'bronze', unlocked); } },
+      { id: 'medal_silver_wins', nome: 'Prata de Vitórias', desc: 'Vença 50 partidas.', check: function(stats){ return stats.wins >= 50; }, svg: function(unlocked) { return medalSVG('#c0c0c0', '#808080', 'silver', unlocked); } },
+      { id: 'medal_gold_wins', nome: 'Ouro de Vitórias', desc: 'Vença 100 partidas.', check: function(stats){ return stats.wins >= 100; }, svg: function(unlocked) { return medalSVG('#ffd700', '#b8860b', 'gold', unlocked); } },
+      { id: 'medal_expert_wins', nome: 'Caçador de Expert', desc: 'Vença 10 partidas contra a IA Expert.', check: function(stats){ return (stats.expertWins || 0) >= 10; }, svg: function(unlocked) { return medalSVG('#8a2be2', '#4b0082', 'expert', unlocked); } },
+      { id: 'medal_level_50', nome: 'Marco de Nível 50', desc: 'Alcance o nível 50.', check: function(stats){ return stats.level >= 50; }, svg: function(unlocked) { return medalSVG('#00ced1', '#008b8b', 'level', unlocked); } },
+      { id: 'medal_local_100', nome: 'Rei do Sofá', desc: 'Jogue 100 partidas locais.', check: function(stats){ return (stats.localGames || 0) >= 100; }, svg: function(unlocked) { return medalSVG('#ff6347', '#8b0000', 'local', unlocked); } }
+    ];
+
+    function medalSVG(color1, color2, symbol, unlocked) {
+      var colors = unlocked ? [color1, color2] : ['#555', '#777'];
+      var symbolPath = getSymbolPath(symbol);
+      return '<svg width="40" height="40" viewBox="0 0 40 40"><defs><radialGradient id="grad_'+symbol+'" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="'+colors[0]+'"/><stop offset="100%" stop-color="'+colors[1]+'"/></radialGradient></defs><circle cx="20" cy="20" r="18" fill="url(#grad_'+symbol+')" stroke="'+colors[1]+'" stroke-width="2"/>'+symbolPath+'</svg>';
+    }
+
+    function getSymbolPath(symbol) {
+      switch(symbol) {
+        case 'bronze': case 'silver': case 'gold':
+          return '<polygon points="20,9 24,17 32,17 26,23 28,31 20,26 12,31 14,23 8,17 16,17" fill="#fff" opacity="0.9"/>';
+        case 'expert':
+          return '<path d="M20,8 L22,18 L30,18 L24,23 L26,32 L20,26 L14,32 L16,23 L10,18 L18,18 Z" fill="#fff" opacity="0.8"/>';
+        case 'level':
+          return '<polyline points="12,25 20,15 28,25" stroke="#fff" stroke-width="2" fill="none" opacity="0.9"/>';
+        case 'local':
+          return '<rect x="14" y="12" width="12" height="16" rx="2" fill="none" stroke="#fff" stroke-width="2" opacity="0.8"/>';
+        default:
+          return '<circle cx="20" cy="20" r="6" fill="#fff" opacity="0.8"/>';
+      }
+    }
+
+    function renderMedalsInProfile(listElement, stats) {
+      var unlockedMedals = MEDALS.filter(function(medal) { return medal.check(stats); });
+      var container = document.createElement('div');
+      container.style.cssText = 'padding:12px;border-top:1px solid rgba(255,215,140,0.06);border-bottom:1px solid rgba(255,215,140,0.06);margin:10px 0;';
+      container.innerHTML = '<div style="font-weight:700;color:#d4a373;margin-bottom:8px;font-size:11px;">MEDALHAS</div>';
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;';
+      for (var i = 0; i < MEDALS.length; i++) {
+        var medal = MEDALS[i];
+        var unlocked = unlockedMedals.indexOf(medal) !== -1;
+        var medalDiv = document.createElement('div');
+        medalDiv.style.cssText = 'display:flex;flex-direction:column;align-items:center;cursor:pointer;';
+        medalDiv.innerHTML = '<span class="medal-svg">' + medal.svg(unlocked) + '</span>';
+        (function(m) {
+          medalDiv.addEventListener('click', function() { alert(m.nome + ': ' + m.desc); });
+        })(medal);
+        row.appendChild(medalDiv);
+      }
+      container.appendChild(row);
+      listElement.appendChild(container);
+    }
+
+    // ============================================================
+    // FUNÇÕES AUXILIARES (contas, hash, persistência)
+    // ============================================================
+    function getAccounts() {
+      try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY)) || {}; } catch(e) { return {}; }
+    }
+    function saveAccounts(accounts) { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts)); }
+    function hashPassword(pwd) {
+      var hash = 0;
+      for (var i = 0; i < pwd.length; i++) {
+        var char = pwd.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return 'h' + hash.toString(36);
+    }
+    function createUser(username, password) {
+      var accounts = getAccounts();
+      if (accounts[username]) return false;
+      accounts[username] = {
+        passwordHash: hashPassword(password),
+        stats: {
+          games: 0, wins: 0, losses: 0, streak: 0, maxStreak: 0,
+          level: 1, points: 0, rankPoints: 0, maxRankPoints: 0,
+          rank: 'Bronze V', history: [], totalWalls: 0, totalTurns: 0,
+          sumPointsVictories: 0, opponentEloSum: 0, opponentCount: 0,
+          xp: 0, equippedTitle: 'Recruta', ownedSkins: ['classic'],

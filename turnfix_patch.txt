@@ -1,0 +1,71 @@
+<!--ONLINE_PATCH_TURNFIX-->
+<script>
+(function(){
+  function euDaVez(){
+    if (!isOnlineMode && !G.online) return true;
+    if (G.turn === 0) return currentUser === G.p1Name;
+    return currentUser === G.p2Name;
+  }
+  function autoSelecionarPeao(){
+    if (!isOnlineMode && !G.online) return;
+    if (G.over || !gameActive) return;
+    if (!euDaVez()) {
+      G.sel = null; G.moves = []; G.validH = []; G.validV = []; G.mode = "move";
+      if (typeof st === "function") st("Aguardando oponente...");
+      if (typeof draw === "function") draw();
+      return;
+    }
+    var r = G.pos[G.turn][0], c = G.pos[G.turn][1];
+    G.sel = [r, c];
+    if (typeof legalMoves === "function") G.moves = legalMoves(G.turn);
+    else G.moves = [];
+    if (typeof st === "function") st(G.moves.length ? ("Sua vez — " + G.moves.length + " movimentos") : "Sua vez");
+    if (typeof draw === "function") draw();
+  }
+  var canvas = document.getElementById("board");
+  if (canvas) {
+    function bloquearSeNaoForVez(e){
+      if (!(isOnlineMode || G.online)) return;
+      if (G.over || !gameActive) return;
+      if (!euDaVez()) {
+        e.stopImmediatePropagation(); e.preventDefault();
+        if (typeof st === "function") st("Nao e a sua vez");
+      }
+    }
+    canvas.addEventListener("click", bloquearSeNaoForVez, true);
+    canvas.addEventListener("touchstart", bloquearSeNaoForVez, true);
+  }
+  if (typeof doMove === "function") {
+    var _doMove = doMove;
+    doMove = function(r, c){
+      if ((isOnlineMode || G.online) && !euDaVez()) { if (typeof st === "function") st("Nao e a sua vez"); return; }
+      var out = _doMove.apply(this, arguments);
+      if ((isOnlineMode || G.online) && typeof enviarJogadaOnline === "function") {
+        try { enviarJogadaOnline({ type: "move", r: r, c: c }); } catch(e) {}
+      }
+      setTimeout(autoSelecionarPeao, 50);
+      return out;
+    };
+  }
+  if (typeof placeWall === "function") {
+    var _placeWall = placeWall;
+    placeWall = function(ni, nj, ori){
+      if ((isOnlineMode || G.online) && !euDaVez()) { if (typeof st === "function") st("Nao e a sua vez"); return; }
+      var out = _placeWall.apply(this, arguments);
+      if ((isOnlineMode || G.online) && typeof enviarJogadaOnline === "function") {
+        try { enviarJogadaOnline({ type: "wall", r: ni-1, c: nj-1, ori: ori }); } catch(e) {}
+      }
+      setTimeout(autoSelecionarPeao, 50);
+      return out;
+    };
+  }
+  var lastTurn = null;
+  setInterval(function(){
+    if (!(isOnlineMode || (G && G.online))) return;
+    if (!G || G.over) return;
+    if (G.turn !== lastTurn) { lastTurn = G.turn; autoSelecionarPeao(); }
+  }, 200);
+  setTimeout(autoSelecionarPeao, 400);
+  console.log("TURNFIX online ok");
+})();
+</script>

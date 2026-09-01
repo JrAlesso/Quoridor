@@ -1,0 +1,300 @@
+  <div id="win-overlay"><div id="win-card"><div id="win-message">Jogador Venceu!</div><button id="btn-close-win">FECHAR</button></div></div>
+  <div id="confetti-container"></div>
+  <div id="stats-overlay"><div id="stats-card"><h2>ESTATÍSTICAS</h2><div id="stats-content"></div><button id="btn-close-stats">FECHAR</button></div></div>
+  <div id="profile-overlay"><div id="profile-card"><h2>PERFIL <button class="close-btn" id="profile-close">✕</button></h2><div class="profile-list" id="profile-list"></div><button id="btn-close-profile">FECHAR</button></div></div>
+  <div id="history-overlay"><div id="history-card"><h2>HISTÓRICO <button class="close-btn" id="history-close">✕</button></h2><div class="history-list" id="history-list"></div></div></div>
+  <div id="titles-overlay"><div id="titles-card"><h2>TÍTULOS <button class="close-btn" id="titles-close">✕</button></h2><input type="text" class="title-search" id="title-search" placeholder="Buscar título..."><div class="titles-tabs"><button class="tab-btn active" data-tab="vitorias">Vitórias</button><button class="tab-btn" data-tab="partidas">Partidas</button><button class="tab-btn" data-tab="sequencia">Sequência</button><button class="tab-btn" data-tab="nivel">Nível</button><button class="tab-btn" data-tab="2p">2 Jogadores</button><button class="tab-btn" data-tab="vsia">Vs IA</button><button class="tab-btn" data-tab="classificacao">Classificação</button><button class="tab-btn" data-tab="outros">Outros</button></div><div class="titles-list" id="titles-list"></div><button id="btn-close-titles">FECHAR</button></div></div>
+  <div id="skins-overlay"><div id="skins-card"><h2>SKINS <button class="close-btn" id="skins-close">✕</button></h2><div id="skins-balance"></div><div class="skins-tabs" id="skins-tabs"><button class="skin-tab active" data-tab="simples">Simples</button><button class="skin-tab" data-tab="lendarias">Lendárias</button><button class="skin-tab" data-tab="raras">Raras</button><button class="skin-tab" data-tab="eventos">Eventos</button><button class="skin-tab" data-tab="paises">Países</button></div><div class="skins-list" id="skins-list"></div><button id="btn-close-skins">FECHAR</button></div></div>
+  <div id="inspect-overlay"><div id="inspect-card"><h2>INSPECIONAR <button class="close-btn" id="inspect-close">✕</button></h2><div id="inspect-content"></div><button id="btn-close-inspect">FECHAR</button></div></div>
+  <div id="ranks-overlay"><div id="ranks-card"><h2>PATENTES <button class="close-btn" id="ranks-close">✕</button></h2><div id="ranks-progress"></div><div class="ranks-list" id="ranks-list"></div><button id="btn-close-ranks">FECHAR</button></div></div>
+  <div id="medals-overlay"><div id="medals-card"><h2>MEDALHAS <button class="close-btn" id="medals-close">✕</button></h2><div class="medals-list" id="medals-list"></div><button id="btn-close-medals">FECHAR</button></div></div>
+  <div id="sala-overlay"><div id="sala-card"><h2>JOGAR ONLINE <button class="close-btn" id="sala-close">✕</button></h2><div id="sala-content">
+<input type="text" id="sala-nome-input" class="sala-input" placeholder="Nome da partida" maxlength="24">
+<input type="text" id="sala-senha-input" class="sala-input" placeholder="Senha (opcional)">
+<button id="btn-criar-sala" style="width:100%;padding:12px;margin-bottom:12px;border:none;border-radius:12px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;cursor:pointer">CRIAR SALA</button>
+<div class="sala-status" id="sala-status">Salas abertas aparecem abaixo</div>
+<div class="sala-lista" id="sala-lista"></div>
+<button id="btn-close-sala">FECHAR</button>
+</div></div></div>
+  <div id="config-overlay"><div id="config-card"><h2>CONFIGURAÇÕES</h2><div class="config-group"><label>TEMPO</label><div class="options" id="time-options"><button data-time="30">30s</button><button data-time="45">45s</button><button data-time="60">60s</button></div></div><div class="config-group"><label>RODADAS</label><div class="options" id="rounds-options"><button data-rounds="1">1</button><button data-rounds="3">3</button><button data-rounds="5">5</button></div></div><div class="config-group" id="nivel-config" style="display:none;"><label>DIFICULDADE</label><div class="options" id="nivel-options"><button data-nivel="facil">FÁCIL</button><button data-nivel="medio">MÉDIO</button><button data-nivel="dificil">DIFÍCIL</button><button data-nivel="expert">EXPERT</button></div></div><div class="config-group" id="names-config" style="display:none;"><label>NOMES</label><input type="text" id="p1-name-input" placeholder="Player 1" maxlength="12" readonly><input type="text" id="p2-name-input" placeholder="Player 2" maxlength="12"></div><button id="btn-start-game">INICIAR</button><button id="btn-voltar">VOLTAR</button></div></div>
+  <script>
+    // ============================================================
+    // FIREBASE INIT
+    // ============================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyBJJZtzkaUoP0swjNrN6Rt0Qm-trzsw4lM",
+      authDomain: "quoridor-online-2823d.firebaseapp.com",
+      databaseURL: "https://quoridor-online-2823d-default-rtdb.firebaseio.com",
+      projectId: "quoridor-online-2823d",
+      storageBucket: "quoridor-online-2823d.firebasestorage.app",
+      messagingSenderId: "652289533045",
+      appId: "1:652289533045:web:043558b29f02c51256443c"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    try { db.settings({ experimentalForceLongPolling: true, merge: true }); } catch(e) {}
+
+    // ============================================================
+    // SISTEMA DE CONTAS + RANQUE + HISTÓRICO
+    // ============================================================
+    var ACCOUNTS_KEY = 'quoridor_accounts_v2';
+    var currentUser = null;
+
+    // ============================================================
+    // SKINS PRÉ-DEFINIDAS
+    // ============================================================
+    var SKINS = [
+      { id: 'classic', nome: 'Clássico', forma: 'circle', cor1: '#d4a373', cor2: '#b8860b', preco: 0, categoria: 'simples' },
+      { id: 'blue', nome: 'Azul Real', forma: 'circle', cor1: '#4dabf7', cor2: '#1a6bb5', preco: 100, categoria: 'simples' },
+      { id: 'gold', nome: 'Dourado', forma: 'diamond', cor1: '#facc15', cor2: '#b8860b', preco: 250, categoria: 'simples' },
+      { id: 'emerald', nome: 'Esmeralda', forma: 'hexagon', cor1: '#10b981', cor2: '#065f46', preco: 400, categoria: 'simples' },
+      { id: 'ruby', nome: 'Rubi', forma: 'star', cor1: '#ef4444', cor2: '#7f1d1d', preco: 600, categoria: 'simples' },
+      { id: 'neon', nome: 'Neon', forma: 'square', cor1: '#22d3ee', cor2: '#0e7490', preco: 800, categoria: 'simples' },
+      // Lendárias
+      { id: 'phoenix', nome: 'Fênix Lendária', forma: 'star', cor1: '#ff4500', cor2: '#ffd700', preco: 5000, raridade: 'lendaria', efeito: 'fire', categoria: 'lendarias' },
+      { id: 'dragon', nome: 'Dragão Ancestral', forma: 'dragon', cor1: '#8b0000', cor2: '#ff4500', preco: 5000, raridade: 'lendaria', efeito: 'dragon', categoria: 'lendarias' },
+      { id: 'blackhole', nome: 'Buraco Negro', forma: 'circle', cor1: '#0a0a12', cor2: '#1a0033', preco: 5000, raridade: 'lendaria', efeito: 'blackhole', categoria: 'lendarias' },
+      { id: 'thunder', nome: 'Raio Celestial', forma: 'diamond', cor1: '#00bfff', cor2: '#00008b', preco: 5000, raridade: 'lendaria', efeito: 'electric', categoria: 'lendarias' },
+      { id: 'crystal', nome: 'Cristal Arcano', forma: 'square', cor1: '#e0ffff', cor2: '#9400d3', preco: 5000, raridade: 'lendaria', efeito: 'crystal', categoria: 'lendarias' },
+      { id: 'nebula', nome: 'Nebulosa', forma: 'circle', cor1: '#8a2be2', cor2: '#ff69b4', preco: 5000, raridade: 'lendaria', efeito: 'nebula', categoria: 'lendarias' },
+      { id: 'thunderstorm', nome: 'Trovão e Relâmpago', forma: 'circle', cor1: '#ffff00', cor2: '#808080', preco: 5000, raridade: 'lendaria', efeito: 'thunderstorm', categoria: 'lendarias' },
+      { id: 'ice', nome: 'Gelo Eterno', forma: 'circle', cor1: '#e0ffff', cor2: '#00bfff', preco: 5000, raridade: 'lendaria', efeito: 'ice', categoria: 'lendarias' },
+      { id: 'shadow', nome: 'Sombra Viva', forma: 'circle', cor1: '#000000', cor2: '#2f2f2f', preco: 5000, raridade: 'lendaria', efeito: 'shadow', categoria: 'lendarias' },
+      { id: 'nature', nome: 'Elemental da Natureza', forma: 'circle', cor1: '#32cd32', cor2: '#006400', preco: 5000, raridade: 'lendaria', efeito: 'nature', categoria: 'lendarias' },
+      { id: 'skull', nome: 'Caveira Flamejante', forma: 'circle', cor1: '#ffffff', cor2: '#000000', preco: 5000, raridade: 'lendaria', efeito: 'skull', categoria: 'lendarias' },
+      { id: 'cosmic_eye', nome: 'Olho Cósmico', forma: 'circle', cor1: '#ff00ff', cor2: '#800080', preco: 5000, raridade: 'lendaria', efeito: 'cosmic_eye', categoria: 'lendarias' },
+      { id: 'ice_dragon', nome: 'Dragão de Gelo', forma: 'dragon', cor1: '#e0ffff', cor2: '#00bfff', preco: 5000, raridade: 'lendaria', efeito: 'ice_dragon', categoria: 'lendarias' },
+      { id: 'volcano', nome: 'Vulcão', forma: 'circle', cor1: '#ff4500', cor2: '#8b0000', preco: 5000, raridade: 'lendaria', efeito: 'volcano', categoria: 'lendarias' },
+      { id: 'wind', nome: 'Vento Cortante', forma: 'circle', cor1: '#ffffff', cor2: '#a0c4ff', preco: 5000, raridade: 'lendaria', efeito: 'wind', categoria: 'lendarias' },
+      { id: 'arcane_mage', nome: 'Mago Arcano', forma: 'circle', cor1: '#8a2be2', cor2: '#ff69b4', preco: 5000, raridade: 'lendaria', efeito: 'arcane_mage', categoria: 'lendarias' },
+      { id: 'pandora', nome: 'Pandora', forma: 'circle', cor1: '#ffd700', cor2: '#ff4500', preco: 5000, raridade: 'lendaria', efeito: 'pandora', categoria: 'lendarias' },
+      { id: 'serpent', nome: 'Serpente', forma: 'circle', cor1: '#32cd32', cor2: '#008000', preco: 5000, raridade: 'lendaria', efeito: 'serpent', categoria: 'lendarias' },
+      // Raras
+      { id: 'inferno', nome: 'Inferno', forma: 'circle', cor1: '#ff0000', cor2: '#8b0000', preco: 5000, raridade: 'rara', efeito: 'fire', categoria: 'raras' },
+      { id: 'ocean', nome: 'Oceano', forma: 'circle', cor1: '#00bfff', cor2: '#00008b', preco: 5500, raridade: 'rara', efeito: 'water', categoria: 'raras' },
+      { id: 'floresta', nome: 'Floresta', forma: 'circle', cor1: '#228b22', cor2: '#006400', preco: 6000, raridade: 'rara', efeito: 'nature', categoria: 'raras' },
+      { id: 'deserto', nome: 'Deserto', forma: 'circle', cor1: '#edc9af', cor2: '#8b4513', preco: 6500, raridade: 'rara', efeito: 'sand', categoria: 'raras' },
+      { id: 'ceu', nome: 'Céu', forma: 'circle', cor1: '#87ceeb', cor2: '#4682b4', preco: 7000, raridade: 'rara', efeito: 'sky', categoria: 'raras' },
+      { id: 'meteoro', nome: 'Meteoro', forma: 'circle', cor1: '#ff8c00', cor2: '#8b0000', preco: 7500, raridade: 'rara', efeito: 'meteor', categoria: 'raras' },
+      { id: 'lava', nome: 'Lava', forma: 'circle', cor1: '#ff4500', cor2: '#8b0000', preco: 8000, raridade: 'rara', efeito: 'lava', categoria: 'raras' },
+      { id: 'aurora', nome: 'Aurora', forma: 'circle', cor1: '#00ff7f', cor2: '#8a2be2', preco: 8500, raridade: 'rara', efeito: 'aurora', categoria: 'raras' },
+      { id: 'espectral', nome: 'Espectral', forma: 'circle', cor1: '#ffffff', cor2: '#d3d3d3', preco: 9000, raridade: 'rara', efeito: 'spectral', categoria: 'raras' }
+    ];
+
+    // ============================================================
+    // PATENTES
+    // ============================================================
+    var PATENTES = [
+      { nome: 'Bronze', subdivisoes: 5, pontosPorSub: 10 },
+      { nome: 'Prata', subdivisoes: 5, pontosPorSub: 20 },
+      { nome: 'Ouro', subdivisoes: 5, pontosPorSub: 35 },
+      { nome: 'Platina', subdivisoes: 5, pontosPorSub: 60 },
+      { nome: 'Diamante', subdivisoes: 5, pontosPorSub: 100 },
+      { nome: 'Mestre', subdivisoes: 5, pontosPorSub: 160 },
+      { nome: 'Grão-Mestre', subdivisoes: 5, pontosPorSub: 260 },
+      { nome: 'Lenda', subdivisoes: 5, pontosPorSub: 420 },
+      { nome: 'Mito', subdivisoes: 5, pontosPorSub: 680 },
+      { nome: 'Épico', subdivisoes: 5, pontosPorSub: 1100 },
+      { nome: 'Lendário', subdivisoes: 5, pontosPorSub: 1800 },
+      { nome: 'Imortal', subdivisoes: 1, pontosPorSub: 3000 }
+    ];
+
+    // ============================================================
+    // TÍTULOS (listas completas)
+    // ============================================================
+    var TITLES = [
+      { minWins: 1, title: 'Primeiro Passo' },
+      { minWins: 10, title: 'Estrategista Iniciante' },
+      { minWins: 100, title: 'Conquistador' },
+      { minWins: 200, title: 'Mestre das Paredes' },
+      { minWins: 300, title: 'Dominador' },
+      { minWins: 400, title: 'Arquiteto' },
+      { minWins: 500, title: 'Invencível' },
+      { minWins: 600, title: 'Lenda' },
+      { minWins: 700, title: 'O Implacável' },
+      { minWins: 800, title: 'O Vigilante' },
+      { minWins: 900, title: 'O Estrategista' },
+      { minWins: 1000, title: 'O Mestre' },
+      { minWins: 1100, title: 'O Incontestável' },
+      { minWins: 1200, title: 'Sombra' },
+      { minWins: 1400, title: 'Espectro' },
+      { minWins: 1600, title: 'Fenômeno' },
+      { minWins: 1800, title: 'Mito Vivo' },
+      { minWins: 2000, title: 'O Imortal' },
+      { minWins: 2200, title: 'O Imbatível' },
+      { minWins: 2400, title: 'O Gladiador' },
+      { minWins: 2600, title: 'O Lendário' },
+      { minWins: 2800, title: 'O Supremo' },
+      { minWins: 3000, title: 'O Primeiro' },
+      { minWins: 3200, title: 'O Preciso' },
+      { minWins: 3400, title: 'O Rápido' },
+      { minWins: 3600, title: 'O Supremo' },
+      { minWins: 3800, title: 'O Veloz' },
+      { minWins: 4000, title: 'O Atemporal' },
+      { minWins: 4500, title: 'O Vento' },
+      { minWins: 5000, title: 'O Gênio' },
+      { minWins: 5500, title: 'O Saltador' },
+      { minWins: 6000, title: 'O Intocável' },
+      { minWins: 7000, title: 'Dinamite' },
+      { minWins: 8000, title: 'Velocidade Máxima' },
+      { minWins: 9000, title: 'Tornado' },
+      { minWins: 10000, title: 'Wall-Jumper' },
+      { minWins: 12000, title: 'Corredor' },
+      { minWins: 14000, title: 'O Morcego' },
+      { minWins: 16000, title: 'Invisível' },
+      { minWins: 18000, title: 'Imparável' },
+      { minWins: 20000, title: 'O Mestre do Vento' },
+      { minWins: 25000, title: 'O Incansável' },
+      { minWins: 30000, title: 'Torpedo' },
+      { minWins: 35000, title: 'O Veloz Gorgonzola' },
+      { minWins: 40000, title: 'RELÂMPAGO' }
+    ];
+
+    var SEQUENCE_TITLES = [
+      { minStreak: 1, title: 'Em Ascensão' },
+      { minStreak: 2, title: 'Dois Passos à Frente' },
+      { minStreak: 3, title: 'Tríplice Ameaça' },
+      { minStreak: 4, title: 'Quatro Cantos' },
+      { minStreak: 5, title: 'Pentagrama' },
+      { minStreak: 6, title: 'Hexa' },
+      { minStreak: 7, title: 'Sete Mares' },
+      { minStreak: 8, title: 'Oito Tentáculos' },
+      { minStreak: 9, title: 'Nove Vidas' },
+      { minStreak: 10, title: 'Dez Dedos' },
+      { minStreak: 12, title: 'Dúzia de Ouro' },
+      { minStreak: 15, title: 'Quinze Movimentos' },
+      { minStreak: 20, title: 'Vinte Léguas' },
+      { minStreak: 25, title: 'Prata Pura' },
+      { minStreak: 30, title: 'Trinta Graus' },
+      { minStreak: 35, title: 'O Ferro' },
+      { minStreak: 40, title: 'Quarentena' },
+      { minStreak: 45, title: 'O Aço' },
+      { minStreak: 50, title: 'Meio Século' },
+      { minStreak: 60, title: 'Sessenta Segundos' },
+      { minStreak: 70, title: 'O Bronze' },
+      { minStreak: 80, title: 'Oitenta Oitavas' },
+      { minStreak: 90, title: 'O Nove' },
+      { minStreak: 100, title: 'Centurião' },
+      { minStreak: 120, title: 'Cento e Vinte BPM' },
+      { minStreak: 140, title: 'O Cobre' },
+      { minStreak: 160, title: 'Cento e Sessenta Casas' },
+      { minStreak: 180, title: 'Meia Volta' },
+      { minStreak: 200, title: 'Bicentenário' },
+      { minStreak: 250, title: 'O Titânio' },
+      { minStreak: 300, title: 'Tricentenário' },
+      { minStreak: 350, title: 'O Manganês' },
+      { minStreak: 400, title: 'Quadricentenário' },
+      { minStreak: 450, title: 'O Crómio' },
+      { minStreak: 500, title: 'Meio Milhar' },
+      { minStreak: 600, title: 'O Níquel' },
+      { minStreak: 700, title: 'O Zinco' },
+      { minStreak: 800, title: 'O Estanho' },
+      { minStreak: 900, title: 'O Chumbo' },
+      { minStreak: 1000, title: 'Milenar' },
+      { minStreak: 1200, title: 'Mil Duzentos' },
+      { minStreak: 1400, title: 'O Ferro Fundido' },
+      { minStreak: 1600, title: 'O Aço Inox' },
+      { minStreak: 1800, title: 'O Diamante' },
+      { minStreak: 2000, title: 'Bimilenar' },
+      { minStreak: 2500, title: 'O Rubi' },
+      { minStreak: 3000, title: 'Trimilenar' },
+      { minStreak: 4000, title: 'O Safira' },
+      { minStreak: 5000, title: 'O Ônix' },
+      { minStreak: 10000, title: 'O Imortal' }
+    ];
+
+    var GAMES_PLAYED_TITLES = [
+      { minGames: 1, title: 'Recruta' },
+      { minGames: 5, title: 'Explorador' },
+      { minGames: 10, title: 'Curioso' },
+      { minGames: 25, title: 'Aprendiz' },
+      { minGames: 50, title: 'Veterano Iniciante' },
+      { minGames: 100, title: 'Centurião da Mesa' },
+      { minGames: 150, title: 'O Paciente' },
+      { minGames: 200, title: 'Duas Centenas' },
+      { minGames: 250, title: 'Quarto de Milhar' },
+      { minGames: 300, title: 'Tricentenário' },
+      { minGames: 350, title: 'O Observador' },
+      { minGames: 400, title: 'Quadrigêmeo' },
+      { minGames: 450, title: 'O Calculista' },
+      { minGames: 500, title: 'Meio Milênio' },
+      { minGames: 600, title: 'O Seiscentista' },
+      { minGames: 700, title: 'O Setecentista' },
+      { minGames: 800, title: 'O Oitocentista' },
+      { minGames: 900, title: 'O Novecentista' },
+      { minGames: 1000, title: 'O Milenar' },
+      { minGames: 1100, title: 'O Onze Centenas' },
+      { minGames: 1200, title: 'Dúzia de Centenas' },
+      { minGames: 1300, title: 'O Treze Centenas' },
+      { minGames: 1400, title: 'O Catorze Centenas' },
+      { minGames: 1500, title: 'Quinze Centenas' },
+      { minGames: 1600, title: 'O Dezesseis Centenas' },
+      { minGames: 1700, title: 'O Dezessete Centenas' },
+      { minGames: 1800, title: 'O Dezoito Centenas' },
+      { minGames: 1900, title: 'O Dezenove Centenas' },
+      { minGames: 2000, title: 'Vinte Centenas' },
+      { minGames: 2500, title: 'O Vigoroso' },
+      { minGames: 3000, title: 'Três Milhas' },
+      { minGames: 3500, title: 'O Tático' },
+      { minGames: 4000, title: 'O Quadrante' },
+      { minGames: 4500, title: 'O Estrategista' },
+      { minGames: 5000, title: 'Pentacampeão da Mesa' },
+      { minGames: 6000, title: 'Hexacampeão da Mesa' },
+      { minGames: 7000, title: 'Sete Mares de Tinta' },
+      { minGames: 8000, title: 'Oito Mil Voltas' },
+      { minGames: 9000, title: 'Nove Mil e Uma' },
+      { minGames: 10000, title: 'O Mestre dos Tabuleiros' },
+      { minGames: 12000, title: 'O Doze Milhas' },
+      { minGames: 14000, title: 'O Catorze Milhas' },
+      { minGames: 16000, title: 'O Dezesseis Milhas' },
+      { minGames: 18000, title: 'O Dezoito Milhas' },
+      { minGames: 20000, title: 'O Vinte Mil Léguas' },
+      { minGames: 25000, title: 'O Titã' },
+      { minGames: 30000, title: 'O Colosso' },
+      { minGames: 40000, title: 'O Guardião do Tabuleiro' },
+      { minGames: 50000, title: 'O Lendário' },
+      { minGames: 100000, title: 'O Absoluto' }
+    ];
+
+    var LEVEL_TITLES = [
+      { level: 1, title: 'Calouro' },
+      { level: 2, title: 'Aventureiro' },
+      { level: 3, title: 'Expectador' },
+      { level: 4, title: 'Neófito' },
+      { level: 5, title: 'Estudioso' },
+      { level: 6, title: 'Dedicado' },
+      { level: 7, title: 'Esforçado' },
+      { level: 8, title: 'Persistente' },
+      { level: 9, title: 'Resistente' },
+      { level: 10, title: 'Sobrevivente' },
+      { level: 11, title: 'Adaptável' },
+      { level: 12, title: 'Raciocinador' },
+      { level: 13, title: 'Analítico' },
+      { level: 14, title: 'Lógico' },
+      { level: 15, title: 'Metódico' },
+      { level: 16, title: 'Sistemático' },
+      { level: 17, title: 'Estratégico' },
+      { level: 18, title: 'Ágil' },
+      { level: 19, title: 'Sagaz' },
+      { level: 20, title: 'Astuto' },
+      { level: 21, title: 'Perspicaz' },
+      { level: 22, title: 'Arguto' },
+      { level: 23, title: 'Intuitivo' },
+      { level: 24, title: 'Precursor' },
+      { level: 25, title: 'Vanguardista' },
+      { level: 26, title: 'Projetista' },
+      { level: 27, title: 'Planejador' },
+      { level: 28, title: 'Organizador' },
+      { level: 29, title: 'Conselheiro' },
+      { level: 30, title: 'Mentor' },
+      { level: 31, title: 'Treinador' },
+      { level: 32, title: 'Instrutor' },
+      { level: 33, title: 'Educador' },
+      { level: 34, title: 'Condutor' },
+      { level: 35, title: 'Timoneiro' },
+      { level: 36, title: 'Piloto' },
+      { level: 37, title: 'Almirante' },
+      { level: 38, title: 'Marechal' },
+      { level: 39, title: 'Brigadeiro' },
+      { level: 40, title: 'Tenente' },
+      { level: 41, title: 'Sargento' },

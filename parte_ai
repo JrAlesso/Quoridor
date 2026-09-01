@@ -1,0 +1,300 @@
+    }
+    function isRecentState(key) {
+      for (var i = Math.max(0, positionHistory.length - 8); i < positionHistory.length; i++) {
+        if (positionHistory[i] === key) return true;
+      }
+      return false;
+    }
+    function canWinNext(player, pH, pV, positions) {
+      var moves = legalMoves(player, pH, pV, positions);
+      for (var i = 0; i < moves.length; i++) {
+        if (moves[i][0] === WIN[player]) return true;
+      }
+      return false;
+    }
+    function evaluateExpert(pos, pH, pV, walls) {
+      var d0 = bfsDist(0, pH, pV, pos);
+      var d1 = bfsDist(1, pH, pV, pos);
+      if (d1 === 0) return 100000;
+      if (d0 === 0) return -100000;
+      var mob0 = legalMoves(0, pH, pV, pos).length;
+      var mob1 = legalMoves(1, pH, pV, pos).length;
+      var threat0 = canWinNext(0, pH, pV, pos) ? 5000 : 0;
+      var threat1 = canWinNext(1, pH, pV, pos) ? 5000 : 0;
+      var playerCol = pos[0][1];
+      var playerRow = pos[0][0];
+      var centerPenalty = 0;
+      if (playerRow >= 2 && playerRow <= 6 && playerCol >= 2 && playerCol <= 6) {
+        centerPenalty = 1000;
+      }
+      var centerDist = Math.abs(playerCol - 4) + Math.abs(playerRow - 4);
+      centerPenalty += Math.max(0, 8 - centerDist) * 80;
+      var blockadeBonus = mob1 <= 2 ? 400 : mob1 <= 3 ? 200 : 0;
+      var wallAdvantage = (walls[1] - walls[0]) * 45;
+      var progressPenalty = pos[0][0] * 25;
+      var progressBonus = (8 - pos[1][0]) * 20;
+      var wallHoardingBonus = walls[1] * 30;
+      return (d0 - d1) * 100 + (mob0 - mob1) * 20 + wallAdvantage + threat1 - threat0 + blockadeBonus - progressPenalty + progressBonus - centerPenalty + wallHoardingBonus;
+    }
+    function wallCandidatesExpert(pH, pV, walls, pos, iaIdx) {
+      if (walls[iaIdx] <= 0) return [];
+      var cands = [];
+      var opp = 1 - iaIdx;
+      var or = pos[opp][0], oc = pos[opp][1];
+      var playerCenter = (or >= 2 && or <= 6 && oc >= 2 && oc <= 6);
+      var minGain = playerCenter ? 1 : 2;
+      for (var r = 0; r < N - 1; r++) {
+        for (var c = 0; c < N - 1; c++) {
+          if (canPlaceIA(r, c, 'H', pH, pV, walls[iaIdx], pos)) {
+            var tH = pH.concat([[r, c]]);
+            var newDist = bfsDist(opp, tH, pV, pos);
+            var gain = newDist - bfsDist(opp, pH, pV, pos);
+            if (gain >= minGain) cands.push({r: r, c: c, ori: 'H', gain: gain});
+          }
+          if (canPlaceIA(r, c, 'V', pH, pV, walls[iaIdx], pos)) {
+            var tV = pV.concat([[r, c]]);
+            var newDist = bfsDist(opp, pH, tV, pos);
+            var gain = newDist - bfsDist(opp, pH, pV, pos);
+            if (gain >= minGain) cands.push({r: r, c: c, ori: 'V', gain: gain});
+          }
+        }
+      }
+      cands.sort(function(a, b) { return b.gain - a.gain; });
+      return cands;
+    }
+    function minimaxExpert(pos, pH, pV, walls, depth, alpha, beta, maximizing, iaIdx, startTime, timeLimit) {
+      var key = hashState(pos, pH, pV);
+      if (transpositionTable.has(key)) {
+        var stored = transpositionTable.get(key);
+        if (stored.depth >= depth) return stored.value;
+      }
+      var d0 = bfsDist(0, pH, pV, pos), d1 = bfsDist(1, pH, pV, pos);
+      if (d1 === 0) return 100000 + depth;
+      if (d0 === 0) return -100000 - depth;
+      if (depth === 0 || Date.now() - startTime > timeLimit) return evaluateExpert(pos, pH, pV, walls);
+      var cur = maximizing ? iaIdx : 1 - iaIdx;
+      var moves = legalMoves(cur, pH, pV, pos);
+      var wCands = wallCandidatesExpert(pH, pV, walls, pos, cur).slice(0, maximizing ? 80 : 50);
+      var actions = [];
+      for (var i = 0; i < moves.length; i++) {
+        actions.push({type:'move', r:moves[i][0], c:moves[i][1], dist: Math.abs(moves[i][0] - WIN[cur])});
+      }
+      actions.sort(function(a,b){ return a.dist - b.dist; });
+      for (var j = 0; j < wCands.length; j++) {
+        actions.push({type:'wall', r:wCands[j].r, c:wCands[j].c, ori:wCands[j].ori});
+      }
+      if (!actions.length) return evaluateExpert(pos, pH, pV, walls);
+      var bestVal = maximizing ? -Infinity : Infinity;
+      for (var k = 0; k < actions.length; k++) {
+        var act = actions[k];
+        var npos = pos.map(function(p){ return p.slice(); });
+        var npH = pH.slice(), npV = pV.slice(), nw = walls.slice();
+        if (act.type === 'move') npos[cur] = [act.r, act.c];
+        else { if (act.ori === 'H') npH = pH.concat([[act.r, act.c]]); else npV = pV.concat([[act.r, act.c]]); nw[cur]--; }
+        var newKey = hashState(npos, npH, npV);
+        if (isRecentState(newKey)) continue;
+        var val = minimaxExpert(npos, npH, npV, nw, depth - 1, alpha, beta, !maximizing, iaIdx, startTime, timeLimit);
+        if (maximizing) { if (val > bestVal) bestVal = val; alpha = Math.max(alpha, bestVal); }
+        else { if (val < bestVal) bestVal = val; beta = Math.min(beta, bestVal); }
+        if (beta <= alpha) break;
+      }
+      transpositionTable.set(key, {value: bestVal, depth: depth});
+      return bestVal;
+    }
+    function iaJogarExpert() {
+      var cfg = {depth: 14, mistakes: 0, wallLimit: 500, timeLimit: 3500};
+      var iaIdx = 1;
+      var pos = G.pos.map(function(p){ return p.slice(); });
+      var pH = G.pH.slice(), pV = G.pV.slice(), walls = G.walls.slice();
+      var startTime = Date.now();
+      transpositionTable.clear();
+      var playerRow = pos[0][0], playerCol = pos[0][1];
+      var playerCenter = (playerRow >= 2 && playerRow <= 6 && playerCol >= 2 && playerCol <= 6);
+      var wallsUsed = WALLS - walls[iaIdx];
+      var maxWallsToUse = playerCenter ? 10 : 4;
+      var bestAction = null, bestScore = -Infinity;
+      for (var depth = 2; depth <= cfg.depth; depth += 2) {
+        if (Date.now() - startTime > cfg.timeLimit) break;
+        var moves = legalMoves(iaIdx, pH, pV, pos);
+        var wCands = wallCandidatesExpert(pH, pV, walls, pos, iaIdx).slice(0, cfg.wallLimit);
+        if (!playerCenter && wallsUsed >= maxWallsToUse) wCands = [];
+        var actions = [];
+        if (canWinNext(0, pH, pV, pos)) {
+          for (var i = 0; i < wCands.length; i++) {
+            var w = wCands[i];
+            var npH = w.ori === 'H' ? pH.concat([[w.r, w.c]]) : pH.slice();
+            var npV = w.ori === 'V' ? pV.concat([[w.r, w.c]]) : pV.slice();
+            if (!canWinNext(0, npH, npV, pos)) { bestAction = {type:'wall', r:w.r, c:w.c, ori:w.ori}; break; }
+          }
+          if (bestAction) break;
+        }
+        for (var i = 0; i < moves.length; i++) actions.push({type:'move', r:moves[i][0], c:moves[i][1]});
+        for (var j = 0; j < wCands.length; j++) actions.push({type:'wall', r:wCands[j].r, c:wCands[j].c, ori:wCands[j].ori});
+        actions.sort(function(a,b){
+          if (a.type === 'wall' && b.type === 'move') return -1;
+          if (a.type === 'move' && b.type === 'wall') return 1;
+          return 0;
+        });
+        for (var k = 0; k < actions.length; k++) {
+          if (Date.now() - startTime > cfg.timeLimit) break;
+          var act = actions[k];
+          var npos = pos.map(function(p){ return p.slice(); });
+          var npH = pH.slice(), npV = pV.slice(), nw = walls.slice();
+          if (act.type === 'move') npos[iaIdx] = [act.r, act.c];
+          else { if (act.ori === 'H') npH = pH.concat([[act.r, act.c]]); else npV = pV.concat([[act.r, act.c]]); nw[iaIdx]--; }
+          var newKey = hashState(npos, npH, npV);
+          if (isRecentState(newKey)) continue;
+          var score = minimaxExpert(npos, npH, npV, nw, depth - 1, -Infinity, Infinity, false, iaIdx, startTime, cfg.timeLimit);
+          if (score > bestScore) { bestScore = score; bestAction = act; }
+        }
+        if (bestScore > 90000) break;
+      }
+      if (!bestAction) {
+        var moves = legalMoves(iaIdx, pH, pV, pos);
+        if (moves.length) {
+          moves.sort(function(a,b){ return Math.abs(a[0]-WIN[iaIdx]) - Math.abs(b[0]-WIN[iaIdx]); });
+          var topMoves = moves.slice(0, Math.min(2, moves.length));
+          bestAction = {type:'move', r:topMoves[Math.floor(Math.random()*topMoves.length)][0], c:topMoves[Math.floor(Math.random()*topMoves.length)][1]};
+        }
+      }
+      if (bestAction) {
+        var finalPos = pos.map(function(p){ return p.slice(); });
+        var finalPH = pH.slice(), finalPV = pV.slice();
+        if (bestAction.type === 'move') finalPos[iaIdx] = [bestAction.r, bestAction.c];
+        else if (bestAction.ori === 'H') finalPH = pH.concat([[bestAction.r, bestAction.c]]);
+        else finalPV = pV.concat([[bestAction.r, bestAction.c]]);
+        positionHistory.push(hashState(finalPos, finalPH, finalPV));
+        if (positionHistory.length > 8) positionHistory.shift();
+      }
+      return bestAction;
+    }
+    function nivelConfig() {
+      switch (G.nivelIA) {
+        case 'facil': return {depth:1, wallChance:0.15, mistakes:0.45, wallLimit:6, timeLimit:200};
+        case 'medio': return {depth:3, wallChance:0.35, mistakes:0.15, wallLimit:12, timeLimit:500};
+        case 'dificil': return {depth:4, wallChance:0.55, mistakes:0.05, wallLimit:18, timeLimit:800};
+        case 'expert': return {depth:14, wallChance:1.0, mistakes:0.0, wallLimit:500, timeLimit:3500};
+        default: return {depth:2, wallChance:0.35, mistakes:0.15, wallLimit:12, timeLimit:400};
+      }
+    }
+    function iaJogar() {
+      if (G.nivelIA === 'expert') return iaJogarExpert();
+      var cfg = nivelConfig();
+      var iaIdx = 1;
+      var pos = G.pos.map(function(p){ return p.slice(); });
+      var pH = G.pH.slice(), pV = G.pV.slice(), walls = G.walls.slice();
+      var startTime = Date.now();
+      transpositionTable.clear();
+      if (Math.random() < cfg.mistakes) {
+        var moves = legalMoves(iaIdx, pH, pV, pos);
+        if (moves.length) {
+          var m = moves[Math.floor(Math.random() * moves.length)];
+          return {type:'move', r:m[0], c:m[1]};
+        }
+      }
+      var bestAction = null, bestScore = -Infinity;
+      for (var depth = 2; depth <= cfg.depth; depth += 2) {
+        if (Date.now() - startTime > cfg.timeLimit) break;
+        var moves = legalMoves(iaIdx, pH, pV, pos);
+        var wCands = wallCandidates(pH, pV, walls, pos, iaIdx).slice(0, cfg.wallLimit);
+        var actions = [];
+        if (canWinNext(0, pH, pV, pos)) {
+          for (var i = 0; i < wCands.length; i++) {
+            var w = wCands[i];
+            var npH = w.ori === 'H' ? pH.concat([[w.r, w.c]]) : pH.slice();
+            var npV = w.ori === 'V' ? pV.concat([[w.r, w.c]]) : pV.slice();
+            if (!canWinNext(0, npH, npV, pos)) { bestAction = {type:'wall', r:w.r, c:w.c, ori:w.ori}; break; }
+          }
+          if (bestAction) break;
+        }
+        for (var i = 0; i < moves.length; i++) actions.push({type:'move', r:moves[i][0], c:moves[i][1]});
+        for (var j = 0; j < wCands.length; j++) actions.push({type:'wall', r:wCands[j].r, c:wCands[j].c, ori:wCands[j].ori});
+        for (var k = 0; k < actions.length; k++) {
+          if (Date.now() - startTime > cfg.timeLimit) break;
+          var act = actions[k];
+          var npos = pos.map(function(p){ return p.slice(); });
+          var npH = pH.slice(), npV = pV.slice(), nw = walls.slice();
+          if (act.type === 'move') npos[iaIdx] = [act.r, act.c];
+          else { if (act.ori === 'H') npH = pH.concat([[act.r, act.c]]); else npV = pV.concat([[act.r, act.c]]); nw[iaIdx]--; }
+          var newKey = hashState(npos, npH, npV);
+          if (isRecentState(newKey)) continue;
+          var score = minimax(npos, npH, npV, nw, depth - 1, -Infinity, Infinity, false, iaIdx, startTime, cfg.timeLimit);
+          if (score > bestScore) { bestScore = score; bestAction = act; }
+        }
+        if (bestScore > 90000) break;
+      }
+      if (!bestAction) {
+        var moves = legalMoves(iaIdx, pH, pV, pos);
+        if (moves.length) {
+          moves.sort(function(a,b){ return Math.abs(a[0]-WIN[iaIdx]) - Math.abs(b[0]-WIN[iaIdx]); });
+          bestAction = {type:'move', r:moves[0][0], c:moves[0][1]};
+        }
+      }
+      if (bestAction) {
+        var finalPos = pos.map(function(p){ return p.slice(); });
+        var finalPH = pH.slice(), finalPV = pV.slice();
+        if (bestAction.type === 'move') finalPos[iaIdx] = [bestAction.r, bestAction.c];
+        else if (bestAction.ori === 'H') finalPH = pH.concat([[bestAction.r, bestAction.c]]);
+        else finalPV = pV.concat([[bestAction.r, bestAction.c]]);
+        positionHistory.push(hashState(finalPos, finalPH, finalPV));
+        if (positionHistory.length > 8) positionHistory.shift();
+      }
+      return bestAction;
+    }
+
+    // ===== Desenho do tabuleiro =====
+    function draw() {
+      if (!BOARD || BOARD < 10) return;
+      ctx.clearRect(0,0,BOARD,BOARD);
+      ctx.fillStyle='#1a1410'; rr(0,0,BOARD,BOARD,14); ctx.fill();
+      for (var r=0; r<N; r++) for (var c=0; c<N; c++) {
+        var x = c*PAT, y = r*PAT;
+        ctx.fillStyle = r===WIN[0] ? 'rgba(212,163,115,0.15)' : r===WIN[1] ? 'rgba(77,171,247,0.15)' : 'rgba(255,255,255,0.03)';
+        rr(x+2, y+2, SZ-4, SZ-4, 6); ctx.fill();
+      }
+      var playerColor = C[G.turn].main;
+      for (var i=0; i<G.moves.length; i++) {
+        var mr = G.moves[i][0], mc = G.moves[i][1];
+        var x = mc*PAT, y = mr*PAT;
+        ctx.fillStyle = playerColor+'22'; rr(x,y,SZ,SZ,6); ctx.fill();
+        ctx.strokeStyle = playerColor+'77'; ctx.lineWidth=1.5; ctx.setLineDash([3,3]);
+        rr(x,y,SZ,SZ,6); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = playerColor; ctx.beginPath(); ctx.arc(x+SZ/2, y+SZ/2, SZ*0.1, 0, Math.PI*2); ctx.fill();
+      }
+      if (G.sel) { var r = G.sel[0], c = G.sel[1]; ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=2; rr(c*PAT, r*PAT, SZ, SZ, 6); ctx.stroke(); }
+      var pc = C[G.turn];
+      if (G.mode === 'H') for (var i=0; i<G.validH.length; i++) {
+        var ni = G.validH[i][0], nj = G.validH[i][1];
+        var xy = nodeXY(ni,nj); var x = xy[0], y = xy[1];
+        var isHov = G.hoverNode && G.hoverNode.i === ni && G.hoverNode.j === nj;
+        if (isHov) { ctx.shadowColor = pc.main; ctx.shadowBlur = 20; }
+        ctx.fillStyle = isHov ? pc.dotHov : pc.dot; ctx.beginPath(); ctx.arc(x, y, isHov ? 8 : 6, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+        if (isHov) { var wallW = SZ*2 + GAP; rr(x - wallW/2, y - GAP/2, wallW, GAP, GAP/2); ctx.fillStyle = pc.main + '55'; ctx.fill(); }
+      }
+      if (G.mode === 'V') for (var i=0; i<G.validV.length; i++) {
+        var ni = G.validV[i][0], nj = G.validV[i][1];
+        var xy = nodeXY(ni,nj); var x = xy[0], y = xy[1];
+        var isHov = G.hoverNode && G.hoverNode.i === ni && G.hoverNode.j === nj;
+        if (isHov) { ctx.shadowColor = pc.main; ctx.shadowBlur = 20; }
+        ctx.fillStyle = isHov ? pc.dotHov : pc.dot; ctx.beginPath(); ctx.arc(x, y, isHov ? 8 : 6, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+        if (isHov) { var wallH = SZ*2 + GAP; rr(x - GAP/2, y - wallH/2, GAP, wallH, GAP/2); ctx.fillStyle = pc.main + '55'; ctx.fill(); }
+      }
+      ctx.save(); ctx.beginPath(); ctx.rect(0,0,BOARD,BOARD); ctx.clip();
+      for (var i=0; i<G.pH.length; i++) {
+        var r = G.pH[i][0], c = G.pH[i][1]; var wc = C[G.wallOwnerH[i]]; var xy = nodeXY(r+1, c+1);
+        var wallW = SZ*2 + GAP, wallH = Math.max(GAP, 5);
+        ctx.shadowColor = wc.wallShadow; ctx.shadowBlur = 12; ctx.fillStyle = wc.wallFill;
+        rr(xy[0] - wallW/2, xy[1] - wallH/2, wallW, wallH, wallH/2); ctx.fill(); ctx.shadowBlur = 0;
+      }
+      for (var i=0; i<G.pV.length; i++) {
+        var r = G.pV[i][0], c = G.pV[i][1]; var wc = C[G.wallOwnerV[i]]; var xy = nodeXY(r+1, c+1);
+        var wallW = Math.max(GAP, 5), wallH = SZ*2 + GAP;
+        ctx.shadowColor = wc.wallShadow; ctx.shadowBlur = 12; ctx.fillStyle = wc.wallFill;
+        rr(xy[0] - wallW/2, xy[1] - wallH/2, wallW, wallH, wallW/2); ctx.fill(); ctx.shadowBlur = 0;
+      }
+      ctx.restore();
+      for (var p=0; p<2; p++) {
+        var r = G.pos[p][0], c = G.pos[p][1]; var x = c*PAT + SZ/2, y = r*PAT + SZ/2, rad = SZ*0.32;
+        var active = G.turn === p && !G.over;

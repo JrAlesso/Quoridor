@@ -1,0 +1,300 @@
+
+    window.addEventListener('load', function() {
+      resize(); initPips();
+      document.querySelector('#time-options button[data-time="30"]').classList.add('selected');
+      document.querySelector('#rounds-options button[data-rounds="1"]').classList.add('selected');
+      var mid = document.querySelector('#nivel-options button[data-nivel="medio"]');
+      if (mid) mid.classList.add('selected');
+      showScreen('login-screen');
+    });
+    window.addEventListener('resize', function() {
+      if (document.getElementById('game-screen').classList.contains('active')) { resize(); draw(); }
+    });
+    function loop() {
+      var needDraw = G.over || G.hoverNode || G.iaThinking;
+      if (!needDraw && currentUser) {
+        var eq = getStats().equippedSkin;
+        var sk = SKINS.find(function(s){ return s.id === eq; });
+        if (sk && (sk.raridade === 'lendaria' || sk.raridade === 'rara')) needDraw = true;
+      }
+      if (needDraw) draw();
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  </script>
+  <!-- ===== CORREÇÃO: Botões de fechar o overlay da sala ===== -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      function fecharSalaOverlay() {
+        var overlay = document.getElementById('sala-overlay');
+        if (overlay) overlay.classList.remove('show');
+        if (typeof limparOnline === 'function') limparOnline();
+      }
+
+      var salaClose = document.getElementById('sala-close');
+      if (salaClose) {
+        var newClose = salaClose.cloneNode(true);
+        salaClose.parentNode.replaceChild(newClose, salaClose);
+        newClose.addEventListener('click', fecharSalaOverlay);
+      }
+
+      var btnCloseSala = document.getElementById('btn-close-sala');
+      if (btnCloseSala) {
+        var newBtn = btnCloseSala.cloneNode(true);
+        btnCloseSala.parentNode.replaceChild(newBtn, btnCloseSala);
+        newBtn.addEventListener('click', fecharSalaOverlay);
+      }
+
+      var overlay = document.getElementById('sala-overlay');
+      if (overlay) {
+        overlay.addEventListener('click', function(e) {
+          if (e.target === e.currentTarget) fecharSalaOverlay();
+        });
+      }
+    });
+  </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--ONLINE_PATCH_RTDB-->
+<script>
+(function(){
+  function getRtdb(){
+    try {
+      if (typeof firebase === "undefined") throw new Error("firebase nao carregou");
+      return firebase.database();
+    } catch(e) {
+      alert("DB: " + e.message);
+      return null;
+    }
+  }
+  function setStatus(msg){
+    var el = document.getElementById("sala-status");
+    if (el) el.innerHTML = msg;
+  }
+  function escutarSalas(){
+    var rtdb = getRtdb(); if (!rtdb) return;
+    if (window._listaUnsub) { try { rtdb.ref("salas").off("value", window._listaUnsub); } catch(e){} }
+    window._listaUnsub = function(snap){
+      var lista = document.getElementById("sala-lista");
+      if (!lista) return;
+      lista.innerHTML = "";
+      var val = snap.val() || {};
+      var items = [];
+      Object.keys(val).forEach(function(id){
+        var d = val[id];
+        if (d && d.status === "esperando") items.push({id:id, d:d});
+      });
+      items.sort(function(a,b){ return (b.d.createdAt||0) - (a.d.createdAt||0); });
+      if (!items.length) {
+        lista.innerHTML = '<div class="history-empty">Nenhuma sala aberta. Crie uma!</div>';
+        return;
+      }
+      items.forEach(function(it){
+        var d = it.d;
+        var nome = d.nomePartida || d.jogador1 || "Sala";
+        var lock = d.senha ? "🔒 " : "";
+        var souEu = d.jogador1 === currentUser;
+        var row = document.createElement("div");
+        row.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid rgba(255,215,140,0.1)";
+        row.innerHTML = "<div><b style='color:#f0e6d3'>"+lock+nome+"</b><br><small style='color:#b8a99a'>Host: "+(d.jogador1||"")+(souEu?" (sua sala)":"")+"</small></div>";
+        if (!souEu) {
+          var btn = document.createElement("button");
+          btn.textContent = "Entrar";
+          btn.style.cssText = "padding:8px 14px;border:none;border-radius:10px;background:#4dabf7;color:#111;font-weight:800";
+          btn.onclick = function(){ entrarSala(it.id, d); };
+          row.appendChild(btn);
+        }
+        lista.appendChild(row);
+      });
+    };
+    rtdb.ref("salas").on("value", window._listaUnsub, function(err){
+      setStatus("ERRO lista: " + err.message);
+      alert(err.message);
+    });
+  }
+  function criarSala(){
+    if (!currentUser) { alert("Faca login"); return; }
+    var rtdb = getRtdb(); if (!rtdb) return;
+    var nome = ((document.getElementById("sala-nome-input")||{}).value||"").trim() || (currentUser+" game");
+    var senha = ((document.getElementById("sala-senha-input")||{}).value||"").trim();
+    var ref = rtdb.ref("salas").push();
+    var id = ref.key;
+    setStatus("Criando...");
+    var dados = {
+      nomePartida: nome,
+      jogador1: currentUser,
+      jogador2: "",
+      status: "esperando",
+      turno: 0,
+      posicoes: [[8,4],[0,4]],
+      paredesH: [],
+      paredesV: [],
+      paredesRestantes: [10,10],
+      vencedor: "",
+      createdAt: Date.now(),
+      senha: senha
+    };
+    ref.set(dados).then(function(){
+      setStatus("OK: <b>"+nome+"</b> criada. Esperando oponente...");
+      alert("Sala criada!");
+      isOnlineMode = true; salaAtual = id; G.online = true; G.salald = id;
+      G.p1Name = currentUser; G.p2Name = "Aguardando...";
+      if (salaUnsubscribe) { try { salaUnsubscribe(); } catch(e){} }
+      salaUnsubscribe = function(snap){
+        var data = snap.val();
+        if (!data) return;
+        if (data.status === "em_andamento" && data.jogador2) {
+          document.getElementById("sala-overlay").classList.remove("show");
+          iniciarJogoOnlineRTDB(id, currentUser, data);
+        }
+      };
+      ref.on("value", salaUnsubscribe);
+      escutarSalas();
+    }).catch(function(err){
+      setStatus("ERRO: " + err.message);
+      alert("ERRO: " + err.message);
+    });
+  }
+  function entrarSala(salaId, data){
+    if (!currentUser) { alert("Faca login"); return; }
+    if (data.senha) {
+      var s = prompt("Senha:");
+      if (s === null) return;
+      if (s !== data.senha) { alert("Senha errada"); return; }
+    }
+    var rtdb = getRtdb();
+    var ref = rtdb.ref("salas/" + salaId);
+    ref.update({ jogador2: currentUser, status: "em_andamento" }).then(function(){
+      return ref.once("value");
+    }).then(function(snap){
+      document.getElementById("sala-overlay").classList.remove("show");
+      iniciarJogoOnlineRTDB(salaId, currentUser, snap.val());
+    }).catch(function(err){ alert("Erro entrar: " + err.message); });
+  }
+  function iniciarJogoOnlineRTDB(salaId, nomeJogador, data){
+    isOnlineMode = true;
+    salaAtual = salaId;
+    G.online = true;
+    G.salald = salaId;
+    G.vsIA = false;
+    G.over = false;
+    G.mode = "move";
+    G.sel = null;
+    G.moves = [];
+    gameActive = true;
+    matchFinished = false;
+    if (typeof aplicarEstadoSala === "function") aplicarEstadoSala(data);
+    else {
+      G.p1Name = data.jogador1;
+      G.p2Name = data.jogador2 || "Player 2";
+      G.pos = data.posicoes || [[8,4],[0,4]];
+      G.walls = data.paredesRestantes || [10,10];
+      G.turn = data.turno || 0;
+      G.pH = []; G.pV = []; G.wallOwnerH = []; G.wallOwnerV = [];
+      (data.paredesH||[]).forEach(function(w){
+        if (Array.isArray(w)) { G.pH.push(w); G.wallOwnerH.push(0); }
+        else if (w) { G.pH.push([w.r,w.c]); G.wallOwnerH.push(w.dono||0); }
+      });
+      (data.paredesV||[]).forEach(function(w){
+        if (Array.isArray(w)) { G.pV.push(w); G.wallOwnerV.push(0); }
+        else if (w) { G.pV.push([w.r,w.c]); G.wallOwnerV.push(w.dono||0); }
+      });
+    }
+    document.getElementById("p1-nome").textContent = G.p1Name;
+    document.getElementById("nomeJ2").textContent = G.p2Name;
+    document.getElementById("placar-p1").textContent = G.p1Name;
+    document.getElementById("placar-p2").textContent = G.p2Name;
+    var p2c = document.getElementById("p2-controls");
+    if (p2c) p2c.style.display = "none";
+    document.getElementById("game-screen").classList.remove("p2-active","modo-2p");
+    showScreen("game-screen");
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        if (typeof resize==="function") resize();
+        if (typeof updateWallIndicators==="function") updateWallIndicators();
+        if (typeof syncBtn==="function") syncBtn();
+        if (typeof draw==="function") draw();
+      });
+    });
+    var rtdb = getRtdb();
+    var ref = rtdb.ref("salas/" + salaId);
+    if (salaUnsubscribe) { try { salaUnsubscribe(); } catch(e){} }
+    var handler = function(snap){
+      var novo = snap.val();
+      if (!novo) return;
+      if (novo.status === "finalizada") {
+        if (!G.over) {
+          G.over = true;
+          if (typeof showWinOverlay==="function")
+            showWinOverlay("◈ " + (novo.vencedor||"") + " venceu!", novo.vencedor===G.p1Name?0:1);
+        }
+        return;
+      }
+      if (typeof aplicarEstadoSala==="function") aplicarEstadoSala(novo);
+      else {
+        G.pos = novo.posicoes || G.pos;
+        G.walls = novo.paredesRestantes || G.walls;
+        G.turn = typeof novo.turno==="number" ? novo.turno : G.turn;
+        G.p1Name = novo.jogador1 || G.p1Name;
+        G.p2Name = novo.jogador2 || G.p2Name;
+      }
+      if (typeof updateWallIndicators==="function") updateWallIndicators();
+      if (typeof syncBtn==="function") syncBtn();
+      if (typeof draw==="function") draw();
+    };
+    ref.on("value", handler);
+    salaUnsubscribe = function(){ ref.off("value", handler); };
+  }
+  // envia jogada via RTDB
+  window.enviarJogadaOnline = function(){
+    if (!salaAtual || !isOnlineMode) return;
+    var rtdb = getRtdb(); if (!rtdb) return;
+    var paredesH = [], paredesV = [];
+    for (var i=0;i<G.pH.length;i++) paredesH.push({r:G.pH[i][0],c:G.pH[i][1],dono:G.wallOwnerH[i]||0});
+    for (var j=0;j<G.pV.length;j++) paredesV.push({r:G.pV[j][0],c:G.pV[j][1],dono:G.wallOwnerV[j]||0});
+    var upd = {
+      posicoes: [[G.pos[0][0],G.pos[0][1]],[G.pos[1][0],G.pos[1][1]]],
+      paredesH: paredesH,
+      paredesV: paredesV,
+      paredesRestantes: [G.walls[0],G.walls[1]],
+      turno: G.turn
+    };
+    if (G.over || G.pos[0][0]===0 || G.pos[1][0]===8) {
+      upd.status = "finalizada";
+      upd.vencedor = G.pos[0][0]===0 ? G.p1Name : G.p2Name;
+    }
+    rtdb.ref("salas/"+salaAtual).update(upd);
+  };
+  function abrir(){
+    if (!currentUser) { alert("Faca login"); return; }
+    document.getElementById("sala-overlay").classList.add("show");
+    setStatus("Salas atualizam sozinhas");
+    escutarSalas();
+  }
+  function bind(id, fn){
+    var el = document.getElementById(id);
+    if (!el) return;
+    var n = el.cloneNode(true);
+    el.parentNode.replaceChild(n, el);
+    n.addEventListener("click", fn);
+  }
+  bind("btn-online", abrir);
+  bind("btn-criar-sala", criarSala);
+  bind("btn-close-sala", function(){ document.getElementById("sala-overlay").classList.remove("show"); });
+  bind("sala-close", function(){ document.getElementById("sala-overlay").classList.remove("show"); });
+  console.log("ONLINE RTDB ok");
+})();
+</script>
+
+</body>

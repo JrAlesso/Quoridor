@@ -1,0 +1,300 @@
+      document.getElementById('nomeJ2').textContent = G.p2Name;
+      document.getElementById('placar-p1').textContent = G.p1Name;
+      document.getElementById('placar-p2').textContent = G.p2Name;
+      gameActive = true; matchFinished = false; currentTime = config.time;
+      positionHistory = [];
+      resize();
+      updateWallIndicators(); syncBtn(); st(G.p1Name + ' começa'); draw();
+      selectPawn(G.pos[0][0], G.pos[0][1]);
+      if (!G.vsIA) {
+        document.getElementById('game-screen').classList.remove('p2-active');
+        document.getElementById('hud-wrapper').classList.remove('rotated');
+      } else {
+        document.getElementById('game-screen').classList.remove('p2-active');
+        document.getElementById('hud-wrapper').classList.remove('rotated');
+      }
+      updateUndoButtonVisibility();
+    }
+    function setMode(m) {
+      if (!gameActive || G.over || matchFinished) return;
+      if (G.vsIA && G.turn === 1) return;
+      if (m !== 'move' && G.walls[G.turn] <= 0) { st('Sem paredes!'); return; }
+      G.mode = m; G.sel = null; G.moves = []; G.hoverNode = null; syncBtn();
+      if (m !== 'move') { computeValid(); st((m === 'H' ? G.validH : G.validV).length + ' posições'); }
+      else { G.validH = []; G.validV = []; st((G.turn === 0 ? G.p1Name : G.p2Name) + ': toque no peão'); }
+      draw();
+    }
+    function getEventXY(e) {
+      var rect = canvas.getBoundingClientRect();
+      var t = e.touches ? e.touches[0] : e;
+      return [(t.clientX - rect.left) * (BOARD / rect.width), (t.clientY - rect.top) * (BOARD / rect.height)];
+    }
+    function nearestNode(px,py,list,th) {
+      var best = null, bestD = th * th;
+      for (var i=0; i<list.length; i++) {
+        var xy = nodeXY(list[i][0], list[i][1]);
+        var d = (px - xy[0]) * (px - xy[0]) + (py - xy[1]) * (py - xy[1]);
+        if (d < bestD) { bestD = d; best = list[i]; }
+      }
+      return best;
+    }
+    function handleTap(e) {
+      e.preventDefault();
+      if (!gameActive || G.over || matchFinished || G.iaThinking || (G.vsIA && G.turn === 1)) return;
+      var xy = getEventXY(e); var px = xy[0], py = xy[1];
+      if (G.mode === 'H') { var n = nearestNode(px, py, G.validH, PAT*0.65); if (n) placeWall(n[0], n[1], 'H'); return; }
+      if (G.mode === 'V') { var n = nearestNode(px, py, G.validV, PAT*0.65); if (n) placeWall(n[0], n[1], 'V'); return; }
+      var col = Math.floor(px / PAT), row = Math.floor(py / PAT);
+      if (row < 0 || row >= N || col < 0 || col >= N) return;
+      if (G.sel && G.moves.some(function(m){ return m[0] === row && m[1] === col; })) doMove(row,col);
+      else selectPawn(row,col);
+    }
+    function handleHover(e) {
+      e.preventDefault();
+      if (G.mode === 'move' || G.over || !gameActive || matchFinished) return;
+      var xy = getEventXY(e);
+      var list = G.mode === 'H' ? G.validH : G.validV;
+      var node = nearestNode(xy[0], xy[1], list, PAT*0.65);
+      var newHov = node ? {i:node[0], j:node[1]} : null;
+      if (JSON.stringify(newHov) !== JSON.stringify(G.hoverNode)) { G.hoverNode = newHov; draw(); }
+    }
+    function showConfig() { document.getElementById('config-overlay').classList.add('show'); }
+    function hideConfig() { document.getElementById('config-overlay').classList.remove('show'); }
+
+    // ============================================================
+    // LOGIN E NAVEGAÇÃO
+    // ============================================================
+    var loginForm = document.getElementById('login-form');
+    var loginError = document.getElementById('login-error');
+    var toggleLink = document.getElementById('toggle-login');
+    var isLoginMode = false;
+    toggleLink.addEventListener('click', function() {
+      isLoginMode = !isLoginMode;
+      document.getElementById('login-btn').textContent = isLoginMode ? 'ENTRAR' : 'CRIAR CONTA';
+      toggleLink.textContent = isLoginMode ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Faça login';
+      document.getElementById('login-confirm').style.display = isLoginMode ? 'none' : 'block';
+    });
+    loginForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var username = document.getElementById('login-username').value.trim();
+      var password = document.getElementById('login-password').value;
+      var confirm = document.getElementById('login-confirm').value;
+      if (!username || !password) { loginError.textContent = 'Preencha todos os campos'; return; }
+      if (isLoginMode) {
+        if (loginUser(username, password)) { loginError.textContent = ''; goToModeScreen(username); }
+        else loginError.textContent = 'Usuário ou senha inválidos';
+      } else {
+        if (password !== confirm) { loginError.textContent = 'As senhas não coincidem'; return; }
+        if (createUser(username, password)) { loginUser(username, password); loginError.textContent = ''; goToModeScreen(username); }
+        else loginError.textContent = 'Usuário já existe';
+      }
+    });
+    function goToModeScreen(username) {
+      currentUser = username;
+      var stats = getUserStats(username);
+      stats.points = 100000; // Todos os usuários ganham 100.000 pontos
+      updateUserStats(username, stats);
+      document.getElementById('user-name').textContent = username;
+      document.getElementById('user-avatar').textContent = username[0].toUpperCase();
+      document.getElementById('stat-games-mode').textContent = stats.games;
+      document.getElementById('stat-wins-mode').textContent = stats.wins;
+      document.getElementById('stat-streak').textContent = stats.streak || 0;
+      document.getElementById('user-level').textContent = 'Nível ' + (stats.level || 1);
+      updateRankDisplay(username);
+      showScreen('mode-screen');
+    }
+    function hideAllOverlays() {
+      ['win-overlay','config-overlay','stats-overlay','profile-overlay','history-overlay','titles-overlay','inspect-overlay','skins-overlay','ranks-overlay','medals-overlay','sala-overlay'].forEach(function(id) { document.getElementById(id).classList.remove('show'); });
+      document.getElementById('confetti-container').innerHTML = '';
+    }
+    function resetAllGameState() {
+      stopTimer(); if (autoResetTimer) clearTimeout(autoResetTimer); if (autoResetTimer2) clearTimeout(autoResetTimer2);
+      hideAllOverlays();
+      G = {pos:[[8,4],[0,4]], walls:[10,10], turn:0, pH:[], pV:[], wallOwnerH:[], wallOwnerV:[], hist:[], over:false, sel:null, moves:[], mode:'move', validH:[], validV:[], hoverNode:null, nivelIA:G.nivelIA||'medio', iaThinking:false, p1Name:currentUser||'Player 1', p2Name:'Player 2', vsIA:G.vsIA, online:false, salald:null};
+      gameActive = false; matchFinished = false; resetPending = false;
+      scores = [0,0]; currentRound = 1; seriesStats = {userWalls:0, userMoves:0}; currentTime = config.time;
+      positionHistory = [];
+    }
+    function goToLobby() {
+      resetAllGameState();
+      showScreen('mode-screen');
+      var stats = getUserStats(currentUser);
+      document.getElementById('stat-games-mode').textContent = stats.games;
+      document.getElementById('stat-wins-mode').textContent = stats.wins;
+      document.getElementById('stat-streak').textContent = stats.streak || 0;
+      document.getElementById('user-level').textContent = 'Nível ' + (stats.level || 1);
+      updateRankDisplay(currentUser);
+    }
+
+    document.getElementById('rank-indicator-btn').addEventListener('click', openRanks);
+    document.getElementById('ranks-close').addEventListener('click', closeRanks);
+    document.getElementById('btn-close-ranks').addEventListener('click', closeRanks);
+    document.getElementById('ranks-overlay').addEventListener('click', function(e){ if (e.target === e.currentTarget) closeRanks(); });
+    document.getElementById('rank-area').addEventListener('click', function(e){ if (e.target.id !== 'rank-indicator-btn') showHistory(); });
+    document.getElementById('history-close').addEventListener('click', hideHistory);
+    document.getElementById('history-overlay').addEventListener('click', function(e){ if (e.target === e.currentTarget) hideHistory(); });
+    document.getElementById('user-info-profile').addEventListener('click', openProfile);
+    document.getElementById('profile-close').addEventListener('click', closeProfile);
+    document.getElementById('btn-close-profile').addEventListener('click', closeProfile);
+    document.getElementById('profile-overlay').addEventListener('click', function(e){ if (e.target === e.currentTarget) closeProfile(); });
+    document.getElementById('btn-vs-ia').addEventListener('click', function(){ prepararConfiguracao(true); });
+    document.getElementById('btn-2p').addEventListener('click', function(){ prepararConfiguracao(false); });
+    document.getElementById('btn-online').addEventListener('click', function() {
+      if (!currentUser) { alert('Faça login primeiro.'); return; }
+      document.getElementById('sala-overlay').classList.add('show');
+      document.getElementById('sala-status').textContent = 'Escolha uma opção:';
+      document.getElementById('sala-lista').innerHTML = '';
+      document.getElementById('sala-id-input').value = '';
+      listarSalasAbertas();
+    });
+    document.getElementById('btn-ranking').addEventListener('click', function(){ alert('Classificação em breve!'); });
+    document.getElementById('btn-titulos').addEventListener('click', openTitles);
+    document.getElementById('btn-medalhas').addEventListener('click', openMedals);
+    document.getElementById('btn-trofeus').addEventListener('click', function(){ alert('Troféus em breve!'); });
+    document.getElementById('btn-amigos').addEventListener('click', function(){ alert('Amigos em breve!'); });
+    document.getElementById('btn-skins').addEventListener('click', openSkins);
+    document.getElementById('btn-claim').addEventListener('click', function() {
+      alert('Recompensa coletada! +200 pontos');
+      var stats = getUserStats(currentUser);
+      stats.points = (stats.points || 0) + 200;
+      updateUserStats(currentUser, stats);
+      document.getElementById('btn-claim').textContent = '✓ Coletado';
+      document.getElementById('btn-claim').disabled = true;
+      document.getElementById('btn-claim').style.opacity = '0.6';
+    });
+    document.getElementById('titles-close').addEventListener('click', closeTitles);
+    document.getElementById('btn-close-titles').addEventListener('click', closeTitles);
+    document.getElementById('titles-overlay').addEventListener('click', function(e){ if (e.target === e.currentTarget) closeTitles(); });
+    document.getElementById('medals-close').addEventListener('click', closeMedals);
+    document.getElementById('btn-close-medals').addEventListener('click', closeMedals);
+    document.getElementById('medals-overlay').addEventListener('click', function(e){ if (e.target === e.currentTarget) closeMedals(); });
+    document.getElementById('skins-close').addEventListener('click', closeSkins);
+    document.getElementById('btn-close-skins').addEventListener('click', closeSkins);
+    document.getElementById('skins-overlay').addEventListener('click', function(e){ if (e.target === e.currentTarget) closeSkins(); });
+    document.getElementById('p1').addEventListener('click', function(e) {
+      var viewer = 0;
+      if (!G.vsIA && e.clientY < window.innerHeight / 2) viewer = 1;
+      openInspect(0, viewer);
+    });
+    document.getElementById('p2').addEventListener('click', function(e) {
+      var viewer = 0;
+      if (!G.vsIA && e.clientY < window.innerHeight / 2) viewer = 1;
+      openInspect(1, viewer);
+    });
+    document.getElementById('inspect-close').addEventListener('click', closeInspect);
+    document.getElementById('btn-close-inspect').addEventListener('click', closeInspect);
+    document.getElementById('inspect-overlay').addEventListener('click', function(e){ if (e.target === e.currentTarget) closeInspect(); });
+    document.getElementById('btn-close-win').addEventListener('click', function() {
+      document.getElementById('win-overlay').classList.remove('show');
+      document.getElementById('btn-close-win').style.display = 'none';
+      goToLobby();
+    });
+
+    function prepararConfiguracao(vsIA) {
+      resetAllGameState();
+      isOnlineMode = false;
+      salaAtual = null;
+      if (salaUnsubscribe) { salaUnsubscribe(); salaUnsubscribe = null; }
+      if (filaUnsubscribe) { filaUnsubscribe(); filaUnsubscribe = null; }
+      if (listaSalasUnsubscribe) { listaSalasUnsubscribe(); listaSalasUnsubscribe = null; }
+      jogadorNaFila = false;
+      G.vsIA = vsIA;
+      G.p1Name = currentUser || 'Player 1';
+      G.p2Name = vsIA ? ('IA (' + (G.nivelIA || 'medio').toUpperCase() + ')') : 'Player 2';
+      document.getElementById('p1-name-input').value = G.p1Name;
+      document.getElementById('p2-name-input').value = G.p2Name;
+      document.getElementById('nivel-config').style.display = vsIA ? 'block' : 'none';
+      document.getElementById('names-config').style.display = vsIA ? 'none' : 'block';
+      if (vsIA && !document.querySelector('#nivel-options button.selected')) {
+        document.querySelector('#nivel-options button[data-nivel="medio"]').classList.add('selected');
+      }
+      updateUndoButtonVisibility();
+      showConfig();
+    }
+    document.getElementById('btnBackMenu').addEventListener('click', function() {
+      if (G.over || confirm('Sair da partida atual?')) goToLobby();
+    });
+
+    document.querySelectorAll('#time-options button').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('#time-options button').forEach(function(b){ b.classList.remove('selected'); });
+        btn.classList.add('selected'); config.time = parseInt(btn.dataset.time);
+      });
+    });
+    document.querySelectorAll('#rounds-options button').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('#rounds-options button').forEach(function(b){ b.classList.remove('selected'); });
+        btn.classList.add('selected'); config.rounds = parseInt(btn.dataset.rounds);
+      });
+    });
+    document.querySelectorAll('#nivel-options button').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('#nivel-options button').forEach(function(b){ b.classList.remove('selected'); });
+        btn.classList.add('selected');
+        G.nivelIA = btn.dataset.nivel;
+        G.p2Name = 'IA (' + G.nivelIA.toUpperCase() + ')';
+      });
+    });
+    document.getElementById('btn-start-game').addEventListener('click', function() {
+      hideConfig();
+      stopTimer(); if (autoResetTimer) clearTimeout(autoResetTimer); if (autoResetTimer2) clearTimeout(autoResetTimer2);
+      document.getElementById('win-overlay').classList.remove('show');
+      document.getElementById('confetti-container').innerHTML = '';
+      document.getElementById('btn-close-win').style.display = 'none';
+      if (!G.vsIA) G.p2Name = document.getElementById('p2-name-input').value.trim() || 'Player 2';
+      else G.p2Name = 'IA (' + G.nivelIA.toUpperCase() + ')';
+      G.p1Name = currentUser || 'Player 1';
+      document.getElementById('p1-nome').textContent = G.p1Name;
+      document.getElementById('nomeJ2').textContent = G.p2Name;
+      document.getElementById('placar-p1').textContent = G.p1Name;
+      document.getElementById('placar-p2').textContent = G.p2Name;
+      showScreen('game-screen');
+      var p2Controls = document.getElementById('p2-controls');
+      if (!G.vsIA) { p2Controls.style.display = 'flex'; document.getElementById('game-screen').classList.add('modo-2p'); }
+      else { p2Controls.style.display = 'none'; document.getElementById('game-screen').classList.remove('modo-2p'); }
+      gameActive = true; matchFinished = false; currentRound = 1; scores = [0,0]; seriesStats = {userWalls:0, userMoves:0};
+      atualizarPlacar(); currentTime = config.time;
+      positionHistory = [];
+      updateUndoButtonVisibility();
+      requestAnimationFrame(function() { requestAnimationFrame(function() { resize(); resetGame(); }); });
+    });
+    document.getElementById('btn-voltar').addEventListener('click', hideConfig);
+    document.getElementById('menu-toggle').addEventListener('click', function() {
+      document.getElementById('menu-dropdown').classList.toggle('show');
+      document.querySelector('.arrow').classList.toggle('open');
+    });
+    document.addEventListener('click', function(e) {
+      if (!document.getElementById('menu-container').contains(e.target)) {
+        document.getElementById('menu-dropdown').classList.remove('show');
+        document.querySelector('.arrow').classList.remove('open');
+      }
+    });
+    document.getElementById('btnUndo').addEventListener('click', undo);
+    document.getElementById('btnReset').addEventListener('click', function() {
+      stopTimer(); if (autoResetTimer) clearTimeout(autoResetTimer); if (autoResetTimer2) clearTimeout(autoResetTimer2);
+      document.getElementById('win-overlay').classList.remove('show');
+      document.getElementById('btn-close-win').style.display = 'none';
+      scores = [0,0]; currentRound = 1; seriesStats = {userWalls:0, userMoves:0}; atualizarPlacar();
+      gameActive = true; matchFinished = false; reset();
+    });
+    document.getElementById('btnStats').addEventListener('click', function() {
+      var s = getStats();
+      document.getElementById('stats-content').innerHTML = '<div style="color:#b8a99a;font-size:13px;line-height:1.8">Partidas: <b style="color:#f0e6d3">' + s.games + '</b><br>Vitórias: <b style="color:#10b981">' + s.wins + '</b><br>Derrotas: <b style="color:#e94560">' + s.losses + '</b><br>Sequência: <b style="color:#d4a373">' + s.streak + '</b></div>';
+      document.getElementById('stats-overlay').classList.add('show');
+      document.getElementById('menu-dropdown').classList.remove('show');
+    });
+    document.getElementById('btn-close-stats').addEventListener('click', function() { document.getElementById('stats-overlay').classList.remove('show'); });
+    canvas.addEventListener('click', handleTap);
+    canvas.addEventListener('touchstart', handleTap, {passive:false});
+    canvas.addEventListener('mousemove', handleHover);
+    canvas.addEventListener('touchmove', function(e){ e.preventDefault(); handleHover(e); }, {passive:false});
+    canvas.addEventListener('mouseleave', function() { if (G.hoverNode) { G.hoverNode = null; draw(); } });
+    document.getElementById('btnH').addEventListener('click', function(){ setMode(G.mode === 'H' ? 'move' : 'H'); });
+    document.getElementById('btnV').addEventListener('click', function(){ setMode(G.mode === 'V' ? 'move' : 'V'); });
+    document.getElementById('btnH2').addEventListener('click', function(){ setMode(G.mode === 'H' ? 'move' : 'H'); });
+    document.getElementById('btnV2').addEventListener('click', function(){ setMode(G.mode === 'V' ? 'move' : 'V'); });
+
+    function updateUndoButtonVisibility() {
+      var btnUndo = document.getElementById('btnUndo');
+      if (btnUndo) btnUndo.style.display = G.vsIA ? 'none' : 'block';
+    }

@@ -1,0 +1,300 @@
+        var rotateText = (p === 1 && !G.vsIA);
+        drawPawn(p, x, y, rad, active, rotateText);
+      }
+    }
+    function rr(x,y,w,h,r2) {
+      r2 = Math.min(r2, w/2, h/2, 20);
+      ctx.beginPath(); ctx.moveTo(x+r2,y); ctx.lineTo(x+w-r2,y); ctx.arcTo(x+w,y,x+w,y+r2,r2);
+      ctx.lineTo(x+w,y+h-r2); ctx.arcTo(x+w,y+h,x+w-r2,y+h,r2); ctx.lineTo(x+r2,y+h);
+      ctx.arcTo(x,y+h,x,y+h-r2,r2); ctx.lineTo(x,y+r2); ctx.arcTo(x,y,x+r2,y,r2); ctx.closePath();
+    }
+
+    function initPips() {
+      for (var p=0; p<2; p++) {
+        var el = document.getElementById('pips' + (p+1));
+        el.innerHTML = '';
+        for (var i=0; i<WALLS; i++) { var d = document.createElement('div'); d.className = 'pip'; el.appendChild(d); }
+      }
+    }
+    function updateWallIndicators() {
+      for (var p=0; p<2; p++) {
+        var children = document.getElementById('pips' + (p+1)).children;
+        for (var i=0; i<WALLS; i++) {
+          if (i >= G.walls[p]) children[i].classList.add('usado');
+          else children[i].classList.remove('usado');
+        }
+      }
+      updateTimerDisplay(); syncBtn();
+    }
+    function st(t) { statusEl.textContent = t; }
+    function updateTimerDisplay() {
+      if (G.over) {
+        timerDisplayEl.className = 'fim';
+        timerDisplayEl.innerHTML = '<span>FIM!</span><span class="tempo">◈</span>';
+        stopTimer(); return;
+      }
+      var playerName = (G.turn === 0 ? G.p1Name : G.p2Name).toUpperCase();
+      timerDisplayEl.className = G.turn === 0 ? 'vez1' : 'vez2';
+      timerDisplayEl.innerHTML = '<span>' + playerName + '</span><span class="tempo" id="timerDisplay">' + currentTime + '</span>';
+      stopTimer();
+      if (!G.over && gameActive && !matchFinished) startTimer();
+    }
+    function syncBtn() {
+      var pc = C[G.turn];
+      ['btnH','btnV','btnH2','btnV2'].forEach(function(id) {
+        var b = document.getElementById(id);
+        var match = false;
+        if (id === 'btnH') match = G.mode === 'H' && G.turn === 0;
+        else if (id === 'btnV') match = G.mode === 'V' && G.turn === 0;
+        else if (id === 'btnH2') match = G.mode === 'H' && G.turn === 1 && !G.vsIA;
+        else if (id === 'btnV2') match = G.mode === 'V' && G.turn === 1 && !G.vsIA;
+        b.style.borderColor = match ? pc.main : 'rgba(255,215,140,0.12)';
+        b.style.color = match ? pc.main : '#b8a99a';
+        b.style.background = match ? pc.main + '15' : 'rgba(30,22,16,0.8)';
+        b.classList.toggle('modo-ativo', match);
+      });
+    }
+    function setIAThinking(v) { G.iaThinking = v; iaTh.className = v ? 'show' : ''; if (!v) updateTimerDisplay(); }
+    function startTimer() {
+      stopTimer(); if (G.over || !gameActive || matchFinished) return;
+      currentTime = config.time;
+      var el = document.getElementById('timerDisplay'); if (el) el.textContent = currentTime;
+      timerRunning = true;
+      timerInterval = setInterval(function() {
+        currentTime--;
+        var el = document.getElementById('timerDisplay'); if (el) el.textContent = currentTime;
+        if (currentTime <= 0) {
+          clearInterval(timerInterval); timerRunning = false;
+          var vencedor = 1 - G.turn;
+          scores[vencedor]++; atualizarPlacar();
+          G.over = true; G.mode = 'move'; syncBtn(); setIAThinking(false);
+          var nomeVencedor = vencedor === 0 ? G.p1Name : G.p2Name;
+          showWinOverlay('⏰ Tempo esgotado!<span class="sub">' + nomeVencedor + ' vence a rodada!</span>', vencedor);
+        }
+      }, 1000);
+    }
+    function stopTimer() { if (timerInterval) { clearInterval(timerInterval); timerInterval = null; } timerRunning = false; }
+    function atualizarPlacar() {
+      document.getElementById('score1').textContent = scores[0];
+      document.getElementById('score2').textContent = scores[1];
+      document.getElementById('rodada-info').textContent = 'Rodada ' + currentRound + ' de ' + config.rounds;
+    }
+
+    function showWinOverlay(msg, vencedor) {
+      stopTimer();
+      var msgEl = document.getElementById('win-message');
+      msgEl.innerHTML = msg;
+      msgEl.classList.remove('win-p1','win-p2');
+      if (vencedor === 0) msgEl.classList.add('win-p1');
+      else if (vencedor === 1) msgEl.classList.add('win-p2');
+      document.getElementById('btn-close-win').style.display = 'none';
+      var container = document.getElementById('confetti-container');
+      container.innerHTML = '';
+      var cores = ['#d4a373','#4dabf7','#10b981','#e94560','#f97316','#a855f7','#ec4899','#facc15','#22d3ee','#ff6b6b'];
+      var cx = window.innerWidth/2, cy = window.innerHeight/2;
+      for (var i=0; i<100; i++) {
+        var p = document.createElement('div'); p.className = 'confetti-piece';
+        var angle = Math.random() * 2 * Math.PI, dist = Math.random() * 550 + 180;
+        p.style.setProperty('--tx', Math.cos(angle) * dist + 'px');
+        p.style.setProperty('--ty', Math.sin(angle) * dist - 100 + 'px');
+        p.style.left = cx + 'px'; p.style.top = cy + 'px';
+        p.style.background = cores[Math.floor(Math.random() * cores.length)];
+        p.style.width = (Math.random() * 10 + 4) + 'px';
+        p.style.height = (Math.random() * 14 + 6) + 'px';
+        p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+        p.style.animationDuration = (Math.random() * 1.4 + 1.4) + 's';
+        p.style.animationDelay = (Math.random() * 0.25) + 's';
+        container.appendChild(p);
+      }
+      setTimeout(function() { container.innerHTML = ''; }, 4500);
+      document.getElementById('win-overlay').classList.add('show');
+      if (autoResetTimer) clearTimeout(autoResetTimer);
+      autoResetTimer = setTimeout(function() {
+        document.getElementById('win-overlay').classList.remove('show');
+        var needed = Math.floor(config.rounds / 2) + 1;
+        if (currentRound >= config.rounds || scores[0] >= needed || scores[1] >= needed) {
+          matchFinished = true; gameActive = false;
+          var winner = scores[0] > scores[1] ? 0 : scores[1] > scores[0] ? 1 : -1;
+          if (winner !== -1) {
+            var stats = getStats();
+            var oldRank = getRank(stats.rankPoints);
+            stats.games++;
+            if (!G.vsIA) stats.localGames = (stats.localGames || 0) + 1;
+            if (winner === 0) {
+              stats.wins++;
+              if (G.vsIA && G.nivelIA === 'expert') stats.expertWins = (stats.expertWins || 0) + 1;
+              stats.streak = (stats.streak || 0) + 1;
+              stats.maxStreak = Math.max(stats.maxStreak || 0, stats.streak);
+            } else {
+              stats.losses++;
+              stats.streak = 0;
+            }
+            stats.totalWalls += seriesStats.userWalls;
+            stats.totalTurns += seriesStats.userMoves;
+            var pts = calcularPontosPartida(winner,0,seriesStats.userWalls,seriesStats.userMoves,config.rounds,currentTime,config.time,stats.streak);
+            var xpGanho = calcularXP(winner, 0, seriesStats.userWalls, seriesStats.userMoves, currentTime, config.time, stats.streak);
+            stats = aplicarXP(stats, xpGanho);
+            if (winner === 0) stats.sumPointsVictories = (stats.sumPointsVictories || 0) + pts;
+            stats.rankPoints += pts;
+            stats.rankPoints = Math.max(0, stats.rankPoints);
+            stats.rankPoints = Math.round(stats.rankPoints * 100) / 100;
+            stats.maxRankPoints = Math.max(stats.maxRankPoints, stats.rankPoints);
+            if (G.vsIA) {
+              var eloIA = {facil:500,medio:800,dificil:1200,expert:1600}[G.nivelIA] || 800;
+              stats.opponentEloSum = (stats.opponentEloSum || 0) + eloIA;
+              stats.opponentCount = (stats.opponentCount || 0) + 1;
+            }
+            if (!stats.history) stats.history = [];
+            stats.history.unshift({date:Date.now(), mode:G.vsIA?'vs IA':'2 Jogadores', result:winner===0?'Vitória':'Derrota', points:pts, walls:seriesStats.userWalls, moves:seriesStats.userMoves, rounds:config.rounds, time:config.time, xp:xpGanho});
+            if (stats.history.length > 100) stats.history.pop();
+            saveStats(stats);
+            if (currentUser) updateRankDisplay(currentUser);
+            var newRank = getRank(stats.rankPoints);
+            var vencedorFinal = scores[0] > scores[1] ? G.p1Name : scores[1] > scores[0] ? G.p2Name : 'Empate';
+            var msgFinal = '◈ FIM DE JOGO!<span class="sub">' + vencedorFinal + ' venceu (' + scores[0] + ' x ' + scores[1] + ')</span>';
+            msgFinal += '<div class="xp-line">+XP ' + xpGanho + '</div>';
+            if (pts >= 0) msgFinal += '<div class="rank-line rank-positivo">🟢 +' + pts.toFixed(1) + ' pontos de patente</div>';
+            else msgFinal += '<div class="rank-line rank-negativo">🔴 ' + pts.toFixed(1) + ' pontos de patente</div>';
+            msgFinal += '<div class="level-line">Nível ' + stats.level + ' (XP: ' + stats.xp + '/' + xpParaProximoNivel(stats.level) + ')</div>';
+            if (oldRank !== newRank) msgFinal += '<div class="patent-line"><span class="rank-up">' + oldRank + ' → ' + newRank + '</span></div>';
+            else msgFinal += '<div class="patent-line">' + newRank + '</div>';
+            document.getElementById('win-message').innerHTML = msgFinal;
+            document.getElementById('btn-close-win').style.display = 'block';
+            document.getElementById('win-overlay').classList.add('show');
+            return;
+          }
+        }
+        currentRound++; atualizarPlacar(); resetGame();
+      }, 3500);
+    }
+
+    function selectPawn(r,c) {
+      if (!gameActive || G.over || matchFinished) return;
+      var pr = G.pos[G.turn][0], pc = G.pos[G.turn][1];
+      if (pr !== r || pc !== c) { st('Toque no seu peão ' + (G.turn === 0 ? G.p1Name : G.p2Name)); return; }
+      G.sel = [r,c]; G.moves = legalMoves(G.turn);
+      st(G.moves.length ? G.moves.length + ' movimentos' : 'Sem movimentos');
+      draw();
+    }
+    function doMove(r,c) {
+      if (!gameActive || G.over || matchFinished) return;
+      if (G.turn === 0) seriesStats.userMoves++;
+      G.hist.push({type:'move', turn:G.turn, from:G.pos[G.turn].slice()});
+      G.pos[G.turn] = [r,c]; G.sel = null; G.moves = [];
+      checkWin();
+      if (!G.over) {
+        setMode('move'); nextTurn();
+        if (G.vsIA && G.turn === 1 && !G.over) scheduleIA();
+        else { selectPawn(G.pos[G.turn][0], G.pos[G.turn][1]); }
+      }
+      updateWallIndicators(); draw();
+      if (isOnlineMode) enviarJogadaOnline({ type: "move", r: r, c: c });
+    }
+    function placeWall(ni,nj,ori) {
+      if (!gameActive || G.over || matchFinished) return;
+      var r = ni-1, c = nj-1;
+      if (!canPlace(r,c,ori)) { st('Posição inválida!'); return; }
+      if (G.turn === 0) seriesStats.userWalls++;
+      G.hist.push({type:'wall', turn:G.turn, r:r, c:c, ori:ori, walls:G.walls.slice(), owH:G.wallOwnerH.slice(), owV:G.wallOwnerV.slice()});
+      if (ori === 'H') { G.pH.push([r,c]); G.wallOwnerH.push(G.turn); }
+      else { G.pV.push([r,c]); G.wallOwnerV.push(G.turn); }
+      G.walls[G.turn]--; G.sel = null; G.moves = []; G.validH = []; G.validV = []; G.hoverNode = null;
+      st('Parede! Restam ' + G.walls[G.turn]);
+      checkWin();
+      if (!G.over) {
+        setMode('move'); nextTurn();
+        if (G.vsIA && G.turn === 1 && !G.over) scheduleIA();
+        else { selectPawn(G.pos[G.turn][0], G.pos[G.turn][1]); }
+      }
+      updateWallIndicators(); draw();
+      if (isOnlineMode) enviarJogadaOnline({ type: "wall", r: r, c: c, ori: ori });
+    }
+    function checkWin() {
+      if ((G.turn === 0 && G.pos[0][0] === WIN[0]) || (G.turn === 1 && G.pos[1][0] === WIN[1])) {
+        G.over = true; G.mode = 'move'; syncBtn(); setIAThinking(false);
+        scores[G.turn]++; atualizarPlacar();
+        var nome = G.turn === 0 ? G.p1Name : G.p2Name;
+        showWinOverlay('◈ ' + nome + ' vence a rodada!', G.turn);
+      }
+    }
+    function nextTurn() {
+      G.turn = 1 - G.turn;
+      if (G.mode !== 'move') { computeValid(); st((G.mode === 'H' ? G.validH : G.validV).length + ' posições'); }
+      else st(G.vsIA && G.turn === 1 ? 'IA pensando...' : ((G.turn === 0 ? G.p1Name : G.p2Name) + ': toque no peão'));
+      if (!G.vsIA) {
+        document.getElementById('game-screen').classList.toggle('p2-active', G.turn === 1);
+        document.getElementById('hud-wrapper').classList.toggle('rotated', G.turn === 1);
+      } else {
+        document.getElementById('game-screen').classList.remove('p2-active');
+        document.getElementById('hud-wrapper').classList.remove('rotated');
+      }
+    }
+    function scheduleIA() {
+      if (G.iaThinking || G.over || !gameActive || matchFinished) return;
+      setIAThinking(true);
+      var delay = 1600 + (G.nivelIA === 'facil' ? 0 : G.nivelIA === 'medio' ? 400 : G.nivelIA === 'dificil' ? 800 : 1300);
+      setTimeout(function() {
+        if (G.over || G.turn !== 1 || !gameActive || matchFinished) { setIAThinking(false); return; }
+        var act = iaJogar(); setIAThinking(false);
+        if (!act) return;
+        stopTimer();
+        if (act.type === 'move') {
+          G.hist.push({type:'move', turn:1, from:G.pos[1].slice()});
+          G.pos[1] = [act.r, act.c]; G.sel = null; G.moves = [];
+          checkWin(); if (!G.over) nextTurn();
+        } else {
+          G.hist.push({type:'wall', turn:1, r:act.r, c:act.c, ori:act.ori, walls:G.walls.slice(), owH:G.wallOwnerH.slice(), owV:G.wallOwnerV.slice()});
+          if (act.ori === 'H') { G.pH.push([act.r, act.c]); G.wallOwnerH.push(1); }
+          else { G.pV.push([act.r, act.c]); G.wallOwnerV.push(1); }
+          G.walls[1]--; G.sel = null; G.moves = []; G.validH = []; G.validV = [];
+          checkWin(); if (!G.over) nextTurn();
+        }
+        updateWallIndicators(); draw();
+        if (!G.over && G.turn === 0) selectPawn(G.pos[0][0], G.pos[0][1]);
+      }, delay);
+    }
+    function undo() {
+      if (!gameActive || G.over || matchFinished || !G.hist.length || G.iaThinking) return;
+      var steps = G.vsIA && G.hist.length >= 2 ? 2 : 1;
+      for (var s=0; s<steps; s++) {
+        if (!G.hist.length) break;
+        var h = G.hist.pop();
+        G.turn = h.turn;
+        if (h.type === 'move') { G.pos[h.turn] = h.from.slice(); if (h.turn === 0) seriesStats.userMoves--; }
+        else {
+          G.walls = h.walls.slice(); G.wallOwnerH = h.owH.slice(); G.wallOwnerV = h.owV.slice();
+          if (h.ori === 'H') G.pH = G.pH.filter(function(w){ return !(w[0] === h.r && w[1] === h.c); });
+          else G.pV = G.pV.filter(function(w){ return !(w[0] === h.r && w[1] === h.c); });
+          if (h.turn === 0) seriesStats.userWalls--;
+        }
+      }
+      G.sel = null; G.moves = []; G.hoverNode = null;
+      if (G.mode !== 'move') computeValid();
+      st('Desfeito!'); setIAThinking(false); updateWallIndicators(); syncBtn(); draw();
+    }
+    function resetGame() {
+      stopTimer(); if (autoResetTimer) clearTimeout(autoResetTimer); if (autoResetTimer2) clearTimeout(autoResetTimer2);
+      document.getElementById('win-overlay').classList.remove('show');
+      document.getElementById('confetti-container').innerHTML = '';
+      document.getElementById('btn-close-win').style.display = 'none';
+      G = {pos:[[8,4],[0,4]], walls:[WALLS,WALLS], turn:0, pH:[], pV:[], wallOwnerH:[], wallOwnerV:[], hist:[], over:false, sel:null, moves:[], mode:'move', validH:[], validV:[], hoverNode:null, vsIA:G.vsIA, nivelIA:G.nivelIA, iaThinking:false, p1Name:G.p1Name, p2Name:G.p2Name, online:false, salald:null};
+      gameActive = true; matchFinished = false; currentTime = config.time;
+      positionHistory = [];
+      resize();
+      updateWallIndicators(); syncBtn(); st(G.p1Name + ' começa'); draw();
+      selectPawn(G.pos[0][0], G.pos[0][1]);
+      if (!G.vsIA) {
+        document.getElementById('game-screen').classList.remove('p2-active');
+        document.getElementById('hud-wrapper').classList.remove('rotated');
+      } else {
+        document.getElementById('game-screen').classList.remove('p2-active');
+        document.getElementById('hud-wrapper').classList.remove('rotated');
+      }
+    }
+    function reset() {
+      stopTimer(); if (autoResetTimer) clearTimeout(autoResetTimer); if (autoResetTimer2) clearTimeout(autoResetTimer2);
+      document.getElementById('win-overlay').classList.remove('show');
+      document.getElementById('confetti-container').innerHTML = '';
+      document.getElementById('btn-close-win').style.display = 'none';
+      G = {pos:[[8,4],[0,4]], walls:[WALLS,WALLS], turn:0, pH:[], pV:[], wallOwnerH:[], wallOwnerV:[], hist:[], over:false, sel:null, moves:[], mode:'move', validH:[], validV:[], hoverNode:null, vsIA:G.vsIA, nivelIA:G.nivelIA, iaThinking:false, p1Name:G.p1Name, p2Name:G.p2Name, online:false, salald:null};
+      document.getElementById('p1-nome').textContent = G.p1Name;

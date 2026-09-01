@@ -1,0 +1,125 @@
+================================================================
+INSTRUÇÕES PARA CORRIGIR O MODO ONLINE (PRIMEIRA PESSOA)
+================================================================
+
+1. ABRA O NAVEGADOR E O CONSOLE (F12 OU FERRAMENTAS DO KIIWI)
+   E EXECUTE OS COMANDOS ABAIXO PARA LIMPAR OS DADOS:
+
+   // Para limpar contas do localStorage:
+   localStorage.removeItem('quoridor_accounts_v2');
+   console.log('✅ Contas locais removidas!');
+
+   // Para limpar todas as salas do Firestore (cuidado):
+   firebase.firestore().collection('salas').get().then(snapshot => {
+     snapshot.forEach(doc => doc.ref.delete());
+   }).then(() => console.log('✅ Salas removidas!'));
+
+================================================================
+2. NO ARQUIVO index.html, LOCALIZE E SUBSTITUA AS FUNÇÕES:
+================================================================
+
+A) Função "aplicarEstadoSala"
+   Procure por "function aplicarEstadoSala(data) {"
+   Substitua TODO o conteúdo da função por:
+
+function aplicarEstadoSala(data) {
+  if (!data) return;
+  G.p1Name = data.jogador1 || G.p1Name;
+  G.p2Name = data.jogador2 || G.p2Name || 'Aguardando...';
+  if (data.posicoes && data.posicoes.length === 2) {
+    G.pos = [[data.posicoes[0][0], data.posicoes[0][1]], [data.posicoes[1][0], data.posicoes[1][1]]];
+  }
+  var pw = paredesFirestoreParaLocal(data.paredesH, data.paredesV);
+  G.pH = pw.pH; G.pV = pw.pV; G.wallOwnerH = pw.owH; G.wallOwnerV = pw.owV;
+  G.walls = data.paredesRestantes ? data.paredesRestantes.slice() : [10,10];
+  G.turn = typeof data.turno === 'number' ? data.turno : 0;
+  G.vsIA = false;
+  G.online = true;
+  document.getElementById('p1-nome').textContent = G.p1Name;
+  document.getElementById('nomeJ2').textContent = G.p2Name;
+  document.getElementById('placar-p1').textContent = G.p1Name;
+  document.getElementById('placar-p2').textContent = G.p2Name;
+  var p2c = document.getElementById('p2-controls');
+  if (p2c) p2c.style.display = 'none';
+  document.getElementById('game-screen').classList.remove('p2-active', 'modo-2p');
+  document.getElementById('hud-wrapper').classList.remove('rotated');
+  // ===== CORREÇÃO: rotação fixa para player2 =====
+  if (G.online && currentUser === G.p2Name) {
+    document.getElementById('game-screen').classList.add('p2-active');
+    document.getElementById('hud-wrapper').classList.add('rotated');
+  }
+  if (typeof updateWallIndicators === 'function') updateWallIndicators();
+  if (typeof syncBtn === 'function') syncBtn();
+  if (typeof draw === 'function') draw();
+  if (typeof st === 'function') {
+    if (G.over) return;
+    if (euSouJogadorDaVez()) st('Sua vez: ' + (G.turn === 0 ? G.p1Name : G.p2Name));
+    else st('Aguardando oponente...');
+  }
+}
+
+B) Função "nextTurn"
+   Procure por "function nextTurn() {"
+   Substitua TODO o conteúdo da função por:
+
+function nextTurn() {
+  G.turn = 1 - G.turn;
+  if (G.mode !== 'move') { computeValid(); st((G.mode === 'H' ? G.validH : G.validV).length + ' posições'); }
+  else st(G.vsIA && G.turn === 1 ? 'IA pensando...' : ((G.turn === 0 ? G.p1Name : G.p2Name) + ': toque no peão'));
+  if (!G.vsIA) {
+    // ===== CORREÇÃO: se for online, NÃO alterna rotação (fica fixa) =====
+    if (!G.online) {
+      document.getElementById('game-screen').classList.toggle('p2-active', G.turn === 1);
+      document.getElementById('hud-wrapper').classList.toggle('rotated', G.turn === 1);
+    }
+  } else {
+    document.getElementById('game-screen').classList.remove('p2-active');
+    document.getElementById('hud-wrapper').classList.remove('rotated');
+  }
+}
+
+C) Função "draw" (adição de rotação no canvas)
+   Procure por "function draw() {"
+   Dentro da função, logo após a linha:
+   if (!BOARD || BOARD < 10) return;
+   ADICIONE:
+
+  var rotated = false;
+  if (G.online && currentUser === G.p2Name) {
+    rotated = true;
+    ctx.save();
+    ctx.translate(BOARD, BOARD);
+    ctx.rotate(Math.PI);
+  }
+
+   E no FINAL da função, antes da chave de fechamento "}", ADICIONE:
+
+  if (rotated) ctx.restore();
+
+D) Função "getEventXY" (substitua inteira)
+   Procure por "function getEventXY(e) {"
+   Substitua TODO o conteúdo da função por:
+
+function getEventXY(e) {
+  var rect = canvas.getBoundingClientRect();
+  var t = e.touches ? e.touches[0] : e;
+  var x = (t.clientX - rect.left) * (BOARD / rect.width);
+  var y = (t.clientY - rect.top) * (BOARD / rect.height);
+  if (G.online && currentUser === G.p2Name) {
+    x = BOARD - x;
+    y = BOARD - y;
+  }
+  return [x, y];
+}
+
+================================================================
+3. SALVE O ARQUIVO E RECARREGUE A PÁGINA
+================================================================
+
+Pronto! Agora:
+- Player 1 (criador) vê o tabuleiro normal.
+- Player 2 (convidado) vê o tabuleiro rotacionado 180°.
+- Os cliques são invertidos automaticamente.
+- A rotação é fixa (não alterna com o turno).
+
+================================================================

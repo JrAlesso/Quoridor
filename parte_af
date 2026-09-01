@@ -1,0 +1,300 @@
+      list.innerHTML = '';
+      for (var i = 0; i < PATENTES.length; i++) {
+        var p = PATENTES[i];
+        var isCurrent = p.nome === atual.nome;
+        var item = document.createElement('div');
+        item.className = 'rank-item' + (isCurrent ? ' current' : '');
+        item.innerHTML = '<span class="rank-name">' + p.nome + '</span><span class="rank-range">' + (isCurrent ? 'ATUAL' : '') + '</span>';
+        list.appendChild(item);
+      }
+      document.getElementById('ranks-overlay').classList.add('show');
+    }
+
+    function closeRanks() {
+      document.getElementById('ranks-overlay').classList.remove('show');
+    }
+
+    // ============================================================
+    // SALA ONLINE (FIREBASE) - VERSÃO SEM ORDERBY (CORRIGIDA)
+    // ============================================================
+    var salaAtual = null;
+    var salaUnsubscribe = null;
+    var isOnlineMode = false;
+    var filaUnsubscribe = null;
+    var jogadorNaFila = false;
+    var listaSalasUnsubscribe = null;
+
+    function euSouJogadorDaVez() {
+      if (!isOnlineMode) return true;
+      if (G.turn === 0) return currentUser === G.p1Name;
+      return currentUser === G.p2Name;
+    }
+
+    function limparOnline() {
+      if (salaUnsubscribe) { try { salaUnsubscribe(); } catch(e) {} salaUnsubscribe = null; }
+      if (filaUnsubscribe) { try { filaUnsubscribe(); } catch(e) {} filaUnsubscribe = null; }
+      if (listaSalasUnsubscribe) { try { listaSalasUnsubscribe(); } catch(e) {} listaSalasUnsubscribe = null; }
+      jogadorNaFila = false;
+      isOnlineMode = false;
+      salaAtual = null;
+      if (G) { G.online = false; G.salald = null; }
+    }
+
+    function paredesFirestoreParaLocal(paredesH, paredesV) {
+      var pH = [], pV = [], owH = [], owV = [];
+      (paredesH || []).forEach(function(w) {
+        if (Array.isArray(w)) { pH.push([w[0], w[1]]); owH.push(0); }
+        else if (w && typeof w.r === 'number') { pH.push([w.r, w.c]); owH.push(typeof w.dono === 'number' ? w.dono : 0); }
+      });
+      (paredesV || []).forEach(function(w) {
+        if (Array.isArray(w)) { pV.push([w[0], w[1]]); owV.push(0); }
+        else if (w && typeof w.r === 'number') { pV.push([w.r, w.c]); owV.push(typeof w.dono === 'number' ? w.dono : 0); }
+      });
+      return { pH: pH, pV: pV, owH: owH, owV: owV };
+    }
+
+    function paredesLocalParaFirestore() {
+      var paredesH = [], paredesV = [];
+      for (var i = 0; i < G.pH.length; i++) {
+        paredesH.push({ r: G.pH[i][0], c: G.pH[i][1], dono: G.wallOwnerH[i] != null ? G.wallOwnerH[i] : 0 });
+      }
+      for (var j = 0; j < G.pV.length; j++) {
+        paredesV.push({ r: G.pV[j][0], c: G.pV[j][1], dono: G.wallOwnerV[j] != null ? G.wallOwnerV[j] : 0 });
+      }
+      return { paredesH: paredesH, paredesV: paredesV };
+    }
+
+    function aplicarEstadoSala(data) {
+      if (!data) return;
+      G.p1Name = data.jogador1 || G.p1Name;
+      G.p2Name = data.jogador2 || G.p2Name || 'Aguardando...';
+      if (data.posicoes && data.posicoes.length === 2) {
+        G.pos = [[data.posicoes[0][0], data.posicoes[0][1]], [data.posicoes[1][0], data.posicoes[1][1]]];
+      }
+      var pw = paredesFirestoreParaLocal(data.paredesH, data.paredesV);
+      G.pH = pw.pH; G.pV = pw.pV; G.wallOwnerH = pw.owH; G.wallOwnerV = pw.owV;
+      G.walls = data.paredesRestantes ? data.paredesRestantes.slice() : [10,10];
+      G.turn = typeof data.turno === 'number' ? data.turno : 0;
+      G.vsIA = false;
+      G.online = true;
+      document.getElementById('p1-nome').textContent = G.p1Name;
+      document.getElementById('nomeJ2').textContent = G.p2Name;
+      document.getElementById('placar-p1').textContent = G.p1Name;
+      document.getElementById('placar-p2').textContent = G.p2Name;
+      var p2c = document.getElementById('p2-controls');
+      if (p2c) p2c.style.display = 'none';
+      document.getElementById('game-screen').classList.remove('p2-active', 'modo-2p');
+      document.getElementById('hud-wrapper').classList.remove('rotated');
+      if (typeof updateWallIndicators === 'function') updateWallIndicators();
+      if (typeof syncBtn === 'function') syncBtn();
+      if (typeof draw === 'function') draw();
+      if (typeof st === 'function') {
+        if (G.over) return;
+        if (euSouJogadorDaVez()) st('Sua vez: ' + (G.turn === 0 ? G.p1Name : G.p2Name));
+        else st('Aguardando oponente...');
+      }
+    }
+
+    function criarSala(nomeJogador, senha) {
+      var salaRef = db.collection('salas').doc();
+      var salald = salaRef.id;
+      var dados = {
+        jogador1: nomeJogador,
+        jogador2: '',
+        status: 'esperando',
+        turno: 0,
+        posicoes: [[8,4],[0,4]],
+        paredesH: [],
+        paredesV: [],
+        paredesRestantes: [10,10],
+        vencedor: '',
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        senha: senha || ''
+      };
+      salaRef.set(dados).then(function() {
+        document.getElementById('sala-status').innerHTML = 'Sala criada! Aguardando oponente...<br><small>ID: ' + salald + '</small>';
+        isOnlineMode = true;
+        salaAtual = salald;
+        G.online = true;
+        G.salald = salald;
+        G.p1Name = nomeJogador;
+        G.p2Name = 'Aguardando...';
+        if (salaUnsubscribe) salaUnsubscribe();
+        salaUnsubscribe = salaRef.onSnapshot(function(doc) {
+          if (!doc.exists) return;
+          var data = doc.data();
+          if (data.status === 'em_andamento' && data.jogador2) {
+            document.getElementById('sala-overlay').classList.remove('show');
+            iniciarJogoOnline(salald, nomeJogador, data);
+          } else if (data.status === 'esperando') {
+            document.getElementById('sala-status').textContent = 'Aguardando oponente entrar...';
+          }
+        });
+      }).catch(function(err) {
+        document.getElementById('sala-status').textContent = '❌ Erro ao criar sala: ' + err.message;
+      });
+    }
+
+    function entrarSala(salald, nomeJogador, isCriador, senhaFornecida) {
+      var salaRef = db.collection('salas').doc(salald);
+      salaRef.get().then(function(doc) {
+        if (!doc.exists) {
+          document.getElementById('sala-status').textContent = '❌ Sala não encontrada.';
+          return;
+        }
+        var data = doc.data();
+        if (data.status === 'finalizada') {
+          document.getElementById('sala-status').textContent = '❌ Sala já finalizada.';
+          return;
+        }
+        if (data.senha && data.senha !== '' && !isCriador) {
+          if (senhaFornecida !== data.senha) {
+            document.getElementById('sala-status').textContent = '❌ Senha incorreta.';
+            return;
+          }
+        }
+        if (data.jogador1 === nomeJogador || data.jogador2 === nomeJogador) {
+          document.getElementById('sala-overlay').classList.remove('show');
+          iniciarJogoOnline(salald, nomeJogador, data);
+          return;
+        }
+        if (data.jogador2 && data.jogador2 !== '') {
+          document.getElementById('sala-status').textContent = '❌ Sala cheia.';
+          return;
+        }
+        salaRef.update({ jogador2: nomeJogador, status: 'em_andamento' })
+          .then(function() { return salaRef.get(); })
+          .then(function(doc2) {
+            document.getElementById('sala-overlay').classList.remove('show');
+            iniciarJogoOnline(salald, nomeJogador, doc2.data());
+          })
+          .catch(function(err) {
+            document.getElementById('sala-status').textContent = '❌ Erro ao entrar: ' + err.message;
+          });
+      }).catch(function(err) {
+        document.getElementById('sala-status').textContent = '❌ Erro ao buscar sala: ' + err.message;
+      });
+    }
+
+    function entrarSalaComSenha(salald, nomeJogador) {
+      var salaRef = db.collection('salas').doc(salald);
+      salaRef.get().then(function(doc) {
+        if (!doc.exists) return;
+        var data = doc.data();
+        if (data.senha && data.senha !== '') {
+          var senhaDigitada = prompt('Digite a senha da sala:');
+          if (senhaDigitada === null) return;
+          entrarSala(salald, nomeJogador, false, senhaDigitada);
+        } else {
+          entrarSala(salald, nomeJogador, false, '');
+        }
+      });
+    }
+
+    function iniciarJogoOnline(salald, nomeJogador, data) {
+      isOnlineMode = true;
+      salaAtual = salald;
+      G.online = true;
+      G.salald = salald;
+      G.vsIA = false;
+      G.over = false;
+      G.mode = 'move';
+      G.sel = null;
+      G.moves = [];
+      gameActive = true;
+      matchFinished = false;
+      aplicarEstadoSala(data);
+      showScreen('game-screen');
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          if (typeof resize === 'function') resize();
+          aplicarEstadoSala(data);
+          if (euSouJogadorDaVez() && typeof selectPawn === 'function') {
+            selectPawn(G.pos[G.turn][0], G.pos[G.turn][1]);
+          }
+        });
+      });
+      if (salaUnsubscribe) salaUnsubscribe();
+      salaUnsubscribe = db.collection('salas').doc(salald).onSnapshot(function(doc) {
+        if (!doc.exists) return;
+        var novoData = doc.data();
+        if (novoData.status === 'finalizada') {
+          if (!G.over) {
+            G.over = true;
+            var vencedor = novoData.vencedor === G.p1Name ? 0 : (novoData.vencedor === G.p2Name ? 1 : -1);
+            if (vencedor !== -1 && typeof showWinOverlay === 'function') {
+              showWinOverlay('🏆 ' + novoData.vencedor + ' venceu!', vencedor);
+            }
+          }
+          return;
+        }
+        aplicarEstadoSala(novoData);
+        if (euSouJogadorDaVez() && !G.over && typeof selectPawn === 'function') {
+          selectPawn(G.pos[G.turn][0], G.pos[G.turn][1]);
+        }
+      });
+    }
+
+    function enviarJogadaOnline(jogada) {
+      if (!salaAtual || !isOnlineMode) return;
+      if (!euSouJogadorDaVez()) return;
+      var salaRef = db.collection('salas').doc(salaAtual);
+      var paredes = paredesLocalParaFirestore();
+      var posicoes = [[G.pos[0][0], G.pos[0][1]], [G.pos[1][0], G.pos[1][1]]];
+      var paredesRestantes = [G.walls[0], G.walls[1]];
+      var turno = G.turn;
+      var update = {
+        posicoes: posicoes,
+        paredesH: paredes.paredesH,
+        paredesV: paredes.paredesV,
+        paredesRestantes: paredesRestantes,
+        turno: turno
+      };
+      if (G.over || (G.pos[0][0] === 0) || (G.pos[1][0] === 8)) {
+        update.status = 'finalizada';
+        update.vencedor = (G.pos[0][0] === 0) ? G.p1Name : G.p2Name;
+      }
+      salaRef.update(update).catch(function(err) {
+        console.error('Erro ao enviar jogada:', err);
+        if (typeof st === 'function') st('Erro de sincronização. Tente de novo.');
+      });
+    }
+
+    // ===== FUNÇÃO LISTAR SALAS (SEM ORDERBY PARA EVITAR ÍNDICE) =====
+    function listarSalasAbertas() {
+      if (listaSalasUnsubscribe) {
+        try { listaSalasUnsubscribe(); } catch(e) {}
+        listaSalasUnsubscribe = null;
+      }
+
+      var statusEl = document.getElementById('sala-status');
+      if (statusEl) statusEl.textContent = '🔄 Carregando salas...';
+
+      listaSalasUnsubscribe = db.collection('salas')
+        .where('status', '==', 'esperando')
+        .onSnapshot(function(snapshot) {
+          var lista = document.getElementById('sala-lista');
+          if (!lista) return;
+          lista.innerHTML = '';
+
+          if (snapshot.empty) {
+            lista.innerHTML = '<div class="history-empty" style="padding:20px;text-align:center;color:#666;">📭 Nenhuma sala aberta.<br>Crie uma para começar!</div>';
+            if (statusEl) statusEl.textContent = '💡 Nenhuma sala disponível. Crie uma!';
+            return;
+          }
+
+          if (statusEl) statusEl.textContent = '📋 ' + snapshot.size + ' sala(s) disponível(eis)';
+
+          snapshot.forEach(function(doc) {
+            var data = doc.data();
+            var el = document.createElement('div');
+            el.className = 'sala-item';
+            el.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid rgba(255,215,140,0.06);';
+
+            var cadeado = data.senha && data.senha !== '' ? '🔒' : '🔓';
+            var jogador = data.jogador1 || 'Anônimo';
+
+            el.innerHTML =
+              '<span style="color:#f0e6d3;font-weight:bold;">' + jogador + ' ' + cadeado + '</span>' +
+              '<span style="color:#b8a99a;font-size:12px;">1/2</span>' +
+              '<button class="sala-btn" data-id="' + doc.id + '" style="background:rgba(212,163,115,0.15);border:1px solid #d4a373;color:#d4a373;border-radius:8px;padding:6px 16px;font-weight:bold;cursor:pointer;">Entrar</button>';
