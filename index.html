@@ -266,6 +266,124 @@ canvas{display:block;touch-action:none;max-width:100%}
 #btn-start-game,#btn-close-stats,#btn-close-profile{width:100%;padding:12px;border:none;border-radius:14px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;font-size:13px;cursor:pointer;margin-top:4px}
 #btn-voltar{width:100%;padding:12px;border:none;border-radius:14px;background:rgba(255,255,255,0.03);color:#b8a99a;font-weight:700;font-size:13px;cursor:pointer;margin-top:6px}
 #names-config input{padding:12px 14px;border-radius:12px;border:1px solid rgba(255,215,140,0.15);background:rgba(255,215,140,0.05);color:#f0e6d3;font-size:14px;outline:none;width:100%;margin-bottom:6px}
+/* CHAT OVERLAY */
+#chat-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001;
+  padding: 20px;
+}
+#chat-overlay.show { display: flex; }
+
+#chat-card {
+  background: rgba(26,20,16,0.97);
+  border: 1px solid rgba(255,215,140,0.12);
+  border-radius: 24px;
+  padding: 20px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 60px rgba(0,0,0,0.8);
+  position: relative;
+  z-index: 2;
+}
+
+#chat-card h2 {
+  color: #d4a373;
+  font-size: 16px;
+  text-align: center;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#chat-card h2 .close-btn {
+  background: none;
+  border: none;
+  color: #b8a99a;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+#chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  background: rgba(255,215,140,0.03);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 12px;
+  max-height: 300px;
+  border: 1px solid rgba(255,215,140,0.06);
+}
+
+#chat-messages .msg {
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  background: rgba(255,215,140,0.06);
+  font-size: 13px;
+  color: #f0e6d3;
+  word-wrap: break-word;
+}
+#chat-messages .msg .user {
+  font-weight: 700;
+  color: #d4a373;
+}
+#chat-messages .msg .time {
+  font-size: 10px;
+  color: #8a7a6a;
+  margin-left: 8px;
+}
+
+#chat-input-area {
+  display: flex;
+  gap: 8px;
+}
+#chat-input-area input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,215,140,0.15);
+  background: rgba(255,215,140,0.05);
+  color: #f0e6d3;
+  font-size: 13px;
+  outline: none;
+}
+#chat-input-area input:focus {
+  border-color: #d4a373;
+}
+#chat-input-area button {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #d4a373, #b8860b);
+  color: #1a1410;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#btn-close-chat {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #d4a373, #b8860b);
+  color: #1a1410;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 8px;
+}
 </style>
 </head>
 <body>
@@ -313,6 +431,15 @@ canvas{display:block;touch-action:none;max-width:100%}
     <div class="modo-btn" id="btn-trofeus"><span class="icon">🏆</span><div class="info"><div class="title">Troféus</div><div class="desc">Em breve</div></div><span class="arrow">›</span></div>
     <div class="modo-btn" id="btn-amigos"><span class="icon">👥</span><div class="info"><div class="title">Amigos</div><div class="desc">Em breve</div></div><span class="arrow">›</span></div>
     <div class="modo-btn" id="btn-skins"><span class="icon">🎨</span><div class="info"><div class="title">Skins</div><div class="desc">Personalize seus peões</div></div><span class="arrow">›</span></div>
+    <!-- Card Chat Online -->
+    <div class="modo-btn" id="btn-chat">
+      <span class="icon">💬</span>
+      <div class="info">
+        <div class="title">Chat Online</div>
+        <div class="desc">Converse com outros jogadores</div>
+      </div>
+      <span class="arrow">›</span>
+    </div>
   </div>
   <div class="daily"><div class="left"><span class="icon">🎁</span><div class="text"><strong>Recompensa diária</strong><br>+200 pontos</div></div><button class="btn-claim" id="btn-claim">Coletar</button></div>
 </div>
@@ -444,6 +571,9 @@ var PATENTES = [
   { nome: 'Platina', subdivisoes: 5, pontosPorSub: 80 },
   { nome: 'Diamante', subdivisoes: 5, pontosPorSub: 90 },
   { nome: 'Mestre', subdivisoes: 5, pontosPorSub: 100 },
+  { nome: 'Cristal', subdivisoes: 5, pontosPorSub: 110 },
+  { nome: 'Obsidiana', subdivisoes: 5, pontosPorSub: 120 },
+  { nome: 'Eclipse', subdivisoes: 5, pontosPorSub: 130 },
   { nome: 'Lendário', subdivisoes: 1, pontosPorSub: Infinity }
 ];
 function hashPassword(pass){ return btoa(unescape(encodeURIComponent(pass))); }
@@ -2954,6 +3084,97 @@ function loop(){
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+// ============================================================
+// CHAT ONLINE (simulado localmente)
+// ============================================================
+var chatMessages = [];
+var CHAT_KEY = 'quoridor_chat';
+
+function loadChatMessages() {
+  try {
+    var stored = localStorage.getItem(CHAT_KEY);
+    if (stored) chatMessages = JSON.parse(stored);
+    else chatMessages = [];
+  } catch(e) { chatMessages = []; }
+  renderChatMessages();
+}
+function saveChatMessages() {
+  try {
+    localStorage.setItem(CHAT_KEY, JSON.stringify(chatMessages));
+  } catch(e) {}
+}
+
+function renderChatMessages() {
+  var container = document.getElementById('chat-messages');
+  container.innerHTML = '';
+  if (!chatMessages.length) {
+    container.innerHTML = '<div style="color:#666;text-align:center;padding:20px;font-size:13px;">Nenhuma mensagem ainda. Seja o primeiro!</div>';
+    return;
+  }
+  var msgs = chatMessages.slice(-50);
+  for (var i = 0; i < msgs.length; i++) {
+    var m = msgs[i];
+    var div = document.createElement('div');
+    div.className = 'msg';
+    var date = new Date(m.time).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    div.innerHTML = '<span class="user">' + escapeHTML(m.user) + '</span><span class="time">' + date + '</span><br>' + escapeHTML(m.text);
+    container.appendChild(div);
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+function escapeHTML(str) {
+  return String(str).replace(/[&<>"]/g, function(m) {
+    if (m === '&') return '&amp;';
+    if (m === '<') return '&lt;';
+    if (m === '>') return '&gt;';
+    if (m === '"') return '&quot;';
+    return m;
+  });
+}
+
+function sendChatMessage() {
+  var input = document.getElementById('chat-input');
+  var text = input.value.trim();
+  if (!text) return;
+  var user = currentUser || 'Anônimo';
+  chatMessages.push({ user: user, text: text, time: Date.now() });
+  saveChatMessages();
+  renderChatMessages();
+  input.value = '';
+}
+
+function openChat() {
+  loadChatMessages();
+  document.getElementById('chat-overlay').classList.add('show');
+}
+
+function closeChat() {
+  document.getElementById('chat-overlay').classList.remove('show');
+}
+
+document.getElementById('btn-chat').addEventListener('click', openChat);
+document.getElementById('chat-close').addEventListener('click', closeChat);
+document.getElementById('btn-close-chat').addEventListener('click', closeChat);
+document.getElementById('chat-overlay').addEventListener('click', function(e) {
+  if (e.target === e.currentTarget) closeChat();
+});
+document.getElementById('chat-send').addEventListener('click', sendChatMessage);
+document.getElementById('chat-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') sendChatMessage();
+});
 </script>
+<!-- OVERLAY CHAT -->
+<div id="chat-overlay">
+  <div id="chat-card">
+    <h2>💬 CHAT ONLINE <button class="close-btn" id="chat-close">✕</button></h2>
+    <div id="chat-messages"></div>
+    <div id="chat-input-area">
+      <input type="text" id="chat-input" placeholder="Digite sua mensagem...">
+      <button id="chat-send">Enviar</button>
+    </div>
+    <button id="btn-close-chat">FECHAR</button>
+  </div>
+</div>
 </body>
 </html>
