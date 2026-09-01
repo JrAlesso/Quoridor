@@ -6,6 +6,161 @@
   <title>Quoridor</title>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+var firebaseDisponivel = false;
+var ACCOUNTS_KEY = 'quoridor_accounts_v2';
+var currentUser = null;
+
+try {
+  firebase.initializeApp({
+    apiKey: "AIzaSyBJJZtzkaUoP0swjNrN6Rt0Qm-trzsw4lM",
+    authDomain: "quoridor-online-2823d.firebaseapp.com",
+    databaseURL: "https://quoridor-online-2823d-default-rtdb.firebaseio.com",
+    projectId: "quoridor-online-2823d",
+    storageBucket: "quoridor-online-2823d.firebasestorage.app",
+    messagingSenderId: "652289533045",
+    appId: "1:652289533045:web:043558b29f02c51256443c"
+  });
+  
+  var db = firebase.firestore();
+  try { db.settings({ experimentalForceLongPolling: true, merge: true }); } catch(e) {}
+  firebaseDisponivel = true;
+} catch(e) {
+  console.log('Firebase offline:', e.message);
+  firebaseDisponivel = false;
+}
+
+function getAccounts() {
+  try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY)) || {}; } catch(e) { return {}; }
+}
+function saveAccounts(accounts) { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts)); }
+function hashPassword(pwd) {
+  var hash = 0;
+  for (var i = 0; i < pwd.length; i++) {
+    var char = pwd.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return 'h' + hash.toString(36);
+}
+function createUser(username, password) {
+  var accounts = getAccounts();
+  if (accounts[username]) return false;
+  accounts[username] = {
+    passwordHash: hashPassword(password),
+    stats: {
+      games: 0, wins: 0, losses: 0, streak: 0, maxStreak: 0,
+      level: 1, points: 0, rankPoints: 0, maxRankPoints: 0,
+      rank: 'Bronze V', history: [], totalWalls: 0, totalTurns: 0,
+      sumPointsVictories: 0, opponentEloSum: 0, opponentCount: 0,
+      xp: 0, equippedTitle: 'Recruta', ownedSkins: ['classic'],
+      equippedSkin: 'classic', localGames: 0, expertWins: 0, medals: []
+    }
+  };
+  saveAccounts(accounts);
+  return true;
+}
+function loginUser(username, password) {
+  var accounts = getAccounts();
+  if (!accounts[username]) return false;
+  if (accounts[username].passwordHash === hashPassword(password)) {
+    currentUser = username;
+    return true;
+  }
+  return false;
+}
+function getUserStats(username) {
+  var accounts = getAccounts();
+  return accounts[username] && accounts[username].stats ? accounts[username].stats : {
+    games: 0, wins: 0, losses: 0, streak: 0, maxStreak: 0,
+    level: 1, points: 0, rankPoints: 0, maxRankPoints: 0,
+    rank: 'Bronze V', history: [], totalWalls: 0, totalTurns: 0,
+    sumPointsVictories: 0, opponentEloSum: 0, opponentCount: 0,
+    xp: 0, equippedTitle: 'Recruta', ownedSkins: ['classic'],
+    equippedSkin: 'classic', localGames: 0, expertWins: 0, medals: []
+  };
+}
+function updateUserStats(username, newStats) {
+  var accounts = getAccounts();
+  if (accounts[username]) {
+    accounts[username].stats = newStats;
+    saveAccounts(accounts);
+  }
+}
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+}
+
+function goToModeScreen(username) {
+  currentUser = username;
+  var stats = getUserStats(username);
+  updateUserStats(username, stats);
+  
+  document.getElementById('user-name').textContent = username;
+  document.getElementById('user-avatar').textContent = username[0].toUpperCase();
+  document.getElementById('stat-games-mode').textContent = stats.games;
+  document.getElementById('stat-wins-mode').textContent = stats.wins;
+  document.getElementById('stat-streak').textContent = stats.streak || 0;
+  document.getElementById('user-level').textContent = 'Nível ' + (stats.level || 1);
+  updateRankDisplay(username);
+  showScreen('mode-screen');
+  
+  if (!firebaseDisponivel) {
+    var btnOnline = document.getElementById('btn-online');
+    if (btnOnline) {
+      btnOnline.style.opacity = '0.5';
+      btnOnline.addEventListener('click', function() {
+        alert('⚠️ Servidor online indisponível. Jogue offline!');
+      });
+    }
+  }
+}
+
+var loginForm = document.getElementById('login-form');
+var loginError = document.getElementById('login-error');
+var toggleLink = document.getElementById('toggle-login');
+var isLoginMode = false;
+
+toggleLink.addEventListener('click', function() {
+  isLoginMode = !isLoginMode;
+  document.getElementById('login-btn').textContent = isLoginMode ? 'ENTRAR' : 'CRIAR CONTA';
+  toggleLink.textContent = isLoginMode ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Faça login';
+  document.getElementById('login-confirm').style.display = isLoginMode ? 'none' : 'block';
+});
+
+loginForm.addEventListener('submit', function(e) {
+  e.preventDefault();
+  var username = document.getElementById('login-username').value.trim();
+  var password = document.getElementById('login-password').value;
+  var confirm = document.getElementById('login-confirm').value;
+  
+  if (!username || !password) { 
+    loginError.textContent = 'Preencha todos os campos'; 
+    return; 
+  }
+  
+  if (isLoginMode) {
+    if (loginUser(username, password)) { 
+      loginError.textContent = ''; 
+      goToModeScreen(username); 
+    }
+    else loginError.textContent = 'Usuário ou senha inválidos';
+  } else {
+    if (password !== confirm) { 
+      loginError.textContent = 'As senhas não coincidem'; 
+      return; 
+    }
+    if (createUser(username, password)) { 
+      loginUser(username, password); 
+      loginError.textContent = ''; 
+      goToModeScreen(username); 
+    }
+    else loginError.textContent = 'Usuário já existe';
+  }
+});
+</script>
+
   <style>
     /* ===== ESTILOS (completos, sem alterações) ===== */
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap');
