@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Limpar Contas</title>
+  <style>
+    body{background:#1a1410;color:#f0e6d3;font-family:Arial;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;flex-direction:column;text-align:center;padding:20px}
+    button{background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;border:none;padding:16px 32px;border-radius:14px;font-size:18px;font-weight:800;cursor:pointer;margin-top:20px}
+    .ok{color:#10b981;font-size:24px}
+  </style>
+</head>
+<body>
+  <h1>🗑️ Limpar Contas</h1>
+  <p>Isso vai apagar todas as contas salvas no seu navegador.</p>
+  <button id="btn">🔴 LIMPAR AGORA</button>
+  <div id="status"></div>
+  <script>
+    document.getElementById('btn').onclick = function() {
+      localStorage.removeItem('quoridor_accounts_v2');
+      document.getElementById('status').innerHTML = '<p class="ok">✅ Contas apagadas!</p><p><a href="https://quoridor-online-2823d.web.app" style="color:#d4a373">Voltar ao jogo</a></p>';
+      this.disabled = true;
+      this.textContent = '✅ LIMPO!';
+    };
+  </script>
+</body>
+</html>

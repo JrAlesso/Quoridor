@@ -1,170 +1,122 @@
 import re
 
-with open('index.html', 'r', encoding='utf-8') as f:
+ARQUIVO = "index.html"
+
+with open(ARQUIVO, "r", encoding="utf-8") as f:
     conteudo = f.read()
 
-# 1) hashPassword -> SHA-256
-conteudo = conteudo.replace('''function hashPassword(pwd) {
-      var hash = 0;
-      for (var i = 0; i < pwd.length; i++) {
-        var char = pwd.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash;
-      }
-      return 'h' + hash.toString(36);
-    }''', '''async function hashPassword(pwd) {
-      const msgBuffer = new TextEncoder().encode(pwd);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    }''')
+# 1. Adicionar botões de Chat e Guilda no menu (após o botão Amigos)
+padrao_botoes = re.compile(r'(<div class="modo-btn" id="btn-amigos".*?</div>)', re.DOTALL)
+novos_botoes = r'''\1
+    <div class="modo-btn" id="btn-chat"><span class="icon">💬</span><div class="info"><div class="title">Chat</div><div class="desc">Global, privado e guilda</div></div><span class="arrow">›</span></div>
+    <div class="modo-btn" id="btn-guilda"><span class="icon">🛡️</span><div class="info"><div class="title">Guilda</div><div class="desc">Em breve</div></div><span class="arrow">›</span></div>'''
+conteudo = padrao_botoes.sub(novos_botoes, conteudo, count=1)
 
-# 2) createUser e loginUser async
-conteudo = conteudo.replace('''function createUser(username, password) {
-      var accounts = getAccounts();
-      if (accounts[username]) return false;
-      accounts[username] = {
-        passwordHash: hashPassword(password),''', '''async function createUser(username, password) {
-      var accounts = getAccounts();
-      if (accounts[username]) return false;
-      accounts[username] = {
-        passwordHash: await hashPassword(password),''')
+# 2. Adicionar overlays de Chat e Guilda antes do fechamento do body
+overlays = '''
+  <div id="chat-overlay"><div id="chat-card"><h2>💬 CHAT <button class="close-btn" id="chat-close">✕</button></h2>
+    <div class="chat-tabs">
+      <button class="chat-tab active" data-tab="global">Global</button>
+      <button class="chat-tab" data-tab="privado">Privado</button>
+      <button class="chat-tab" data-tab="guilda">Guilda</button>
+      <button class="chat-tab" data-tab="info">Informação</button>
+    </div>
+    <div id="chat-content" class="chat-content">
+      <div id="chat-global" class="chat-pane active">
+        <div class="chat-messages" id="global-messages"><div class="chat-msg system">Bem-vindo ao chat global!</div></div>
+        <input type="text" id="global-input" class="chat-input" placeholder="Digite...">
+      </div>
+      <div id="chat-privado" class="chat-pane">
+        <div class="chat-messages" id="privado-messages"><div class="chat-msg system">Selecione um amigo para conversar.</div></div>
+        <input type="text" id="privado-input" class="chat-input" placeholder="Digite...">
+      </div>
+      <div id="chat-guilda" class="chat-pane">
+        <div class="chat-messages" id="guilda-messages"><div class="chat-msg system">Entre em uma guilda para conversar.</div></div>
+        <input type="text" id="guilda-input" class="chat-input" placeholder="Digite...">
+      </div>
+      <div id="chat-info" class="chat-pane">
+        <div class="chat-messages"><div class="chat-msg system">Informações do jogo, regras e avisos.</div></div>
+      </div>
+    </div>
+    <button id="btn-close-chat">FECHAR</button>
+  </div></div>
 
-conteudo = conteudo.replace('''function loginUser(username, password) {
-      var accounts = getAccounts();
-      if (!accounts[username]) return false;
-      if (accounts[username].passwordHash === hashPassword(password)) {''', '''async function loginUser(username, password) {
-      var accounts = getAccounts();
-      if (!accounts[username]) return false;
-      if (accounts[username].passwordHash === await hashPassword(password)) {''')
+  <div id="guilda-overlay"><div id="guilda-card"><h2>🛡️ GUILDA <button class="close-btn" id="guilda-close">✕</button></h2>
+    <div style="color:#b8a99a;text-align:center;padding:40px 0;">Em breve! Estamos preparando algo incrível.</div>
+    <button id="btn-close-guilda">FECHAR</button>
+  </div></div>
+'''
+conteudo = conteudo.replace('</body>', overlays + '\n</body>')
 
-# 3) listener do login async/await
-conteudo = conteudo.replace('''loginForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      var username = document.getElementById('login-username').value.trim();
-      var password = document.getElementById('login-password').value;
-      var confirm = document.getElementById('login-confirm').value;
-      if (!username || !password) { loginError.textContent = 'Preencha todos os campos'; return; }
-      if (isLoginMode) {
-        if (loginUser(username, password)) { loginError.textContent = ''; goToModeScreen(username); }
-        else loginError.textContent = 'Usuário ou senha inválidos';
-      } else {
-        if (password !== confirm) { loginError.textContent = 'As senhas não coincidem'; return; }
-        if (createUser(username, password)) { loginUser(username, password); loginError.textContent = ''; goToModeScreen(username); }
-        else loginError.textContent = 'Usuário já existe';
-      }
-    });''', '''loginForm.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      var username = document.getElementById('login-username').value.trim();
-      var password = document.getElementById('login-password').value;
-      var confirm = document.getElementById('login-confirm').value;
-      if (!username || !password) { loginError.textContent = 'Preencha todos os campos'; return; }
-      if (isLoginMode) {
-        if (await loginUser(username, password)) { loginError.textContent = ''; goToModeScreen(username); }
-        else loginError.textContent = 'Usuário ou senha inválidos';
-      } else {
-        if (password !== confirm) { loginError.textContent = 'As senhas não coincidem'; return; }
-        if (await createUser(username, password)) { await loginUser(username, password); loginError.textContent = ''; goToModeScreen(username); }
-        else loginError.textContent = 'Usuário já existe';
-      }
-    });''')
+# 3. Adicionar estilos CSS para os overlays e chat
+estilos = '''
+  #chat-overlay,#guilda-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1002;padding:20px}
+  #chat-overlay.show,#guilda-overlay.show{display:flex}
+  #chat-card,#guilda-card{background:rgba(26,20,16,0.97);border:1px solid rgba(255,215,140,0.12);border-radius:24px;padding:20px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 60px rgba(0,0,0,0.8);position:relative;z-index:2}
+  #chat-card h2,#guilda-card h2{color:#d4a373;font-size:16px;text-align:center;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+  .close-btn{background:none;border:none;color:#b8a99a;font-size:20px;cursor:pointer}
+  .chat-tabs{display:flex;gap:6px;margin-bottom:12px;justify-content:center}
+  .chat-tab{flex:1;padding:8px 4px;border:1px solid rgba(255,215,140,0.06);border-radius:10px;background:rgba(255,215,140,0.03);color:#b8a99a;font-weight:700;font-size:10px;cursor:pointer}
+  .chat-tab.active{border-color:#d4a373;color:#d4a373;background:rgba(212,163,115,0.08)}
+  .chat-content{flex:1;overflow-y:auto;margin-bottom:10px}
+  .chat-pane{display:none}
+  .chat-pane.active{display:block}
+  .chat-messages{height:200px;overflow-y:auto;background:rgba(0,0,0,0.2);border-radius:12px;padding:10px;margin-bottom:8px}
+  .chat-msg{padding:4px 8px;border-radius:8px;margin-bottom:4px;font-size:12px;color:#f0e6d3}
+  .chat-msg.system{color:#8a7a6a;text-align:center;font-style:italic}
+  .chat-input{width:100%;padding:10px;border-radius:12px;border:1px solid rgba(255,215,140,0.15);background:rgba(255,215,140,0.05);color:#f0e6d3;font-size:13px;outline:none}
+  #btn-close-chat,#btn-close-guilda{width:100%;padding:12px;border:none;border-radius:14px;background:linear-gradient(135deg,#d4a373,#b8860b);color:#1a1410;font-weight:800;font-size:13px;cursor:pointer;margin-top:4px}
+'''
+conteudo = conteudo.replace('</style>', estilos + '\n</style>')
 
-# 4) Remover bloco Firestore antigo
-conteudo = re.sub(r'// ============================================================\s*\n\s*// SALA ONLINE \(FIREBASE\).*?// ============================================================\s*\n\s*// LÓGICA DO JOGO',
-                  '// LÓGICA DO JOGO', conteudo, flags=re.DOTALL)
-
-# 5) Remover referência inexistente
-conteudo = conteudo.replace("document.getElementById('sala-id-input').value = '';\n", "")
-
-# 6) Atualizar stats no fim de partida RTDB
-conteudo = conteudo.replace('''      if (novo.status === "finalizada") {
-        if (!G.over) {
-          G.over = true;
-          if (typeof showWinOverlay==="function")
-            showWinOverlay("◈ " + (novo.vencedor||"") + " venceu!", novo.vencedor===G.p1Name?0:1);
-        }
-        return;
-      }''', '''      if (novo.status === "finalizada") {
-        if (!G.over) {
-          G.over = true;
-          var vencedor = novo.vencedor === G.p1Name ? 0 : 1;
-          // Atualizar estatísticas do usuário local
-          if (currentUser) {
-            var stats = getStats();
-            stats.games++;
-            var euVen = (vencedor === 0 && currentUser === G.p1Name) || (vencedor === 1 && currentUser === G.p2Name);
-            var pts = 0, xpGanho = 0;
-            if (euVen) {
-              stats.wins++;
-              stats.streak++;
-              stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
-              pts = calcularPontosPartida(vencedor, vencedor, 0, 0, config.rounds, currentTime, config.time, stats.streak);
-              xpGanho = calcularXP(vencedor, vencedor, 0, 0, currentTime, config.time, stats.streak);
-              stats = aplicarXP(stats, xpGanho);
-              stats.rankPoints += pts;
-              stats.rankPoints = Math.max(0, stats.rankPoints);
-              stats.maxRankPoints = Math.max(stats.maxRankPoints, stats.rankPoints);
-              stats.sumPointsVictories = (stats.sumPointsVictories || 0) + pts;
-            } else {
-              stats.losses = (stats.losses || 0) + 1;
-              stats.streak = 0;
-              pts = calcularPontosPartida(1 - vencedor, vencedor, 0, 0, config.rounds, currentTime, config.time, stats.streak);
-              stats.rankPoints += pts;
-              stats.rankPoints = Math.max(0, stats.rankPoints);
-            }
-            stats.history.unshift({date: Date.now(), mode: 'Online', result: euVen ? 'Vitória' : 'Derrota', points: pts, walls: 0, moves: 0, rounds: config.rounds, time: config.time, xp: xpGanho});
-            saveStats(stats);
-            if (typeof updateRankDisplay === "function") updateRankDisplay(currentUser);
-          }
-          if (typeof showWinOverlay==="function")
-            showWinOverlay("◈ " + (novo.vencedor||"") + " venceu!", vencedor);
-        }
-        return;
-      }''')
-
-# 7) Loop de animação otimizado
-conteudo = conteudo.replace('''      function loop() {
-      var needDraw = G.over || G.hoverNode || G.iaThinking;
-      if (!needDraw && currentUser) {
-        var eq = getStats().equippedSkin;
-        var sk = SKINS.find(function(s){ return s.id === eq; });
-        if (sk && (sk.raridade === 'lendaria' || sk.raridade === 'rara')) needDraw = true;
-      }
-      if (needDraw) draw();
-      requestAnimationFrame(loop);
-    }
-    requestAnimationFrame(loop);''', '''      var needsRender = true;
-      function loop() {
-        if (needsRender) {
-          draw();
-          needsRender = false;
-        }
-        // Re-render lento para skins lendárias/raras (a cada 100ms)
-        if (currentUser) {
-          var eq = getStats().equippedSkin;
-          var sk = SKINS.find(function(s){ return s.id === eq; });
-          if (sk && (sk.raridade === 'lendaria' || sk.raridade === 'rara')) {
-            setTimeout(function(){ needsRender = true; }, 100);
-          }
-        }
-        requestAnimationFrame(loop);
-      }
-      requestAnimationFrame(loop);''')
-
-# 8) beforeunload para encerrar sala
-conteudo += '''
-
+# 4. Adicionar JavaScript para abrir/fechar overlays e alternar abas
+script = '''
 <script>
-window.addEventListener('beforeunload', function() {
-  if (salaAtual && isOnlineMode) {
-    try {
-      firebase.database().ref("salas/" + salaAtual).update({ status: "finalizada", vencedor: "Partida encerrada" });
-    } catch(e) {}
-  }
-});
-</script>'''
+(function(){
+  function abrirChat(){ document.getElementById('chat-overlay').classList.add('show'); }
+  function fecharChat(){ document.getElementById('chat-overlay').classList.remove('show'); }
+  function abrirGuilda(){ document.getElementById('guilda-overlay').classList.add('show'); }
+  function fecharGuilda(){ document.getElementById('guilda-overlay').classList.remove('show'); }
 
-with open('index.html', 'w', encoding='utf-8') as f:
+  // Botões do menu
+  var btnChat = document.getElementById('btn-chat');
+  if(btnChat) btnChat.addEventListener('click', abrirChat);
+  var btnGuilda = document.getElementById('btn-guilda');
+  if(btnGuilda) btnGuilda.addEventListener('click', abrirGuilda);
+
+  // Fechar
+  var closeChat = document.getElementById('chat-close');
+  if(closeChat) closeChat.addEventListener('click', fecharChat);
+  var closeGuilda = document.getElementById('guilda-close');
+  if(closeGuilda) closeGuilda.addEventListener('click', fecharGuilda);
+  var btnCloseChat = document.getElementById('btn-close-chat');
+  if(btnCloseChat) btnCloseChat.addEventListener('click', fecharChat);
+  var btnCloseGuilda = document.getElementById('btn-close-guilda');
+  if(btnCloseGuilda) btnCloseGuilda.addEventListener('click', fecharGuilda);
+
+  // Fechar ao clicar fora
+  document.getElementById('chat-overlay').addEventListener('click', function(e){ if(e.target === e.currentTarget) fecharChat(); });
+  document.getElementById('guilda-overlay').addEventListener('click', function(e){ if(e.target === e.currentTarget) fecharGuilda(); });
+
+  // Abas do chat
+  var tabs = document.querySelectorAll('.chat-tab');
+  tabs.forEach(function(tab){
+    tab.addEventListener('click', function(){
+      tabs.forEach(function(t){ t.classList.remove('active'); });
+      this.classList.add('active');
+      var alvo = this.getAttribute('data-tab');
+      document.querySelectorAll('.chat-pane').forEach(function(pane){
+        pane.classList.remove('active');
+      });
+      document.getElementById('chat-' + alvo).classList.add('active');
+    });
+  });
+})();
+</script>
+'''
+conteudo = conteudo.replace('</body>', script + '\n</body>')
+
+with open(ARQUIVO, "w", encoding="utf-8") as f:
     f.write(conteudo)
 
-print("Correções aplicadas com sucesso!")
+print("Cards Chat e Guilda adicionados com sucesso!")
