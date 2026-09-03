@@ -629,6 +629,7 @@
 })();
 </script>
 <script>
+var USUARIOS_CADASTRADOS = [];
 
     // ============================================================
     // FIREBASE INIT
@@ -4009,6 +4010,82 @@
     }, 5000);
   }
 })();
+
+
+// ============================================================
+// LOGIN EM MEMÓRIA (SEM FIREBASE, SEM LOCALSTORAGE)
+// ============================================================
+function criarConta() {
+  var nickname = document.getElementById('create-username').value.trim();
+  var senha = document.getElementById('create-password').value;
+  var errorEl = document.getElementById('create-error');
+  errorEl.textContent = '';
+
+  if (nickname.length < 3) {
+    errorEl.textContent = 'Nickname deve ter no mínimo 3 caracteres.';
+    return;
+  }
+  if (senha.length < 6) {
+    errorEl.textContent = 'Senha deve ter no mínimo 6 caracteres.';
+    return;
+  }
+
+  // Verifica se nickname já existe
+  var existe = USUARIOS_CADASTRADOS.some(function(user) {
+    return user.nickname.toLowerCase() === nickname.toLowerCase();
+  });
+
+  if (existe) {
+    errorEl.textContent = 'Este nickname já está em uso!';
+    return;
+  }
+
+  // Adiciona usuário ao array
+  USUARIOS_CADASTRADOS.push({ nickname: nickname, senha: senha });
+  alert('Conta criada com sucesso! Agora faça login.');
+  document.getElementById('create-username').value = '';
+  document.getElementById('create-password').value = '';
+}
+
+function logar() {
+  var nickname = document.getElementById('login-username').value.trim();
+  var senha = document.getElementById('login-password').value;
+  var errorEl = document.getElementById('login-error');
+  errorEl.textContent = '';
+
+  // Busca usuário no array
+  var usuario = USUARIOS_CADASTRADOS.find(function(user) {
+    return user.nickname.toLowerCase() === nickname.toLowerCase();
+  });
+
+  if (!usuario) {
+    errorEl.textContent = 'Conta não encontrada.';
+    return;
+  }
+
+  if (usuario.senha !== senha) {
+    errorEl.textContent = 'Senha incorreta!';
+    return;
+  }
+
+  // Sucesso: entra no jogo
+  currentUser = usuario.nickname;
+  currentUserStats = defaultUserStats();
+  
+  // Ativa a tela de modos
+  var screens = document.querySelectorAll('.screen');
+  screens.forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById('mode-screen').classList.add('active');
+}
+
+// Função de convidado
+function jogarComoConvidado() {
+  currentUser = 'Convidado';
+  currentUserStats = defaultUserStats();
+  var screens = document.querySelectorAll('.screen');
+  screens.forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById('mode-screen').classList.add('active');
+}
 
 </script>
 </body>

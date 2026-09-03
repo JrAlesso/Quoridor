@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Auth Test</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+</head>
+<body style="font-family:sans-serif;padding:20px;background:#1a1410;color:#f0e6d3">
+<h2>Teste Firebase Auth</h2>
+<input id="u" placeholder="nick" style="display:block;margin:8px 0;padding:10px;width:90%">
+<input id="p" type="password" placeholder="senha 6+" style="display:block;margin:8px 0;padding:10px;width:90%">
+<button id="c">CRIAR</button>
+<button id="l">ENTRAR</button>
+<pre id="out" style="margin-top:16px;color:#d4a373"></pre>
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyBJJZtzkaUoP0swjNrN6Rt0Qm-trzsw4lM",
+  authDomain: "quoridor-online-2823d.firebaseapp.com",
+  projectId: "quoridor-online-2823d",
+  appId: "1:652289533045:web:043558b29f02c51256443c"
+});
+function email(n){
+  n=n.trim().toLowerCase(); var h='';
+  for(var i=0;i<n.length;i++) h+=n.charCodeAt(i).toString(16);
+  return 'u'+h+'@quoridor-online-2823d.firebaseapp.com';
+}
+function show(x){ document.getElementById('out').textContent = x; }
+document.getElementById('c').onclick = async function(){
+  var n=document.getElementById('u').value, p=document.getElementById('p').value;
+  show('Criando...');
+  try {
+    var r = await firebase.auth().createUserWithEmailAndPassword(email(n), p);
+    show('OK CRIAR uid=' + r.user.uid);
+  } catch(e){ show('ERRO CRIAR: ' + e.code + '\n' + e.message); }
+};
+document.getElementById('l').onclick = async function(){
+  var n=document.getElementById('u').value, p=document.getElementById('p').value;
+  show('Entrando...');
+  try {
+    var r = await firebase.auth().signInWithEmailAndPassword(email(n), p);
+    show('OK ENTRAR uid=' + r.user.uid);
+  } catch(e){ show('ERRO ENTRAR: ' + e.code + '\n' + e.message); }
+};
+</script>
+</body>
+</html>
