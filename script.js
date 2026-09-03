@@ -2618,7 +2618,7 @@
       }
       var centerDist = Math.abs(playerCol - 4) + Math.abs(playerRow - 4);
       centerPenalty += Math.max(0, 8 - centerDist) * 80;
-      var blockadeBonus = mob1 <= 2 ? 400 : mob1 <= 3 ? 200 : 0;
+      var blockadeBonus = mob1 <= 1 ? 800 : mob1 <= 2 ? 500 : mob1 <= 3 ? 250 : 50;
       var wallAdvantage = (walls[1] - walls[0]) * 45;
       var progressPenalty = pos[0][0] * 25;
       var progressBonus = (8 - pos[1][0]) * 20;
@@ -2631,7 +2631,7 @@
       var opp = 1 - iaIdx;
       var or = pos[opp][0], oc = pos[opp][1];
       var playerCenter = (or >= 2 && or <= 6 && oc >= 2 && oc <= 6);
-      var minGain = playerCenter ? 1 : 2;
+      var minGain = playerCenter ? 1 : 1;
       for (var r = 0; r < N - 1; r++) {
         for (var c = 0; c < N - 1; c++) {
           if (canPlaceIA(r, c, 'H', pH, pV, walls[iaIdx], pos)) {
@@ -2691,7 +2691,7 @@
       return bestVal;
     }
     function iaJogarExpert() {
-      var cfg = {depth: 14, mistakes: 0, wallLimit: 500, timeLimit: 3500};
+      var cfg = {depth: 18, mistakes: 0, wallLimit: 800, timeLimit: 1000};
       var iaIdx = 1;
       var pos = G.pos.map(function(p){ return p.slice(); });
       var pH = G.pH.slice(), pV = G.pV.slice(), walls = G.walls.slice();
@@ -2762,7 +2762,7 @@
         case 'facil': return {depth:1, wallChance:0.15, mistakes:0.45, wallLimit:6, timeLimit:200};
         case 'medio': return {depth:3, wallChance:0.35, mistakes:0.15, wallLimit:12, timeLimit:500};
         case 'dificil': return {depth:4, wallChance:0.55, mistakes:0.05, wallLimit:18, timeLimit:800};
-        case 'expert': return {depth:14, wallChance:1.0, mistakes:0.0, wallLimit:500, timeLimit:3500};
+        case 'expert': return {depth:18, wallChance:1.0, mistakes:0.0, wallLimit:800, timeLimit:1000};
         default: return {depth:2, wallChance:0.35, mistakes:0.15, wallLimit:12, timeLimit:400};
       }
     }
@@ -3121,7 +3121,7 @@
     function scheduleIA() {
       if (G.iaThinking || G.over || !gameActive || matchFinished) return;
       setIAThinking(true);
-      var delay = 1600 + (G.nivelIA === 'facil' ? 0 : G.nivelIA === 'medio' ? 400 : G.nivelIA === 'dificil' ? 800 : 1300);
+      var delay = 200 + (G.nivelIA === 'facil' ? 0 : G.nivelIA === 'medio' ? 150 : G.nivelIA === 'dificil' ? 300 : 150);
       setTimeout(function() {
         if (G.over || G.turn !== 1 || !gameActive || matchFinished) { setIAThinking(false); return; }
         var act = iaJogar(); setIAThinking(false);
