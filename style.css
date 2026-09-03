@@ -462,3 +462,30 @@
   background: rgba(233, 69, 96, 0.22);
 }
 #btn-close-profile { margin-top: 8px; }
+
+
+
+
+
+/* SAIR discreto no perfil */
+#btn-logout{
+  width:auto!important;
+  min-width:0!important;
+  padding:6px 12px!important;
+  margin:10px auto 0!important;
+  display:block!important;
+  border:1px solid rgba(233,69,96,0.25)!important;
+  border-radius:8px!important;
+  background:transparent!important;
+  color:rgba(233,69,96,0.75)!important;
+  font-weight:600!important;
+  font-size:11px!important;
+  letter-spacing:0.3px!important;
+  box-shadow:none!important;
+  opacity:0.85;
+}
+#btn-logout:hover{
+  background:rgba(233,69,96,0.1)!important;
+  opacity:1;
+}
+#btn-close-profile{margin-top:10px;}

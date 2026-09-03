@@ -3676,3 +3676,250 @@ function loop() {
     }, 5000);
   }
 })();
+
+/* ===== ONLINE_SALAS_FIX_V1 ===== */
+(function () {
+  if (typeof firebase === "undefined" || !firebase.firestore) {
+    console.error("ONLINE_SALAS: Firestore ausente");
+    return;
+  }
+  var dbRef = (typeof db !== "undefined" && db) ? db : firebase.firestore();
+  var salasUnsub = null;
+
+  function nick() {
+    try {
+      if (typeof currentUser === "string" && currentUser) return currentUser;
+      if (window.currentUser) return window.currentUser;
+    } catch (e) {}
+    return "Jogador";
+  }
+
+  function uid() {
+    try {
+      var u = firebase.auth().currentUser;
+      if (u) return u.uid;
+    } catch (e) {}
+    return "anon_" + Date.now();
+  }
+
+  function statusEl() {
+    return document.getElementById("sala-status");
+  }
+  function setStatus(t) {
+    var el = statusEl();
+    if (el) el.textContent = t;
+  }
+
+  function abrirSalaOverlay() {
+    var ov = document.getElementById("sala-overlay");
+    if (ov) ov.classList.add("show");
+    listarSalas();
+  }
+
+  function fecharSalaOverlay() {
+    var ov = document.getElementById("sala-overlay");
+    if (ov) ov.classList.remove("show");
+    if (salasUnsub) {
+      try { salasUnsub(); } catch (e) {}
+      salasUnsub = null;
+    }
+  }
+
+  /* Cria sala aberta — visível para todos */
+  window.criarSalaOnlineV1 = async function () {
+    var nomePartida = (document.getElementById("sala-nome-input") || {}).value || "";
+    var senha = (document.getElementById("sala-senha-input") || {}).value || "";
+    nomePartida = String(nomePartida).trim() || (nick() + " vs ?");
+    senha = String(senha).trim();
+
+    if (!nick() || nick() === "Jogador") {
+      setStatus("Faça login antes de criar sala.");
+      return;
+    }
+
+    setStatus("Criando sala...");
+    try {
+      var doc = {
+        nome: nomePartida,
+        host: nick(),
+        hostId: uid(),
+        senha: senha || null,
+        status: "aberta",
+        jogadores: [nick()],
+        maxJogadores: 2,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: Date.now()
+      };
+      var ref = await dbRef.collection("salas_abertas").add(doc);
+      setStatus("Sala criada! ID: " + ref.id + " — aguardando oponente...");
+      if (typeof salaAtual !== "undefined") salaAtual = ref.id;
+      window.salaAtualId = ref.id;
+      window.isOnlineHost = true;
+      listarSalas();
+
+      /* escuta quando alguém entrar */
+      ref.onSnapshot(function (snap) {
+        if (!snap.exists) return;
+        var d = snap.data() || {};
+        if (d.status === "cheia" || (d.jogadores && d.jogadores.length >= 2)) {
+          setStatus("Oponente conectou! Iniciando...");
+          if (typeof iniciarPartidaOnline === "function") {
+            try { iniciarPartidaOnline(ref.id, d); } catch (e) { console.warn(e); }
+          } else {
+            alert("Oponente entrou na sala " + (d.nome || ref.id));
+          }
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      setStatus("Erro ao criar: " + (err.message || err));
+    }
+  };
+
+  /* Lista em tempo real todas as salas abertas */
+  function listarSalas() {
+    var lista = document.getElementById("sala-lista");
+    if (!lista) return;
+    if (salasUnsub) {
+      try { salasUnsub(); } catch (e) {}
+      salasUnsub = null;
+    }
+    setStatus("Carregando salas...");
+    salasUnsub = dbRef.collection("salas_abertas")
+      .where("status", "==", "aberta")
+      .onSnapshot(function (snap) {
+        lista.innerHTML = "";
+        if (snap.empty) {
+          setStatus("Nenhuma sala aberta. Crie uma!");
+          return;
+        }
+        setStatus(snap.size + " sala(s) aberta(s)");
+        snap.forEach(function (doc) {
+          var d = doc.data() || {};
+          var id = doc.id;
+          var item = document.createElement("div");
+          item.className = "sala-item";
+          item.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid rgba(255,215,140,0.06);font-size:12px;gap:8px";
+          var left = document.createElement("div");
+          left.innerHTML = "<div class='sala-nome' style='color:#f0e6d3;font-weight:700'>" +
+            (d.nome || "Sala") + "</div><div class='sala-jogadores' style='color:#b8a99a'>" +
+            (d.host || "?") + " · " + ((d.jogadores && d.jogadores.length) || 1) + "/2" +
+            (d.senha ? " · 🔒" : "") + "</div>";
+          var btn = document.createElement("button");
+          btn.className = "sala-btn";
+          btn.textContent = "ACEITAR";
+          btn.style.cssText = "background:rgba(212,163,115,0.15);border:1px solid #d4a373;color:#d4a373;border-radius:8px;padding:6px 12px;font-size:10px;font-weight:700;cursor:pointer";
+          btn.onclick = function () { aceitarSala(id, d); };
+          item.appendChild(left);
+          item.appendChild(btn);
+          lista.appendChild(item);
+        });
+      }, function (err) {
+        console.error(err);
+        setStatus("Erro lista: " + (err.message || err));
+      });
+  }
+  window.listarSalasAbertas = listarSalas;
+
+  async function aceitarSala(salaId, data) {
+    if (!nick() || nick() === "Jogador") {
+      setStatus("Faça login para entrar.");
+      return;
+    }
+    if (data && data.host === nick()) {
+      setStatus("Você é o dono desta sala.");
+      return;
+    }
+    if (data && data.senha) {
+      var s = prompt("Senha da sala:");
+      if (s !== data.senha) {
+        setStatus("Senha incorreta.");
+        return;
+      }
+    }
+    setStatus("Entrando...");
+    try {
+      var ref = dbRef.collection("salas_abertas").doc(salaId);
+      await dbRef.runTransaction(async function (tx) {
+        var snap = await tx.get(ref);
+        if (!snap.exists) throw new Error("Sala sumiu");
+        var d = snap.data();
+        if (d.status !== "aberta") throw new Error("Sala já fechada");
+        var jogs = d.jogadores || [];
+        if (jogs.indexOf(nick()) >= 0) return;
+        if (jogs.length >= 2) throw new Error("Sala cheia");
+        jogs.push(nick());
+        tx.update(ref, {
+          jogadores: jogs,
+          status: jogs.length >= 2 ? "cheia" : "aberta",
+          guest: nick(),
+          guestId: uid(),
+          updatedAt: Date.now()
+        });
+      });
+      window.salaAtualId = salaId;
+      window.isOnlineHost = false;
+      setStatus("Entrou! Aguardando início...");
+      if (typeof iniciarPartidaOnline === "function") {
+        try {
+          var snap2 = await ref.get();
+          iniciarPartidaOnline(salaId, snap2.data());
+        } catch (e) { console.warn(e); }
+      } else {
+        alert("Você entrou na sala. Disputa pronta.");
+      }
+      fecharSalaOverlay();
+    } catch (err) {
+      console.error(err);
+      setStatus("Erro: " + (err.message || err));
+    }
+  }
+  window.aceitarSalaOnline = aceitarSala;
+
+  function bindUI() {
+    var btnOnline = document.getElementById("btn-online");
+    if (btnOnline) {
+      btnOnline.onclick = function () {
+        if (!nick() || nick() === "Jogador") {
+          alert("Faça login primeiro.");
+          return;
+        }
+        abrirSalaOverlay();
+      };
+    }
+    var btnCriar = document.getElementById("btn-criar-sala");
+    if (btnCriar) {
+      btnCriar.onclick = function (e) {
+        e.preventDefault();
+        window.criarSalaOnlineV1();
+      };
+    }
+    var btnId = document.getElementById("btn-entrar-id");
+    if (btnId) {
+      btnId.onclick = async function () {
+        var id = ((document.getElementById("sala-id-input") || {}).value || "").trim();
+        if (!id) { setStatus("Informe o ID da sala"); return; }
+        try {
+          var snap = await dbRef.collection("salas_abertas").doc(id).get();
+          if (!snap.exists) { setStatus("Sala não encontrada"); return; }
+          aceitarSala(id, snap.data());
+        } catch (err) {
+          setStatus("Erro: " + (err.message || err));
+        }
+      };
+    }
+    var sc = document.getElementById("sala-close");
+    if (sc) sc.onclick = fecharSalaOverlay;
+    var bcs = document.getElementById("btn-close-sala");
+    if (bcs) bcs.onclick = fecharSalaOverlay;
+    console.log("ONLINE_SALAS_FIX_V1 ativo");
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindUI);
+  } else {
+    bindUI();
+  }
+  window.addEventListener("load", function () { setTimeout(bindUI, 100); });
+})();
+
