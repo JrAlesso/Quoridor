@@ -3410,15 +3410,6 @@ function getAccounts() {
     document.getElementById('btn-trofeus').addEventListener('click', function(){ alert('Troféus em breve!'); });
     document.getElementById('btn-amigos').addEventListener('click', function(){ alert('Amigos em breve!'); });
     document.getElementById('btn-skins').addEventListener('click', openSkins);
-    document.getElementById('btn-claim').addEventListener('click', function() {
-      alert('Recompensa coletada! +200 pontos');
-      var stats = getUserStats(currentUser);
-      stats.points = (stats.points || 0) + 200;
-      updateUserStats(currentUser, stats);
-      document.getElementById('btn-claim').textContent = '✓ Coletado';
-      document.getElementById('btn-claim').disabled = true;
-      document.getElementById('btn-claim').style.opacity = '0.6';
-    });
     document.getElementById('titles-close').addEventListener('click', closeTitles);
     document.getElementById('btn-close-titles').addEventListener('click', closeTitles);
     document.getElementById('titles-overlay').addEventListener('click', function(e){ if (e.target === e.currentTarget) closeTitles(); });
