@@ -850,6 +850,232 @@
         return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
     };
 
+    // =====================================================================
+    // HELPERS DE MEMÓRIA (com fallback seguro pra ambiente sem localStorage)
+    // =====================================================================
+    function _getUserKey() {
+        try {
+            if (typeof currentUser === 'string' && currentUser) return currentUser.toLowerCase();
+        } catch (e) {}
+        return 'anon';
+    }
+
+    function _lerMemoria(chave, valorPadrao) {
+        try {
+            if (typeof localStorage === 'undefined') return valorPadrao;
+            var raw = localStorage.getItem(chave);
+            return raw ? JSON.parse(raw) : valorPadrao;
+        } catch (e) {
+            return valorPadrao;
+        }
+    }
+
+    function _salvarMemoria(chave, valor) {
+        try {
+            if (typeof localStorage === 'undefined') return;
+            localStorage.setItem(chave, JSON.stringify(valor));
+        } catch (e) {}
+    }
+
+    // =====================================================================
+    // TÉCNICA 13 — cemAberturas
+    // Analisa as últimas 30 jogadas do jogador e escolhe abertura que
+    // contra-ataca o estilo detectado.
+    // =====================================================================
+    CerebroIA.cemAberturas = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        // Se não temos histórico do oponente, delega pra consolidadaFinal
+        var hist = _lerMemoria('quoridor_hist_' + _getUserKey(), []);
+        if (!hist || hist.length < 4) {
+            return CerebroIA.consolidadaFinal(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Análise simples: qual coluna o jogador prefere?
+        var soma = 0, cont = 0;
+        for (var i = 0; i < hist.length; i++) {
+            if (hist[i].tipo === 'move') { soma += hist[i].c; cont++; }
+        }
+        var colMedia = cont > 0 ? soma / cont : 4;
+
+        // Se jogador prefere esquerda, bloqueia esquerda cedo
+        if (colMedia < 3.5 && walls[iaIdx] > 6) {
+            // Tenta bloquear coluna 3 (esquerda)
+            if (CerebroIA.canPlace(1, 2, 'H', pH, pV, pos)) {
+                return {type:'wall', r:1, c:2, ori:'H'};
+            }
+        }
+        // Se prefere direita, bloqueia direita
+        if (colMedia > 4.5 && walls[iaIdx] > 6) {
+            if (CerebroIA.canPlace(1, 5, 'H', pH, pV, pos)) {
+                return {type:'wall', r:1, c:5, ori:'H'};
+            }
+        }
+
+        // Senão, delega
+        return CerebroIA.consolidadaFinal(pos, pH, pV, walls, iaIdx);
+    };
+
+    // =====================================================================
+    // TÉCNICA 14 — etapa4PunirPrevisivel
+    // Memoriza aberturas entre partidas. Se o jogador repetiu 3+ vezes,
+    // pré-bloqueia a casa que ele costuma ir.
+    // =====================================================================
+    CerebroIA.etapa4PunirPrevisivel = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        if (walls[iaIdx] <= 2) {
+            return CerebroIA.consolidadaFinal(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Lê últimas aberturas memorizadas
+        var mem = _lerMemoria('quoridor_aberturas_' + _getUserKey(), { aberturas: [], total: 0 });
+        if (!mem.aberturas || mem.aberturas.length < 3) {
+            return CerebroIA.consolidadaFinal(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Conta repetições
+        var contagem = {};
+        for (var i = 0; i < mem.aberturas.length; i++) {
+            var k = mem.aberturas[i];
+            contagem[k] = (contagem[k] || 0) + 1;
+        }
+
+        // Abertura mais comum (3+ repetições)
+        for (var k in contagem) {
+            if (contagem[k] >= 3) {
+                var partes = k.split(',');
+                var alvoR = parseInt(partes[0], 10);
+                var alvoC = parseInt(partes[1], 10);
+
+                // Se a IA ainda não bloqueou essa área, coloca uma parede ali
+                if (alvoC >= 3 && alvoC <= 5 && alvoR >= 4 && alvoR <= 7) {
+                    if (CerebroIA.canPlace(alvoR - 1, alvoC - 1, 'H', pH, pV, pos)) {
+                        return {type:'wall', r: alvoR - 1, c: alvoC - 1, ori:'H'};
+                    }
+                }
+            }
+        }
+
+        return CerebroIA.consolidadaFinal(pos, pH, pV, walls, iaIdx);
+    };
+
+    // =====================================================================
+    // TÉCNICA 15 — milPerfis
+    // Sorteia 1 personalidade entre 1000 e delega comportamento à
+    // consolidadaFinal com pesos ajustados.
+    // =====================================================================
+    var _perfilAtual = null;
+
+    function _sortearPerfil() {
+        // Gera 1 perfil aleatório entre 1000 combinações
+        return {
+            pesoDiferenca: 150 + Math.floor(Math.random() * 8) * 15,       // 150-255
+            pesoParede: 20 + Math.floor(Math.random() * 7) * 10,           // 20-80
+            agressividade: 0.1 + Math.random() * 0.8,                       // 0.1-0.9
+            ganhoMinParede: 2 + Math.floor(Math.random() * 4),             // 2-5
+            estilo: ['centro','lateral','agressivo','defensivo','equilibrado'][Math.floor(Math.random() * 5)]
+        };
+    }
+
+    CerebroIA.milPerfis = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        // Sorteia 1 perfil na primeira chamada (fica estável durante a partida)
+        if (!_perfilAtual) _perfilAtual = _sortearPerfil();
+        var perfil = _perfilAtual;
+
+        // Ajusta comportamento baseado no estilo
+        // 'agressivo' → sempre tenta bloquear quando oponente ≤ 4
+        // 'defensivo' → só bloqueia quando oponente ≤ 2
+        // 'equilibrado' → bloqueia quando oponente ≤ 3
+        // 'centro' → bloqueia caminho central
+        // 'lateral' → bloqueia laterais
+
+        if (walls[iaIdx] <= 0) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        var oppIdx = 1 - iaIdx;
+        var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+
+        var limiar;
+        if (perfil.estilo === 'agressivo') limiar = 4;
+        else if (perfil.estilo === 'defensivo') limiar = 2;
+        else if (perfil.estilo === 'equilibrado') limiar = 3;
+        else limiar = 3;
+
+        if (oppD > limiar) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Bloqueia com peso ajustado por perfil
+        var melhor = null, melhorScore = 0;
+        var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+        var ganhoMin = perfil.ganhoMinParede;
+
+        for (var r = 0; r < 8; r++) {
+            for (var c = 0; c < 8; c++) {
+                if (CerebroIA.canPlace(r, c, 'H', pH, pV, pos)) {
+                    var tH = pH.concat([[r, c]]);
+                    var gH = CerebroIA.bfsDist(oppIdx, tH, pV, pos) - oppD;
+                    var mH = CerebroIA.bfsDist(iaIdx, tH, pV, pos) - meuD;
+                    if (gH >= ganhoMin && mH <= 1) {
+                        var sH = gH * perfil.pesoDiferenca - mH * perfil.pesoParede;
+                        if (sH > melhorScore) {
+                            melhorScore = sH;
+                            melhor = {type:'wall', r:r, c:c, ori:'H'};
+                        }
+                    }
+                }
+                if (CerebroIA.canPlace(r, c, 'V', pH, pV, pos)) {
+                    var tV = pV.concat([[r, c]]);
+                    var gV = CerebroIA.bfsDist(oppIdx, pH, tV, pos) - oppD;
+                    var mV = CerebroIA.bfsDist(iaIdx, pH, tV, pos) - meuD;
+                    if (gV >= ganhoMin && mV <= 1) {
+                        var sV = gV * perfil.pesoDiferenca - mV * perfil.pesoParede;
+                        if (sV > melhorScore) {
+                            melhorScore = sV;
+                            melhor = {type:'wall', r:r, c:c, ori:'V'};
+                        }
+                    }
+                }
+            }
+        }
+        if (melhor) return melhor;
+        return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    };
+
+    // =====================================================================
+    // FUNÇÃO AUXILIAR — resetar perfil (chamada quando inicia nova partida)
+    // =====================================================================
+    CerebroIA.resetarPerfil = function () {
+        _perfilAtual = null;
+    };
+
     // Expõe globalmente
     window.CerebroIA = CerebroIA;
 

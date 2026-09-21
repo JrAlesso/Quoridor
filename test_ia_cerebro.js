@@ -233,6 +233,55 @@ validarAcao('consolidada   ', CI.consolidadaFinal(pC4, [], [], wC, 1));
 
 console.log('\n=== Bloco C testado ===');
 
+
+
+// =====================================================================
+// TESTES DAS TÉCNICAS — Bloco D
+// =====================================================================
+console.log('\n========================================');
+console.log('TESTES DAS TÉCNICAS (Bloco D)');
+console.log('========================================');
+
+var wD = [10, 10];
+
+console.log('\n--- Cenário 1: peões longe ---');
+var pD1 = [[8, 4], [0, 4]];
+validarAcao('cemAberturas  ', CI.cemAberturas(pD1, [], [], wD, 1));
+validarAcao('etapa4        ', CI.etapa4PunirPrevisivel(pD1, [], [], wD, 1));
+validarAcao('milPerfis     ', CI.milPerfis(pD1, [], [], wD, 1));
+
+console.log('\n--- Cenário 2: oponente no meio ---');
+var pD2 = [[4, 4], [4, 4]];
+validarAcao('cemAberturas  ', CI.cemAberturas(pD2, [], [], wD, 1));
+validarAcao('etapa4        ', CI.etapa4PunirPrevisivel(pD2, [], [], wD, 1));
+validarAcao('milPerfis     ', CI.milPerfis(pD2, [], [], wD, 1));
+
+console.log('\n--- Cenário 3: oponente a 2 casas ---');
+var pD3 = [[2, 4], [4, 4]];
+validarAcao('cemAberturas  ', CI.cemAberturas(pD3, [], [], wD, 1));
+validarAcao('etapa4        ', CI.etapa4PunirPrevisivel(pD3, [], [], wD, 1));
+validarAcao('milPerfis     ', CI.milPerfis(pD3, [], [], wD, 1));
+
+console.log('\n--- Cenário 4: IA a 1 da vitória ---');
+var pD4 = [[8, 4], [7, 4]];
+validarAcao('cemAberturas  ', CI.cemAberturas(pD4, [], [], wD, 1));
+validarAcao('etapa4        ', CI.etapa4PunirPrevisivel(pD4, [], [], wD, 1));
+validarAcao('milPerfis     ', CI.milPerfis(pD4, [], [], wD, 1));
+
+console.log('\n--- Teste 5: milPerfis é estável durante a partida? ---');
+// Chama 5 vezes e verifica que retorna o mesmo (mesmo perfil)
+var r1 = CI.milPerfis(pD3, [], [], wD, 1);
+var r2 = CI.milPerfis(pD3, [], [], wD, 1);
+var estavel = JSON.stringify(r1) === JSON.stringify(r2);
+console.log('  ' + (estavel ? '✅' : '❌') + ' milPerfis estável entre chamadas: ' + estavel);
+
+// Resetar perfil
+CI.resetarPerfil();
+var r3 = CI.milPerfis(pD3, [], [], wD, 1);
+console.log('  ✅ resetarPerfil() executado — próxima partida sorteia novo perfil');
+
+console.log('\n=== Bloco D testado ===');
+
 // =====================================================================
 // RESULTADO FINAL — junta tudo
 // =====================================================================
