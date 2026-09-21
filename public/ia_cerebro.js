@@ -1243,6 +1243,8 @@
         _personalidades[1] = _sortearPersonalidade();
         _historicoEstados = [[], []];
         // NÃO apaga memória de padrões (persiste entre partidas — é o objetivo)
+        try { if (typeof _resetHeuristicas === 'function') _resetHeuristicas(); } catch(e) {}
+        try { if (typeof CerebroIA._resetAbertura === 'function') CerebroIA._resetAbertura(); } catch(e) {}
         return _personalidades;
     };
 
@@ -1282,6 +1284,11 @@
         if (CerebroIA.canWinNext(oppIdx, pH, pV, pos)) return 'emergencia';
 
         var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+        var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+
+        // F.8 — Nova fase: se estou claramente na frente (3+ casas), corre
+        if (meuD + 3 < oppD) return 'vantagem';
+
         var personalidade = CerebroIA.getPersonalidade(iaIdx);
 
         // ---- Limiares por personalidade ----
@@ -1290,18 +1297,18 @@
         // Equilibrado: padrão (a 3)
         // Adaptativo: entre agressivo e defensivo, depende das paredes
         // Calculista: sempre escolhe técnica mais forte disponível
-        var limiarPerigo = 3;
-        var limiarMeio = 6;
+        // F.8b — Bloqueio SUPER TARDIO
+        var limiarPerigo = 2;   // só a 2 da vitória
+        var limiarMeio = 3;     // só a 3 (era 4)
 
-        if (personalidade === 'agressivo') { limiarPerigo = 4; limiarMeio = 7; }
-        else if (personalidade === 'defensivo') { limiarPerigo = 2; limiarMeio = 4; }
+        if (personalidade === 'agressivo') { limiarPerigo = 2; limiarMeio = 4; }
+        else if (personalidade === 'defensivo') { limiarPerigo = 1; limiarMeio = 2; }
         else if (personalidade === 'adaptativo') {
-            // Se tem muitas paredes (>7), é agressivo. Se poucas (<4), defensivo.
-            limiarPerigo = walls[iaIdx] > 7 ? 4 : (walls[iaIdx] < 4 ? 2 : 3);
-            limiarMeio = limiarPerigo + 3;
+            limiarPerigo = 2;
+            limiarMeio = 3;
         } else if (personalidade === 'calculista') {
-            limiarPerigo = 3;
-            limiarMeio = 5;  // entra em modo "ação" mais cedo
+            limiarPerigo = 2;
+            limiarMeio = 3;
         }
 
         if (oppD <= limiarPerigo) return 'perigo';
@@ -1318,11 +1325,12 @@
             switch (fase) {
                 case 'vitoria':    return 'gps';
                 case 'endgame':    return 'etapa1FimDeJogo';
-                case 'emergencia': return 'memoriaParedes';
-                case 'perigo':     return 'memoriaParedes';
-                case 'meio':       return 'minimax';
-                case 'tranquilo':  return 'minimax';  // calculista sempre pensa
-                default:           return 'minimax';
+                case 'vantagem':   return 'gps';
+                case 'emergencia': return 'cercoEstrategico';
+                case 'perigo':     return 'cercoEstrategico';
+                case 'meio':       return 'cercoEstrategico';
+                case 'tranquilo':  return 'gps';
+                default:           return 'cercoEstrategico';
             }
         }
 
@@ -1331,11 +1339,12 @@
             switch (fase) {
                 case 'vitoria':    return 'gps';
                 case 'endgame':    return 'etapa1FimDeJogo';
-                case 'emergencia': return 'memoriaParedes';
-                case 'perigo':     return 'memoriaParedes';
-                case 'meio':       return 'etapa2BloqueioDuplo';
-                case 'tranquilo':  return 'etapa3Gargalo';
-                default:           return 'minimax';
+                case 'vantagem':   return 'gps';
+                case 'emergencia': return 'cercoEstrategico';
+                case 'perigo':     return 'cercoEstrategico';
+                case 'meio':       return 'cercoEstrategico';
+                case 'tranquilo':  return 'gps';
+                default:           return 'cercoEstrategico';
             }
         }
 
@@ -1344,23 +1353,25 @@
             switch (fase) {
                 case 'vitoria':    return 'gps';
                 case 'endgame':    return 'etapa1FimDeJogo';
-                case 'emergencia': return 'consolidadaFinal';
-                case 'perigo':     return 'antiBrecha';
+                case 'vantagem':   return 'gps';
+                case 'emergencia': return 'cercoEstrategico';
+                case 'perigo':     return 'cercoEstrategico';
                 case 'meio':       return 'gps';
                 case 'tranquilo':  return 'gps';
                 default:           return 'gps';
             }
         }
 
-        // Adaptativo e Equilibrado: padrão (com minimax nas fases críticas)
+        // Adaptativo e Equilibrado: padrão
         switch (fase) {
             case 'vitoria':    return 'gps';
+            case 'vantagem':   return 'gps';
             case 'endgame':    return 'etapa1FimDeJogo';
-            case 'emergencia': return 'memoriaParedes';
-            case 'perigo':     return 'memoriaParedes';
-            case 'meio':       return 'minimax';
+            case 'emergencia': return 'cercoEstrategico';
+            case 'perigo':     return 'cercoEstrategico';
+            case 'meio':       return 'cercoEstrategico';
             case 'tranquilo':  return 'gps';
-            default:           return 'minimax';
+            default:           return 'cercoEstrategico';
         }
     };
 
@@ -1381,6 +1392,12 @@
 
     // ---- Função principal ----
     CerebroIA.jogar = function (pos, pH, pV, walls, iaIdx) {
+        // F.7 — Tenta usar livro de aberturas primeiro (primeiros 3 turnos)
+        if (typeof CerebroIA._usarAbertura === 'function') {
+            var acaoAbertura = CerebroIA._usarAbertura(pos, pH, pV, walls, iaIdx);
+            if (acaoAbertura) return acaoAbertura;
+        }
+
         var fase = CerebroIA._detectarFase(pos, pH, pV, walls, iaIdx);
         var tecnica = CerebroIA.qualTecnica(fase, iaIdx);
 
@@ -1391,7 +1408,10 @@
         }
 
         var acao = null;
-        if (typeof CerebroIA[tecnica] === 'function') {
+        if (tecnica === 'minimax' && typeof CerebroIA.minimaxComVariacao === 'function') {
+            // Fase tranquila/meio → variação. Perigo/emergência → determinístico.
+            acao = CerebroIA.minimaxComVariacao(pos, pH, pV, walls, iaIdx, fase);
+        } else if (typeof CerebroIA[tecnica] === 'function') {
             acao = CerebroIA[tecnica](pos, pH, pV, walls, iaIdx);
         }
         if (!acao) acao = CerebroIA.gps(pos, pH, pV, walls, iaIdx);
@@ -1409,7 +1429,9 @@
         }
 
         var acao = null;
-        if (typeof CerebroIA[tecnica] === 'function') {
+        if (tecnica === 'minimax' && typeof CerebroIA.minimaxComVariacao === 'function') {
+            acao = CerebroIA.minimaxComVariacao(pos, pH, pV, walls, iaIdx, fase);
+        } else if (typeof CerebroIA[tecnica] === 'function') {
             acao = CerebroIA[tecnica](pos, pH, pV, walls, iaIdx);
         }
         if (!acao) acao = CerebroIA.gps(pos, pH, pV, walls, iaIdx);
@@ -1624,33 +1646,28 @@
         var oppIdx = 1 - iaIdx;
         var WIN = getWIN();
 
-        // Vitória/derrota imediata
         if (pos[iaIdx][0] === WIN[iaIdx]) return 1000000;
         if (pos[oppIdx][0] === WIN[oppIdx]) return -1000000;
 
         var dMeu = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
         var dOpp = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
 
-        // Componentes principais
-        var diff = dOpp - dMeu;                     // positivo = bom pra mim
-        var score = diff * 100;                     // peso alto pra diferença
+        // F.8b — AVALIAÇÃO SUPER AGRESSIVA
+        // Avançar eu mesma vale 250/casa. Atrasar oponente vale 30/casa.
+        // Ou seja: 8x mais importante avançar do que atrasar.
+        var score = (dOpp * 30) - (dMeu * 250);
 
-        // Mobilidade (rotas alternativas)
-        var infoMeu = CerebroIA._contarRotas(iaIdx, pH, pV, pos, 8);
-        var infoOpp = CerebroIA._contarRotas(oppIdx, pH, pV, pos, 8);
-        score += (infoMeu.rotas - infoOpp.rotas) * 15;
+        // Peso forte pra economizar paredes (ter parede = bom, gastar = ruim)
+        score += (walls[iaIdx] - walls[oppIdx]) * 60;
 
-        // Vantagem de paredes
-        score += (walls[iaIdx] - walls[oppIdx]) * 25;
-
-        // Progresso (linhas avançadas)
+        // Progresso (ataque puro)
         var progMeu = iaIdx === 0 ? (8 - pos[iaIdx][0]) : pos[iaIdx][0];
         var progOpp = oppIdx === 0 ? (8 - pos[oppIdx][0]) : pos[oppIdx][0];
-        score += (progMeu - progOpp) * 30;
+        score += (progMeu - progOpp) * 60;
 
-        // Ameaças próximas
-        if (dOpp <= 2) score -= (3 - dOpp) * 400;
-        if (dMeu <= 2) score += (3 - dMeu) * 400;
+        // Ameaças (só quando oponente está a 2 ou menos)
+        if (dOpp <= 2) score -= (3 - dOpp) * 600;
+        if (dMeu <= 2) score += (3 - dMeu) * 1200;
 
         return score;
     }
@@ -1692,70 +1709,148 @@
         return acoes;
     }
 
-    // Minimax com alpha-beta
-    function _minimax(pos, pH, pV, walls, depth, alpha, beta, maximizando, iaIdx) {
-        // GUARDIÃO DE TEMPO: se passou do limite, retorna avaliação simples
-        if (_nosVisitados > 5000) {
-            return _avaliarPos(pos, pH, pV, walls, iaIdx);
+    // =====================================================================
+    // F.5 — MINIMAX OTIMIZADO (PVS + LMR + Killer + History + Aspiration)
+    // Permite buscar profundidade 8-10 no mesmo tempo que antes buscava 4.
+    // =====================================================================
+
+    // Killer moves: [ply][slot] = ação que causou beta cutoff
+    var _deadline = 0;
+    var _killerMoves = [];
+    // History heuristic: hash da ação -> pontuação acumulada
+    var _historyHeuristic = {};
+
+    function _chaveAcao(acao) {
+        if (acao.type === 'move') return 'm' + acao.r + ',' + acao.c;
+        return 'w' + acao.r + ',' + acao.c + ',' + acao.ori;
+    }
+
+    function _resetHeuristicas() {
+        _killerMoves = [];
+        _historyHeuristic = {};
+        _cacheMinimax = {};
+        _nosVisitados = 0;
+    }
+
+    function _registrarKiller(ply, acao) {
+        if (!_killerMoves[ply]) _killerMoves[ply] = [null, null];
+        var kAtual = _chaveAcao(acao);
+        if (_killerMoves[ply][0] && _chaveAcao(_killerMoves[ply][0]) === kAtual) return;
+        _killerMoves[ply][1] = _killerMoves[ply][0];
+        _killerMoves[ply][0] = { type: acao.type, r: acao.r, c: acao.c, ori: acao.ori };
+    }
+
+    function _registrarHistory(acao, depth) {
+        var k = _chaveAcao(acao);
+        _historyHeuristic[k] = (_historyHeuristic[k] || 0) + depth * depth;
+    }
+
+    function _ordenarAcoes(acoes, ply, pvMove) {
+        for (var i = 0; i < acoes.length; i++) {
+            var a = acoes[i];
+            var bonus = (a._sort || 0);
+            // PV move: prioridade máxima
+            if (pvMove && pvMove.type === a.type && pvMove.r === a.r && pvMove.c === a.c &&
+                (pvMove.ori === undefined || pvMove.ori === a.ori)) {
+                bonus += 10000000;
+            }
+            // Killer moves
+            if (_killerMoves[ply]) {
+                if (_killerMoves[ply][0] && _chaveAcao(_killerMoves[ply][0]) === _chaveAcao(a)) bonus += 100000;
+                if (_killerMoves[ply][1] && _chaveAcao(_killerMoves[ply][1]) === _chaveAcao(a)) bonus += 50000;
+            }
+            // History
+            bonus += _historyHeuristic[_chaveAcao(a)] || 0;
+            a._ordem = bonus;
         }
+        acoes.sort(function (x, y) { return y._ordem - x._ordem; });
+        return acoes;
+    }
+
+    // Minimax com PVS + alpha-beta + LMR
+    function _minimax(pos, pH, pV, walls, depth, alpha, beta, maximizando, iaIdx, ply) {
+        ply = ply || 0;
         _nosVisitados++;
 
-        var oppIdx = 1 - iaIdx;
-        var WIN = getWIN();
-
-        // Condições de parada
-        if (pos[iaIdx][0] === WIN[iaIdx]) return 1000000 + depth;
-        if (pos[oppIdx][0] === WIN[oppIdx]) return -1000000 - depth;
-
-        if (depth === 0) {
+        // Guardiões de tempo/nós
+        if (_nosVisitados > 8000 || (_deadline > 0 && Date.now() > _deadline)) {
             return _avaliarPos(pos, pH, pV, walls, iaIdx);
         }
+
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        if (pos[iaIdx][0] === WIN[iaIdx]) return 1000000 + depth * 100;
+        if (pos[oppIdx][0] === WIN[oppIdx]) return -1000000 - depth * 100;
+        if (depth === 0) return _avaliarPos(pos, pH, pV, walls, iaIdx);
 
         var jogadorAtual = maximizando ? iaIdx : oppIdx;
 
-        // Cache: hash simples do estado
+        // Transposition table
         var hash = jogadorAtual + '|' + depth + '|' +
                    pos[0][0] + ',' + pos[0][1] + '|' +
                    pos[1][0] + ',' + pos[1][1] + '|' +
                    pH.length + '|' + pV.length;
-        if (_cacheMinimax[hash] !== undefined) return _cacheMinimax[hash];
+        if (_cacheMinimax[hash] !== undefined) {
+            var stored = _cacheMinimax[hash];
+            if (stored.depth >= depth) return stored.value;
+        }
 
-        var acoes = _gerarAcoesOrdenadas(pos, pH, pV, walls, jogadorAtual, 4);
+        var acoes = _gerarAcoesOrdenadas(pos, pH, pV, walls, jogadorAtual, 3);
         if (acoes.length === 0) return _avaliarPos(pos, pH, pV, walls, iaIdx);
+        _ordenarAcoes(acoes, ply, null);
 
-        var melhor;
-        if (maximizando) {
-            melhor = -Infinity;
-            for (var i = 0; i < acoes.length; i++) {
-                var est = _aplicarAcao(pos, pH, pV, walls, acoes[i], jogadorAtual);
-                var val = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1, alpha, beta, false, iaIdx);
+        var melhor = maximizando ? -Infinity : Infinity;
+
+        for (var i = 0; i < acoes.length; i++) {
+            var est = _aplicarAcao(pos, pH, pV, walls, acoes[i], jogadorAtual);
+            var val;
+
+            // Late Move Reduction: jogadas menos promissoras → busca rasa
+            var reducao = 0;
+            if (i >= 3 && depth >= 3 && acoes[i].type === 'move') reducao = 1;
+
+            if (i === 0) {
+                // PV move: busca completa
+                val = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1, alpha, beta, !maximizando, iaIdx, ply + 1);
+            } else {
+                // Null window search (PVS)
+                val = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1 - reducao, alpha, alpha + 1, !maximizando, iaIdx, ply + 1);
+
+                // Se falhou na janela estreita, refaz com janela completa
+                if (val > alpha && val < beta) {
+                    val = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1, alpha, beta, !maximizando, iaIdx, ply + 1);
+                }
+            }
+
+            if (maximizando) {
                 if (val > melhor) melhor = val;
                 if (melhor > alpha) alpha = melhor;
-                if (beta <= alpha) break;
-            }
-        } else {
-            melhor = Infinity;
-            for (var i = 0; i < acoes.length; i++) {
-                var est = _aplicarAcao(pos, pH, pV, walls, acoes[i], jogadorAtual);
-                var val = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1, alpha, beta, true, iaIdx);
+            } else {
                 if (val < melhor) melhor = val;
                 if (melhor < beta) beta = melhor;
-                if (beta <= alpha) break;
+            }
+
+            if (beta <= alpha) {
+                // Beta cutoff
+                if (acoes[i].type === 'move') _registrarKiller(ply, acoes[i]);
+                _registrarHistory(acoes[i], depth);
+                break;
             }
         }
 
-        _cacheMinimax[hash] = melhor;
+        _cacheMinimax[hash] = { value: melhor, depth: depth };
         return melhor;
     }
 
     // =====================================================================
-    // TÉCNICA F.2 — minimax (a técnica mais forte)
+    // TÉCNICA F.2 — minimax com aspiration windows e profundidade 8-10
     // =====================================================================
     CerebroIA.minimax = function (pos, pH, pV, walls, iaIdx) {
         var WIN = getWIN();
         var oppIdx = 1 - iaIdx;
 
-        // Vitória imediata sempre primeiro
+        // Vitória imediata
         if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
             var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
             for (var i = 0; i < mv.length; i++) {
@@ -1763,7 +1858,7 @@
             }
         }
 
-        // Bloqueio obrigatório se oponente está a 1
+        // Bloqueio obrigatório
         if (CerebroIA.canWinNext(oppIdx, pH, pV, pos) && walls[iaIdx] > 0) {
             var pObrig = CerebroIA._todasParedesValidas(pos, pH, pV, walls, iaIdx);
             for (var i = 0; i < pObrig.length; i++) {
@@ -1776,37 +1871,55 @@
             }
         }
 
-        // Limpa cache
-        _cacheMinimax = {};
-        _nosVisitados = 0;
+        _resetHeuristicas();
         var t0 = Date.now();
+        var maxTempo = 500;
+        _deadline = t0 + maxTempo;  // deadline global
 
-        // Iterative deepening: começa raso, aprofunda enquanto tiver tempo
         var melhorAcao = null;
         var melhorScore = -Infinity;
-        var maxTempo = 300;  // 300ms por jogada (mais rápido)
+        var lastScore = 0;
 
-        for (var depth = 2; depth <= 4; depth += 2) {
+        // Iterative deepening: profundidade crescente
+        for (var depth = 2; depth <= 8; depth += 2) {
             if (Date.now() - t0 > maxTempo) break;
 
-            var acoes = _gerarAcoesOrdenadas(pos, pH, pV, walls, iaIdx, 6);
+            // Aspiration window
+            var alpha = -Infinity, beta = Infinity;
+            if (depth >= 4 && lastScore !== 0 && Math.abs(lastScore) < 900000) {
+                alpha = lastScore - 150;
+                beta = lastScore + 150;
+            }
+
+            var acoes = _gerarAcoesOrdenadas(pos, pH, pV, walls, iaIdx, 8);
             if (acoes.length === 0) break;
 
-            var melhorDepth = null, scoreDepth = -Infinity;
+            // Coloca a melhor ação da iteração anterior primeiro
+            _ordenarAcoes(acoes, 0, melhorAcao);
+
+            var bestD = null, scoreD = -Infinity;
+
             for (var i = 0; i < acoes.length; i++) {
                 if (Date.now() - t0 > maxTempo) break;
+
                 var est = _aplicarAcao(pos, pH, pV, walls, acoes[i], iaIdx);
-                var score = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1, -Infinity, Infinity, false, iaIdx);
-                if (score > scoreDepth) {
-                    scoreDepth = score;
-                    melhorDepth = acoes[i];
+                var score = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1, alpha, beta, false, iaIdx, 1);
+
+                // Aspiration fail: re-search com janela completa
+                if (score <= alpha || score >= beta) {
+                    score = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1, -Infinity, Infinity, false, iaIdx, 1);
+                }
+
+                if (score > scoreD) {
+                    scoreD = score;
+                    bestD = acoes[i];
                 }
             }
 
-            if (melhorDepth) {
-                melhorAcao = melhorDepth;
-                melhorScore = scoreDepth;
-                // Se vence, para
+            if (bestD) {
+                melhorAcao = bestD;
+                melhorScore = scoreD;
+                lastScore = scoreD;
                 if (melhorScore > 900000) break;
             }
         }
@@ -1955,6 +2068,570 @@
             return CerebroIA.minimax(pos, pH, pV, walls, iaIdx);
         }
         return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    };
+
+    // =====================================================================
+    // F.6 — ALEATORIEDADE CONTROLADA
+    // Sorteia entre top 3 jogadas quando scores são próximos.
+    // Fases críticas continuam determinísticas (não arrisca perder).
+    // =====================================================================
+
+    // Descobre top 3 ações avaliando cada uma pelo minimax
+    function _melhores3(pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        _resetHeuristicas();
+        var t0 = Date.now();
+        var maxTempo = 400;
+        _deadline = t0 + maxTempo;
+
+        // Gera ações candidatas
+        var acoes = _gerarAcoesOrdenadas(pos, pH, pV, walls, iaIdx, 10);
+        if (acoes.length === 0) return [];
+
+        // Avalia cada ação com profundidade fixa 4
+        var resultados = [];
+        for (var i = 0; i < acoes.length; i++) {
+            if (Date.now() - t0 > maxTempo) break;
+            var est = _aplicarAcao(pos, pH, pV, walls, acoes[i], iaIdx);
+            var score = _minimax(est.pos, est.pH, est.pV, est.walls, 3, -Infinity, Infinity, false, iaIdx, 1);
+            resultados.push({ acao: acoes[i], score: score });
+        }
+
+        // Ordena por score
+        resultados.sort(function (a, b) { return b.score - a.score; });
+        return resultados;
+    }
+
+    // =====================================================================
+    // MINIMAX COM ALEATORIEDADE — substitui a técnica minimax
+    // =====================================================================
+    CerebroIA.minimaxComVariacao = function (pos, pH, pV, walls, iaIdx, fase) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        // F.8b — ECONOMIA AGRESSIVA
+        // Só considera paredes se oponente está MUITO perto (≤2)
+        // Em qualquer outro caso, só movimento (nunca gasta parede)
+        var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+        var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+
+        if (oppD > 2) {
+            // Oponente longe → só avanço, sem paredes
+            var moves = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            if (moves.length > 0) {
+                var melhorMv = null, melhorDist = 999;
+                for (var i = 0; i < moves.length; i++) {
+                    var np = [pos[0].slice(), pos[1].slice()];
+                    np[iaIdx] = [moves[i][0], moves[i][1]];
+                    var d = CerebroIA.bfsDist(iaIdx, pH, pV, np);
+                    if (d < melhorDist) {
+                        melhorDist = d;
+                        melhorMv = { type: 'move', r: moves[i][0], c: moves[i][1] };
+                    }
+                }
+                if (melhorMv) return melhorMv;
+            }
+        }
+
+        // Vitória imediata sempre
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        // Bloqueio obrigatório sempre
+        if (CerebroIA.canWinNext(oppIdx, pH, pV, pos) && walls[iaIdx] > 0) {
+            var pObrig = CerebroIA._todasParedesValidas(pos, pH, pV, walls, iaIdx);
+            for (var i = 0; i < pObrig.length; i++) {
+                var w = pObrig[i];
+                var tH = w.ori === 'H' ? pH.concat([[w.r, w.c]]) : pH.slice();
+                var tV = w.ori === 'V' ? pV.concat([[w.r, w.c]]) : pV.slice();
+                if (!CerebroIA.canWinNext(oppIdx, tH, tV, pos)) {
+                    return { type: 'wall', r: w.r, c: w.c, ori: w.ori };
+                }
+            }
+        }
+
+        // Fases críticas: SEMPRE determinístico (não arrisca perder)
+        if (fase === 'emergencia') {
+            return CerebroIA.minimax(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Fases tranquilas: aplica aleatoriedade entre top 3
+        var top3 = _melhores3(pos, pH, pV, walls, iaIdx);
+        if (top3.length < 2) {
+            return top3[0] ? top3[0].acao : CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Verifica se top 3 são próximos (dentro de 15% do melhor)
+        var melhor = top3[0].score;
+        var variacao = Math.abs(melhor) * 0.15 + 50;  // tolerância mínima de 50
+
+        var candidatos = [];
+        for (var i = 0; i < top3.length && i < 3; i++) {
+            if (Math.abs(top3[i].score - melhor) <= variacao) {
+                candidatos.push(top3[i].acao);
+            }
+        }
+
+        // Se só tem 1 candidato (scores muito diferentes), usa o melhor
+        if (candidatos.length <= 1) {
+            return top3[0].acao;
+        }
+
+        // Sorteia entre os candidatos
+        var idx = Math.floor(Math.random() * candidatos.length);
+        return candidatos[idx];
+    };
+
+    // =====================================================================
+    // F.7 — LIVRO DE ABERTURAS
+    // 50 aberturas variadas para os primeiros 3 turnos.
+    // Sorteia 1 por partida, aplica em sequência.
+    // =====================================================================
+
+    var _aberturaSorteada = null;
+    var _indiceAbertura = 0;
+
+    // Catálogo de aberturas (jogador 1, que desce da linha 0 para 8)
+    // Cada abertura = sequência de até 3 ações
+    var _LIVRO_ABERTURAS = [
+        // 15 aberturas com 1 movimento central
+        [{ type: 'move', r: 1, c: 4 }],
+        [{ type: 'move', r: 2, c: 4 }],
+        [{ type: 'move', r: 1, c: 3 }],
+        [{ type: 'move', r: 1, c: 5 }],
+        [{ type: 'move', r: 2, c: 3 }],
+        [{ type: 'move', r: 2, c: 5 }],
+        [{ type: 'move', r: 1, c: 2 }],
+        [{ type: 'move', r: 1, c: 6 }],
+        [{ type: 'move', r: 2, c: 2 }],
+        [{ type: 'move', r: 2, c: 6 }],
+        [{ type: 'move', r: 3, c: 4 }],
+        [{ type: 'move', r: 1, c: 1 }],
+        [{ type: 'move', r: 1, c: 7 }],
+        [{ type: 'move', r: 2, c: 1 }],
+        [{ type: 'move', r: 2, c: 7 }],
+
+        // 10 aberturas com movimento + parede vertical
+        [{ type: 'move', r: 1, c: 4 }, { type: 'wall', r: 1, c: 3, ori: 'V' }],
+        [{ type: 'move', r: 1, c: 4 }, { type: 'wall', r: 1, c: 5, ori: 'V' }],
+        [{ type: 'move', r: 1, c: 3 }, { type: 'wall', r: 1, c: 2, ori: 'V' }],
+        [{ type: 'move', r: 1, c: 5 }, { type: 'wall', r: 1, c: 6, ori: 'V' }],
+        [{ type: 'move', r: 2, c: 4 }, { type: 'wall', r: 2, c: 3, ori: 'V' }],
+        [{ type: 'move', r: 2, c: 4 }, { type: 'wall', r: 2, c: 5, ori: 'V' }],
+        [{ type: 'move', r: 1, c: 4 }, { type: 'wall', r: 2, c: 2, ori: 'V' }],
+        [{ type: 'move', r: 1, c: 4 }, { type: 'wall', r: 2, c: 6, ori: 'V' }],
+        [{ type: 'move', r: 3, c: 4 }, { type: 'wall', r: 3, c: 3, ori: 'V' }],
+        [{ type: 'move', r: 3, c: 4 }, { type: 'wall', r: 3, c: 5, ori: 'V' }],
+
+        // 10 aberturas com movimento + parede horizontal
+        [{ type: 'move', r: 1, c: 4 }, { type: 'wall', r: 1, c: 3, ori: 'H' }],
+        [{ type: 'move', r: 1, c: 4 }, { type: 'wall', r: 1, c: 5, ori: 'H' }],
+        [{ type: 'move', r: 1, c: 3 }, { type: 'wall', r: 1, c: 2, ori: 'H' }],
+        [{ type: 'move', r: 1, c: 5 }, { type: 'wall', r: 1, c: 6, ori: 'H' }],
+        [{ type: 'move', r: 2, c: 4 }, { type: 'wall', r: 2, c: 3, ori: 'H' }],
+        [{ type: 'move', r: 2, c: 4 }, { type: 'wall', r: 2, c: 5, ori: 'H' }],
+        [{ type: 'move', r: 1, c: 4 }, { type: 'wall', r: 2, c: 2, ori: 'H' }],
+        [{ type: 'move', r: 1, c: 4 }, { type: 'wall', r: 2, c: 6, ori: 'H' }],
+        [{ type: 'move', r: 3, c: 4 }, { type: 'wall', r: 3, c: 3, ori: 'H' }],
+        [{ type: 'move', r: 3, c: 4 }, { type: 'wall', r: 3, c: 5, ori: 'H' }],
+
+        // 10 aberturas defensivas (paredes cedo)
+        [{ type: 'wall', r: 6, c: 4, ori: 'V' }, { type: 'move', r: 1, c: 4 }],
+        [{ type: 'wall', r: 7, c: 4, ori: 'V' }, { type: 'move', r: 1, c: 4 }],
+        [{ type: 'wall', r: 6, c: 3, ori: 'V' }, { type: 'move', r: 1, c: 4 }],
+        [{ type: 'wall', r: 6, c: 5, ori: 'V' }, { type: 'move', r: 1, c: 4 }],
+        [{ type: 'wall', r: 7, c: 3, ori: 'V' }, { type: 'move', r: 1, c: 4 }],
+        [{ type: 'wall', r: 7, c: 5, ori: 'V' }, { type: 'move', r: 1, c: 4 }],
+        [{ type: 'wall', r: 6, c: 4, ori: 'H' }, { type: 'move', r: 1, c: 4 }],
+        [{ type: 'wall', r: 7, c: 4, ori: 'H' }, { type: 'move', r: 1, c: 4 }],
+        [{ type: 'wall', r: 1, c: 4, ori: 'H' }, { type: 'move', r: 2, c: 4 }],
+        [{ type: 'wall', r: 1, c: 4, ori: 'V' }, { type: 'move', r: 1, c: 3 }],
+
+        // 5 aberturas agressivas (parede + movimento pra bloquear)
+        [{ type: 'wall', r: 3, c: 4, ori: 'V' }, { type: 'wall', r: 4, c: 4, ori: 'V' }],
+        [{ type: 'wall', r: 5, c: 4, ori: 'V' }, { type: 'wall', r: 4, c: 4, ori: 'V' }],
+        [{ type: 'wall', r: 6, c: 4, ori: 'H' }, { type: 'wall', r: 5, c: 4, ori: 'H' }],
+        [{ type: 'move', r: 1, c: 4 }, { type: 'move', r: 2, c: 4 }],
+        [{ type: 'move', r: 1, c: 3 }, { type: 'move', r: 2, c: 3 }]
+    ];
+
+    // Sorteia uma abertura
+    CerebroIA._sortearAbertura = function () {
+        var idx = Math.floor(Math.random() * _LIVRO_ABERTURAS.length);
+        _aberturaSorteada = _LIVRO_ABERTURAS[idx];
+        _indiceAbertura = 0;
+        return _aberturaSorteada;
+    };
+
+    // Verifica se a abertura atual ainda tem ação a fazer
+    // Retorna ação válida se sim, null se não
+    CerebroIA._usarAbertura = function (pos, pH, pV, walls, iaIdx) {
+        // Se não tem abertura sorteada, sorteia
+        if (!_aberturaSorteada) {
+            CerebroIA._sortearAbertura();
+        }
+
+        // Se já usou todas as ações da abertura, retorna null
+        if (_indiceAbertura >= _aberturaSorteada.length) return null;
+
+        var acao = _aberturaSorteada[_indiceAbertura];
+
+        // Valida se a ação é legal
+        if (acao.type === 'move') {
+            var moves = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            var ok = false;
+            for (var i = 0; i < moves.length; i++) {
+                if (moves[i][0] === acao.r && moves[i][1] === acao.c) { ok = true; break; }
+            }
+            if (!ok) {
+                // Ação inválida — aborta abertura
+                _aberturaSorteada = null;
+                _indiceAbertura = 0;
+                return null;
+            }
+        } else if (acao.type === 'wall') {
+            if (walls[iaIdx] <= 0) {
+                _aberturaSorteada = null;
+                _indiceAbertura = 0;
+                return null;
+            }
+            if (!CerebroIA.canPlace(acao.r, acao.c, acao.ori, pH, pV, pos)) {
+                // Parede já usada — pula pra próxima ação
+                _indiceAbertura++;
+                return CerebroIA._usarAbertura(pos, pH, pV, walls, iaIdx);
+            }
+        }
+
+        _indiceAbertura++;
+        return { type: acao.type, r: acao.r, c: acao.c, ori: acao.ori };
+    };
+
+    // Reset quando inicia nova partida
+    CerebroIA._resetAbertura = function () {
+        _aberturaSorteada = null;
+        _indiceAbertura = 0;
+    };
+
+    // =====================================================================
+    // F.9 — CERCO ESTRATÉGICO
+    // Em vez de gastar parede "ao vento", cria cerco em L que obriga o
+    // oponente a VOLTAR. Só age quando oponente está a ≤3 e só executa
+    // se o custo pro oponente for ≥3 turnos.
+    // =====================================================================
+    CerebroIA.cercoEstrategico = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        // Vitória imediata sempre
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        // Bloqueio obrigatório (oponente a 1) sempre
+        if (CerebroIA.canWinNext(oppIdx, pH, pV, pos) && walls[iaIdx] > 0) {
+            var pObrig = CerebroIA._todasParedesValidas(pos, pH, pV, walls, iaIdx);
+            for (var i = 0; i < pObrig.length; i++) {
+                var w = pObrig[i];
+                var tH = w.ori === 'H' ? pH.concat([[w.r, w.c]]) : pH.slice();
+                var tV = w.ori === 'V' ? pV.concat([[w.r, w.c]]) : pV.slice();
+                if (!CerebroIA.canWinNext(oppIdx, tH, tV, pos)) {
+                    return { type: 'wall', r: w.r, c: w.c, ori: w.ori };
+                }
+            }
+        }
+
+        var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+        var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+
+        // ECONOMIA RÍGIDA: se oponente está a 4+, só avança
+        if (oppD >= 4 || walls[iaIdx] <= 0) {
+            return _melhorMovimento(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Oponente próximo (≤3) — busca o melhor cerco em L
+        var posicaoOpp = pos[oppIdx];
+
+        // 1. Pega a rota atual do oponente
+        var rotaOpp = CerebroIA.bfsPath(oppIdx, pH, pV, pos);
+
+        // 2. Candidatos: paredes que tocam a rota do oponente
+        var paredesCandidatas = [];
+        var celulasRota = {};
+        for (var k = 0; k < rotaOpp.path.length; k++) {
+            celulasRota[rotaOpp.path[k][0] + ',' + rotaOpp.path[k][1]] = true;
+        }
+
+        for (var r = 0; r < 8; r++) {
+            for (var c = 0; c < 8; c++) {
+                // H (horizontal) — bloqueia passagem vertical
+                if (CerebroIA.canPlace(r, c, 'H', pH, pV, pos)) {
+                    if (celulasRota[r + ',' + c] || celulasRota[(r + 1) + ',' + c]) {
+                        var tH = pH.concat([[r, c]]);
+                        var novaDist = CerebroIA.bfsDist(oppIdx, tH, pV, pos);
+                        var ganho = novaDist - oppD;
+                        // Simula 2ª parede em L: horizontal + vertical adjacente
+                        var ganhoTotal = ganho;
+                        if (ganho >= 1) {
+                            // Tenta adicionar uma vertical adjacente que aumente ainda mais
+                            for (var c2 = 0; c2 < 8; c2++) {
+                                if (CerebroIA.canPlace(r, c2, 'V', tH, pV, pos)) {
+                                    var tV = pV.concat([[r, c2]]);
+                                    var novaDist2 = CerebroIA.bfsDist(oppIdx, tH, tV, pos);
+                                    var g2 = novaDist2 - oppD;
+                                    if (g2 > ganhoTotal) ganhoTotal = g2;
+                                }
+                            }
+                        }
+                        // F.10 — se há padrão detectado, aceita ganho menor
+                        var _temPadraoAtivo = CerebroIA._analisarPadraoMovimento(iaIdx).temPadrao;
+                        var _limiarGanho = _temPadraoAtivo ? 2 : 3;
+                        if (ganhoTotal >= _limiarGanho) {
+                            paredesCandidatas.push({
+                                r: r, c: c, ori: 'H',
+                                ganho: ganhoTotal,
+                                score: ganhoTotal * 20
+                            });
+                        }
+                    }
+                }
+                // V (vertical)
+                if (CerebroIA.canPlace(r, c, 'V', pH, pV, pos)) {
+                    if (celulasRota[r + ',' + c] || celulasRota[r + ',' + (c + 1)]) {
+                        var tV2 = pV.concat([[r, c]]);
+                        var novaDistV = CerebroIA.bfsDist(oppIdx, pH, tV2, pos);
+                        var ganhoV = novaDistV - oppD;
+                        var ganhoTotalV = ganhoV;
+                        if (ganhoV >= 1) {
+                            for (var c3 = 0; c3 < 8; c3++) {
+                                if (CerebroIA.canPlace(r, c3, 'H', pH, tV2, pos)) {
+                                    var tH3 = pH.concat([[r, c3]]);
+                                    var novaDist3 = CerebroIA.bfsDist(oppIdx, tH3, tV2, pos);
+                                    var g3 = novaDist3 - oppD;
+                                    if (g3 > ganhoTotalV) ganhoTotalV = g3;
+                                }
+                            }
+                        }
+                        var _temPadraoAtivoV = CerebroIA._analisarPadraoMovimento(iaIdx).temPadrao;
+                        var _limiarGanhoV = _temPadraoAtivoV ? 2 : 3;
+                        if (ganhoTotalV >= _limiarGanhoV) {
+                            paredesCandidatas.push({
+                                r: r, c: c, ori: 'V',
+                                ganho: ganhoTotalV,
+                                score: ganhoTotalV * 20
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. F.10 — Adiciona bônus anti-padrão em cada candidata
+        for (var i = 0; i < paredesCandidatas.length; i++) {
+            var bonus = CerebroIA._bonusAntiPadrao(paredesCandidatas[i], iaIdx);
+            paredesCandidatas[i].score += bonus;
+            paredesCandidatas[i]._temBonus = bonus > 0;
+        }
+
+        // 4. Escolhe a melhor parede de cerco
+        paredesCandidatas.sort(function (a, b) { return b.score - a.score; });
+
+        if (paredesCandidatas.length > 0) {
+            var melhor = paredesCandidatas[0];
+            // Verifica se não me atrapalha muito
+            var tH4 = melhor.ori === 'H' ? pH.concat([[melhor.r, melhor.c]]) : pH.slice();
+            var tV4 = melhor.ori === 'V' ? pV.concat([[melhor.r, melhor.c]]) : pV.slice();
+            var meuDepois = CerebroIA.bfsDist(iaIdx, tH4, tV4, pos);
+            if (meuDepois <= meuD + 1) {
+                return { type: 'wall', r: melhor.r, c: melhor.c, ori: melhor.ori };
+            }
+        }
+
+        // 4. Sem cerco efetivo → avança
+        return _melhorMovimento(pos, pH, pV, walls, iaIdx);
+    };
+
+    // Helper: escolhe o movimento que mais aproxima da meta
+    function _melhorMovimento(pos, pH, pV, walls, iaIdx) {
+        var moves = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+        if (moves.length === 0) return null;
+        var melhorMv = null, melhorDist = 999;
+        for (var i = 0; i < moves.length; i++) {
+            var np = [pos[0].slice(), pos[1].slice()];
+            np[iaIdx] = [moves[i][0], moves[i][1]];
+            var d = CerebroIA.bfsDist(iaIdx, pH, pV, np);
+            if (d < melhorDist) {
+                melhorDist = d;
+                melhorMv = { type: 'move', r: moves[i][0], c: moves[i][1] };
+            }
+        }
+        return melhorMv || CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    }
+
+    // =====================================================================
+    // F.10 — ANÁLISE DE PADRÕES DO OPONENTE
+    // Detecta coluna favorita, timing de paredes e reação a bloqueios.
+    // =====================================================================
+
+    // Analisa qual coluna o oponente mais usa
+    CerebroIA._analisarPadraoMovimento = function (iaIdx) {
+        var chave = 'quoridor_padrao_' + _getUserKey() + '_' + iaIdx;
+        var mem = _lerMemoria(chave, { paredes: [], movimentos: [], total: 0 });
+
+        if (!mem.movimentos || mem.movimentos.length < 4) {
+            return { colunaFavorita: null, temPadrao: false, forca: 0 };
+        }
+
+        // Conta frequência de cada coluna
+        var contCol = {};
+        for (var i = 0; i < mem.movimentos.length; i++) {
+            var c = mem.movimentos[i].c;
+            contCol[c] = (contCol[c] || 0) + 1;
+        }
+
+        // Encontra a mais frequente
+        var melhorCol = null, melhorCont = 0;
+        for (var k in contCol) {
+            if (contCol[k] > melhorCont) {
+                melhorCont = contCol[k];
+                melhorCol = parseInt(k, 10);
+            }
+        }
+
+        // Só considera padrão se >= 40% dos movimentos vão pra essa coluna
+        var forca = melhorCont / mem.movimentos.length;
+        var temPadrao = forca >= 0.4;
+
+        return {
+            colunaFavorita: temPadrao ? melhorCol : null,
+            temPadrao: temPadrao,
+            forca: forca,
+            total: mem.movimentos.length
+        };
+    };
+
+    // Analisa em que turnos o oponente costuma colocar paredes
+    CerebroIA._analisarPadraoTemporal = function (iaIdx) {
+        var chave = 'quoridor_padrao_' + _getUserKey() + '_' + iaIdx;
+        var mem = _lerMemoria(chave, { paredes: [], movimentos: [], total: 0 });
+
+        if (!mem.paredes || mem.paredes.length < 3) {
+            return { turnoMedio: null, temPadrao: false };
+        }
+
+        // Conta em que "rodada" (aproximação) cada parede foi colocada
+        // Rodada = posição na lista total / 2 (cada jogador joga 2x)
+        var soma = 0;
+        for (var i = 0; i < mem.paredes.length; i++) {
+            soma += mem.paredes[i].t || 0;
+        }
+        var tempoMedio = soma / mem.paredes.length;
+
+        return {
+            tempoMedio: tempoMedio,
+            totalParedes: mem.paredes.length,
+            temPadrao: mem.paredes.length >= 5
+        };
+    };
+
+    // Analisa paredes favoritas do oponente
+    CerebroIA._analisarPadraoParedesFavoritas = function (iaIdx) {
+        var chave = 'quoridor_padrao_' + _getUserKey() + '_' + iaIdx;
+        var mem = _lerMemoria(chave, { paredes: [], movimentos: [], total: 0 });
+
+        if (!mem.paredes || mem.paredes.length < 4) {
+            return { colunasFavoritas: [], temPadrao: false };
+        }
+
+        // Conta frequência de coluna de parede
+        var contCol = {};
+        for (var i = 0; i < mem.paredes.length; i++) {
+            var c = mem.paredes[i].c;
+            contCol[c] = (contCol[c] || 0) + 1;
+        }
+
+        // Colunas que aparecem 2+ vezes
+        var favoritas = [];
+        for (var k in contCol) {
+            if (contCol[k] >= 2) {
+                favoritas.push({ coluna: parseInt(k, 10), contagem: contCol[k] });
+            }
+        }
+        favoritas.sort(function (a, b) { return b.contagem - a.contagem; });
+
+        return {
+            colunasFavoritas: favoritas,
+            temPadrao: favoritas.length > 0
+        };
+    };
+
+    // Verifica se uma jogada (parede ou movimento) bloqueia o padrão do oponente
+    // Retorna bônus de pontuação (0 se não bloqueia nada)
+    CerebroIA._bonusAntiPadrao = function (parede, iaIdx) {
+        var bonus = 0;
+
+        // 1. Se a parede está na coluna favorita do oponente, vale ouro
+        var padraoMov = CerebroIA._analisarPadraoMovimento(iaIdx);
+        if (padraoMov.temPadrao && parede.c === padraoMov.colunaFavorita) {
+            bonus += 25 * padraoMov.forca;
+        }
+
+        // 2. Se a parede toca uma coluna que ele costuma bloquear também
+        var padraoPar = CerebroIA._analisarPadraoParedesFavoritas(iaIdx);
+        if (padraoPar.temPadrao) {
+            for (var i = 0; i < padraoPar.colunasFavoritas.length; i++) {
+                if (padraoPar.colunasFavoritas[i].coluna === parede.c) {
+                    bonus += 15;
+                    break;
+                }
+            }
+        }
+
+        return bonus;
+    };
+
+    // =====================================================================
+    // F.10b — MEMÓRIA DE REAÇÃO
+    // Grava como o oponente reage a cada tipo de jogada da IA.
+    // =====================================================================
+    var _ultimaJogadaIA = null;
+
+    CerebroIA._registrarReacao = function (jogadaIA) {
+        _ultimaJogadaIA = jogadaIA;
+    };
+
+    CerebroIA._analisarPadraoReacao = function (iaIdx) {
+        var chave = 'quoridor_reacao_' + _getUserKey() + '_' + iaIdx;
+        var mem = _lerMemoria(chave, { reacoes: [] });
+
+        if (!mem.reacoes || mem.reacoes.length < 5) {
+            return { direcaoFavorita: null, temPadrao: false };
+        }
+
+        // Conta direção (esquerda/direita/baixo/cima) das reações
+        var contDir = { 'esq': 0, 'dir': 0, 'baixo': 0, 'cima': 0 };
+        for (var i = 0; i < mem.reacoes.length; i++) {
+            var r = mem.reacoes[i];
+            if (r.direcao) contDir[r.direcao] = (contDir[r.direcao] || 0) + 1;
+        }
+
+        var melhorDir = null, melhorCont = 0;
+        for (var k in contDir) {
+            if (contDir[k] > melhorCont) { melhorCont = contDir[k]; melhorDir = k; }
+        }
+
+        var forca = melhorCont / mem.reacoes.length;
+        return {
+            direcaoFavorita: forca >= 0.5 ? melhorDir : null,
+            temPadrao: forca >= 0.5,
+            forca: forca
+        };
     };
 
     // Expõe globalmente
