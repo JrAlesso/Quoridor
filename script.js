@@ -1499,47 +1499,6 @@ function getAccounts() {
       return Math.floor(100 * Math.pow(nivel, 1.5));
     }
 
-    function calcularXP(winner, playerIndex, wallsPlaced, moveCount, timeLeft, timeTotal, streak) {
-      var base = winner === playerIndex ? 50 : 20;
-      var bonusWall = wallsPlaced === 0 ? 15 : wallsPlaced <= 2 ? 10 : wallsPlaced <= 5 ? 5 : 0;
-      var bonusMove = moveCount <= 10 ? 15 : Math.max(0, 15 - (moveCount - 10) * 2);
-      var bonusTime = timeLeft > timeTotal * 0.5 ? 10 : 0;
-      var bonusStreak = streak >= 10 ? 20 : streak >= 5 ? 10 : streak >= 2 ? 5 : 0;
-      if (winner !== playerIndex) {
-        bonusWall = Math.min(bonusWall, 5);
-        bonusMove = Math.min(bonusMove, 5);
-        bonusTime = 0;
-        bonusStreak = 0;
-      }
-      return base + bonusWall + bonusMove + bonusTime + bonusStreak;
-    }
-
-    function aplicarXP(stats, xp) {
-      stats.xp = (stats.xp || 0) + xp;
-      while (stats.level < 100 && stats.xp >= xpParaProximoNivel(stats.level)) {
-        stats.xp -= xpParaProximoNivel(stats.level);
-        stats.level++;
-      }
-      if (stats.level >= 100) stats.xp = Math.min(stats.xp, xpParaProximoNivel(100));
-      return stats;
-    }
-
-    function calcularPontosPartida(winner, playerIndex, wallsPlaced, moveCount, totalRounds, timeLeft, timeTotal, streak) {
-      if (playerIndex !== winner) {
-        var penalty = -5;
-        if (wallsPlaced >= 5) penalty -= 2;
-        if (moveCount >= 20) penalty -= 2;
-        if (streak >= 3) penalty -= 2;
-        if (timeLeft < timeTotal * 0.5) penalty -= 1;
-        return Math.max(-15, penalty);
-      }
-      var base = 15;
-      var bonusMove = moveCount <= 10 ? 6 : Math.max(0, 6 - (moveCount - 10) * 0.5);
-      var bonusWall = wallsPlaced === 0 ? 4 : wallsPlaced <= 2 ? 3 : wallsPlaced <= 5 ? 2 : 0;
-      var bonusStreak = streak >= 10 ? 5 : streak >= 5 ? 3 : streak >= 2 ? 2 : 0;
-      var bonusTime = timeLeft > timeTotal * 0.5 ? 3 : 0;
-      return Math.min(35, Math.round((base + bonusMove + bonusWall + bonusStreak + bonusTime) * 10) / 10);
-    }
 
     // ============================================================
     // RENDER HISTORY & PROFILE
@@ -3031,52 +2990,96 @@ function getAccounts() {
           matchFinished = true; gameActive = false;
           var winner = scores[0] > scores[1] ? 0 : scores[1] > scores[0] ? 1 : -1;
           if (winner !== -1) {
-            var stats = getStats();
-            var oldRank = getRank(stats.rankPoints);
-            stats.games++;
-            if (!G.vsIA) stats.localGames = (stats.localGames || 0) + 1;
-            if (winner === 0) {
-              stats.wins++;
-              if (G.vsIA && G.nivelIA === 'expert') stats.expertWins = (stats.expertWins || 0) + 1;
-              stats.streak = (stats.streak || 0) + 1;
-              stats.maxStreak = Math.max(stats.maxStreak || 0, stats.streak);
-            } else {
-              stats.losses++;
-              stats.streak = 0;
-            }
-            stats.totalWalls += seriesStats.userWalls;
-            stats.totalTurns += seriesStats.userMoves;
-            var pts = calcularPontosPartida(winner,0,seriesStats.userWalls,seriesStats.userMoves,config.rounds,currentTime,config.time,stats.streak);
-            var xpGanho = calcularXP(winner, 0, seriesStats.userWalls, seriesStats.userMoves, currentTime, config.time, stats.streak);
-            stats = aplicarXP(stats, xpGanho);
-            if (winner === 0) stats.sumPointsVictories = (stats.sumPointsVictories || 0) + pts;
-            stats.rankPoints += pts;
-            stats.rankPoints = Math.max(0, stats.rankPoints);
-            stats.rankPoints = Math.round(stats.rankPoints * 100) / 100;
-            stats.maxRankPoints = Math.max(stats.maxRankPoints, stats.rankPoints);
-            if (G.vsIA) {
-              var eloIA = {facil:500,medio:800,dificil:1200,expert:1600}[G.nivelIA] || 800;
-              stats.opponentEloSum = (stats.opponentEloSum || 0) + eloIA;
-              stats.opponentCount = (stats.opponentCount || 0) + 1;
-            }
-            if (!stats.history) stats.history = [];
-            stats.history.unshift({date:Date.now(), mode:G.vsIA?'vs IA':'2 Jogadores', result:winner===0?'Vitória':'Derrota', points:pts, walls:seriesStats.userWalls, moves:seriesStats.userMoves, rounds:config.rounds, time:config.time, xp:xpGanho});
-            if (stats.history.length > 100) stats.history.pop();
-            saveStats(stats);
-            if (currentUser) updateRankDisplay(currentUser);
-            var newRank = getRank(stats.rankPoints);
-            var vencedorFinal = scores[0] > scores[1] ? G.p1Name : scores[1] > scores[0] ? G.p2Name : 'Empate';
-            var msgFinal = '◈ FIM DE JOGO!<span class="sub">' + vencedorFinal + ' venceu (' + scores[0] + ' x ' + scores[1] + ')</span>';
-            msgFinal += '<div class="xp-line">+XP ' + xpGanho + '</div>';
-            if (pts >= 0) msgFinal += '<div class="rank-line rank-positivo">🟢 +' + pts.toFixed(1) + ' pontos de patente</div>';
-            else msgFinal += '<div class="rank-line rank-negativo">🔴 ' + pts.toFixed(1) + ' pontos de patente</div>';
-            msgFinal += '<div class="level-line">Nível ' + stats.level + ' (XP: ' + stats.xp + '/' + xpParaProximoNivel(stats.level) + ')</div>';
-            if (oldRank !== newRank) msgFinal += '<div class="patent-line"><span class="rank-up">' + oldRank + ' → ' + newRank + '</span></div>';
-            else msgFinal += '<div class="patent-line">' + newRank + '</div>';
-            document.getElementById('win-message').innerHTML = msgFinal;
-            document.getElementById('btn-close-win').style.display = 'block';
-            document.getElementById('win-overlay').classList.add('show');
-            return;
+              var stats = getStats();
+
+              // Detectar títulos locais ANTES de atualizar
+              var titulosAntes = [];
+              if (!G.vsIA && typeof LOCAL_GAMES_TITLES !== 'undefined') {
+                for (var i = 0; i < LOCAL_GAMES_TITLES.length; i++) {
+                  if ((stats.localGames || 0) >= LOCAL_GAMES_TITLES[i].minLocalGames) {
+                    titulosAntes.push(LOCAL_GAMES_TITLES[i].title);
+                  }
+                }
+              }
+              if (G.vsIA && G.nivelIA === 'expert' && typeof IA_WINS_TITLES !== 'undefined') {
+                for (var i = 0; i < IA_WINS_TITLES.length; i++) {
+                  if ((stats.expertWins || 0) >= IA_WINS_TITLES[i].minVsIAWins) {
+                    titulosAntes.push(IA_WINS_TITLES[i].title);
+                  }
+                }
+              }
+
+              // Modo local: sem progressão de perfil.
+              // Só conta pra títulos específicos (vs IA Expert, 2 Jogadores).
+              if (!G.vsIA) {
+                stats.localGames = (stats.localGames || 0) + 1;
+              }
+              if (G.vsIA && G.nivelIA === 'expert' && winner === 0) {
+                stats.expertWins = (stats.expertWins || 0) + 1;
+              }
+              saveStats(stats);
+
+              // Detectar títulos locais DEPOIS de atualizar
+              var titulosNovos = [];
+              if (!G.vsIA && typeof LOCAL_GAMES_TITLES !== 'undefined') {
+                for (var i = 0; i < LOCAL_GAMES_TITLES.length; i++) {
+                  var t = LOCAL_GAMES_TITLES[i];
+                  if ((stats.localGames || 0) >= t.minLocalGames && titulosAntes.indexOf(t.title) === -1) {
+                    titulosNovos.push(t.title);
+                  }
+                }
+              }
+              if (G.vsIA && G.nivelIA === 'expert' && typeof IA_WINS_TITLES !== 'undefined') {
+                for (var i = 0; i < IA_WINS_TITLES.length; i++) {
+                  var t2 = IA_WINS_TITLES[i];
+                  if ((stats.expertWins || 0) >= t2.minVsIAWins && titulosAntes.indexOf(t2.title) === -1) {
+                    titulosNovos.push(t2.title);
+                  }
+                }
+              }
+
+              var vencedorFinal = scores[0] > scores[1] ? G.p1Name : scores[1] > scores[0] ? G.p2Name : 'Empate';
+
+              // Sequência de cards independentes
+              var cardsSeq = [];
+              cardsSeq.push({
+                tipo: 'fim',
+                html: '◈ FIM DE JOGO!<span class="sub">' + vencedorFinal + ' venceu (' + scores[0] + ' x ' + scores[1] + ')</span>'
+              });
+              for (var i = 0; i < titulosNovos.length; i++) {
+                cardsSeq.push({
+                  tipo: 'titulo',
+                  html: '<div class="titulo-desbloqueado">✨ NOVO TÍTULO ✨<br><strong>' + titulosNovos[i] + '</strong></div>'
+                });
+              }
+
+              var cardIdx = 0;
+              var msgEl = document.getElementById('win-message');
+              var oldBtn = document.getElementById('btn-close-win');
+              var newBtn = oldBtn.cloneNode(true);
+              oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+
+              function renderCard(idx) {
+                msgEl.innerHTML = cardsSeq[idx].html;
+                newBtn.textContent = (idx < cardsSeq.length - 1) ? 'PRÓXIMO ▶' : 'FECHAR';
+              }
+
+              newBtn.addEventListener('click', function () {
+                if (cardIdx < cardsSeq.length - 1) {
+                  cardIdx++;
+                  renderCard(cardIdx);
+                  return;
+                }
+                // Último card — fecha e volta pro lobby
+                document.getElementById('win-overlay').classList.remove('show');
+                newBtn.style.display = 'none';
+                if (typeof goToLobby === 'function') goToLobby();
+              });
+
+              renderCard(0);
+              newBtn.style.display = 'block';
+              document.getElementById('win-overlay').classList.add('show');
+              return;
           }
         }
         currentRound++; atualizarPlacar(); resetGame();

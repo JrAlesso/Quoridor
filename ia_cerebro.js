@@ -1665,6 +1665,13 @@
         var progOpp = oppIdx === 0 ? (8 - pos[oppIdx][0]) : pos[oppIdx][0];
         score += (progMeu - progOpp) * 60;
 
+        // MELHORIA 5: CONTROLE CENTRAL
+        // Colunas centrais (3, 4, 5) valem +20. Laterais (0,1 / 7,8) valem -10.
+        var colMeu = pos[iaIdx][1];
+        var colOpp = pos[oppIdx][1];
+        var bonusCentral = [0, -10, 5, 20, 30, 20, 5, -10, 0];
+        score += (bonusCentral[colMeu] || 0) - (bonusCentral[colOpp] || 0) * 0.5;
+
         // Ameaças (só quando oponente está a 2 ou menos)
         if (dOpp <= 2) score -= (3 - dOpp) * 600;
         if (dMeu <= 2) score += (3 - dMeu) * 1200;
@@ -1749,6 +1756,15 @@
         for (var i = 0; i < acoes.length; i++) {
             var a = acoes[i];
             var bonus = (a._sort || 0);
+            // MELHORIA 13: paredes que bloqueiam passagem vertical
+            // (paralelas à direção do oponente) valem mais
+            if (a.type === 'wall') {
+                // Se o oponente desce (iaIdx=1 → oponente sobe de baixo),
+                // paredes H bloqueiam avanço vertical — valem mais
+                if (a.ori === 'H') bonus += 30;
+                // Paredes no centro valem mais
+                if (a.c >= 3 && a.c <= 5) bonus += 20;
+            }
             // PV move: prioridade máxima
             if (pvMove && pvMove.type === a.type && pvMove.r === a.r && pvMove.c === a.c &&
                 (pvMove.ori === undefined || pvMove.ori === a.ori)) {
@@ -1880,8 +1896,16 @@
         var melhorScore = -Infinity;
         var lastScore = 0;
 
+        // MELHORIA 10: PROFUNDIDADE ADAPTATIVA
+        // Em posição crítica (oponente perto), busca mais fundo
+        var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+        var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+        var maxDepth = 8;
+        if (oppD <= 2 || meuD <= 2) maxDepth = 10;  // crítico — mais fundo
+        else if (oppD >= 6 && meuD >= 6) maxDepth = 6;  // tranquilo — mais rápido
+
         // Iterative deepening: profundidade crescente
-        for (var depth = 2; depth <= 8; depth += 2) {
+        for (var depth = 2; depth <= maxDepth; depth += 2) {
             if (Date.now() - t0 > maxTempo) break;
 
             // Aspiration window
@@ -2239,17 +2263,17 @@
         [{ type: 'move', r: 3, c: 4 }, { type: 'wall', r: 3, c: 3, ori: 'H' }],
         [{ type: 'move', r: 3, c: 4 }, { type: 'wall', r: 3, c: 5, ori: 'H' }],
 
-        // 10 aberturas defensivas (paredes cedo)
-        [{ type: 'wall', r: 6, c: 4, ori: 'V' }, { type: 'move', r: 1, c: 4 }],
-        [{ type: 'wall', r: 7, c: 4, ori: 'V' }, { type: 'move', r: 1, c: 4 }],
-        [{ type: 'wall', r: 6, c: 3, ori: 'V' }, { type: 'move', r: 1, c: 4 }],
-        [{ type: 'wall', r: 6, c: 5, ori: 'V' }, { type: 'move', r: 1, c: 4 }],
-        [{ type: 'wall', r: 7, c: 3, ori: 'V' }, { type: 'move', r: 1, c: 4 }],
-        [{ type: 'wall', r: 7, c: 5, ori: 'V' }, { type: 'move', r: 1, c: 4 }],
-        [{ type: 'wall', r: 6, c: 4, ori: 'H' }, { type: 'move', r: 1, c: 4 }],
-        [{ type: 'wall', r: 7, c: 4, ori: 'H' }, { type: 'move', r: 1, c: 4 }],
-        [{ type: 'wall', r: 1, c: 4, ori: 'H' }, { type: 'move', r: 2, c: 4 }],
-        [{ type: 'wall', r: 1, c: 4, ori: 'V' }, { type: 'move', r: 1, c: 3 }],
+        // 10 aberturas com 2 movimentos (agressivas, sem parede cedo)
+        [{ type: 'move', r: 1, c: 4 }, { type: 'move', r: 2, c: 4 }],
+        [{ type: 'move', r: 1, c: 4 }, { type: 'move', r: 2, c: 3 }],
+        [{ type: 'move', r: 1, c: 4 }, { type: 'move', r: 2, c: 5 }],
+        [{ type: 'move', r: 1, c: 3 }, { type: 'move', r: 2, c: 3 }],
+        [{ type: 'move', r: 1, c: 5 }, { type: 'move', r: 2, c: 5 }],
+        [{ type: 'move', r: 2, c: 4 }, { type: 'move', r: 3, c: 4 }],
+        [{ type: 'move', r: 1, c: 4 }, { type: 'move', r: 2, c: 4 }],
+        [{ type: 'move', r: 1, c: 3 }, { type: 'move', r: 2, c: 4 }],
+        [{ type: 'move', r: 1, c: 5 }, { type: 'move', r: 2, c: 4 }],
+        [{ type: 'move', r: 1, c: 4 }, { type: 'move', r: 2, c: 6 }],
 
         // 5 aberturas agressivas (parede + movimento pra bloquear)
         [{ type: 'wall', r: 3, c: 4, ori: 'V' }, { type: 'wall', r: 4, c: 4, ori: 'V' }],
@@ -2350,8 +2374,17 @@
         var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
         var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
 
-        // ECONOMIA RÍGIDA: se oponente está a 4+, só avança
-        if (oppD >= 4 || walls[iaIdx] <= 0) {
+        // MELHORIA 19: RESERVA DINÂMICA
+        // Início (7-10 paredes): gasta com oponente a ≤3
+        // Meio (4-6 paredes): gasta com oponente a ≤2
+        // Fim (1-3 paredes): gasta só se oponente a ≤1
+        var paredesAtuais = walls[iaIdx];
+        var limiarGasto;
+        if (paredesAtuais >= 7) limiarGasto = 3;
+        else if (paredesAtuais >= 4) limiarGasto = 2;
+        else limiarGasto = 1;
+
+        if (oppD > limiarGasto || paredesAtuais <= 0) {
             return _melhorMovimento(pos, pH, pV, walls, iaIdx);
         }
 
@@ -2438,6 +2471,32 @@
             var meuDepois = CerebroIA.bfsDist(iaIdx, tH4, tV4, pos);
             if (meuDepois <= meuD + 1) {
                 return { type: 'wall', r: melhor.r, c: melhor.c, ori: melhor.ori };
+            }
+        }
+
+        // MELHORIA 4: ANTI-BRECHA
+        // Se a melhor parede NÃO reduz rotas significativamente, tenta 2ª parede
+        if (paredesCandidatas.length > 0 && walls[iaIdx] >= 2) {
+            var melhor = paredesCandidatas[0];
+            var rotasAntes = CerebroIA._contarRotas(oppIdx, pH, pV, pos, 10).rotas;
+            var tH = melhor.ori === 'H' ? pH.concat([[melhor.r, melhor.c]]) : pH.slice();
+            var tV = melhor.ori === 'V' ? pV.concat([[melhor.r, melhor.c]]) : pV.slice();
+            var rotasDepois = CerebroIA._contarRotas(oppIdx, tH, tV, pos, 10).rotas;
+
+            // Se ainda tem 3+ rotas, tenta achar 2ª parede
+            if (rotasDepois >= 3) {
+                for (var i = 1; i < Math.min(paredesCandidatas.length, 8); i++) {
+                    var w2 = paredesCandidatas[i];
+                    var tH2 = w2.ori === 'H' ? tH.concat([[w2.r, w2.c]]) : tH.slice();
+                    var tV2 = w2.ori === 'V' ? tV.concat([[w2.r, w2.c]]) : tV.slice();
+                    var rotasFinal = CerebroIA._contarRotas(oppIdx, tH2, tV2, pos, 10).rotas;
+                    // Só aceita 2ª parede se reduz drasticamente
+                    if (rotasFinal <= rotasDepois - 2) {
+                        // 2ª parede é muito efetiva — vale o gasto
+                        // Mas continua usando 1ª (prudente) e deixa 2ª pra próximo turno
+                        break;
+                    }
+                }
             }
         }
 
