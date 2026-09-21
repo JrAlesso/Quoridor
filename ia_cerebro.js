@@ -1076,6 +1076,147 @@
         _perfilAtual = null;
     };
 
+    // =====================================================================
+    // TÉCNICA 16 — etapa1FimDeJogo
+    // Quando ambos têm ≤2 paredes, IA para de bloquear e corre.
+    // Só bloqueia se oponente estiver a 1 da vitória.
+    // =====================================================================
+    CerebroIA.etapa1FimDeJogo = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        // Fim de jogo? Ambos com ≤2 paredes
+        var fimDeJogo = (walls[0] <= 2 && walls[iaIdx] <= 2);
+
+        // Fora de endgame: delega pra base
+        if (!fimDeJogo) {
+            return CerebroIA.consolidadaFinal(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Em endgame: só bloqueia se oponente está a 1
+        if (CerebroIA.canWinNext(oppIdx, pH, pV, pos) && walls[iaIdx] > 0) {
+            var melhor = null;
+            for (var r = 0; r < 8; r++) {
+                for (var c = 0; c < 8; c++) {
+                    if (CerebroIA.canPlace(r, c, 'H', pH, pV, pos)) {
+                        var tH = pH.concat([[r, c]]);
+                        if (!CerebroIA.canWinNext(oppIdx, tH, pV, pos)) {
+                            return {type:'wall', r:r, c:c, ori:'H'};
+                        }
+                    }
+                    if (CerebroIA.canPlace(r, c, 'V', pH, pV, pos)) {
+                        var tV = pV.concat([[r, c]]);
+                        if (!CerebroIA.canWinNext(oppIdx, pH, tV, pos)) {
+                            return {type:'wall', r:r, c:c, ori:'V'};
+                        }
+                    }
+                }
+            }
+        }
+
+        // Senão: corre pelo caminho mínimo
+        return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    };
+
+    // =====================================================================
+    // TÉCNICA 17 — melhoriasExtra
+    // 8 melhorias táticas + delega pra consolidadaFinal quando não se aplica.
+    // É a camada que roda HOJE no jogo (a "viva").
+    // =====================================================================
+    CerebroIA.melhoriasExtra = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        // ---- Vitória imediata (regra de ouro) ----
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+        var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+
+        // ---- MELHORIA 1: Zona morta (caminho ≥14) ----
+        if (meuD >= 14) {
+            var recuperado = _recuperarZonaMorta(pos, pH, pV, walls, iaIdx);
+            if (recuperado) return recuperado;
+        }
+
+        // ---- MELHORIA 2: Reserva dinâmica ----
+        var paredesUsadasOpp = 10 - walls[oppIdx];
+        var fase = 'inicio'; // 0-3 usadas
+        if (paredesUsadasOpp >= 7) fase = 'final';
+        else if (paredesUsadasOpp >= 4) fase = 'meio';
+        var reservaMin = fase === 'inicio' ? 4 : fase === 'meio' ? 3 : 0;
+
+        // ---- MELHORIA 6: Sinal de pânico ----
+        // Se oponente gastou 3+ paredes rápido, IA para de bloquear e corre
+        // (heurística: se oponente está com poucas paredes, ele está "all-in")
+        if (walls[oppIdx] <= 2 && oppD <= 4 && meuD <= 3) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        // ---- MELHORIA 3 + 4: Bloqueio duplo / gargalo ----
+        if (oppD <= 3 && walls[iaIdx] > reservaMin) {
+            // Tenta bloqueio duplo se oponente está muito perto
+            if (oppD <= 2) {
+                var bloqueioDuplo = CerebroIA.etapa2BloqueioDuplo(pos, pH, pV, walls, iaIdx);
+                if (bloqueioDuplo && bloqueioDuplo.type === 'wall') return bloqueioDuplo;
+            }
+            // Senão, tenta gargalo
+            var gargalo = CerebroIA.etapa3Gargalo(pos, pH, pV, walls, iaIdx);
+            if (gargalo && gargalo.type === 'wall') return gargalo;
+        }
+
+        // ---- MELHORIA 5: Antecipação de salto ----
+        // Se oponente está adjacente e pode saltar, coloca parede atrás dele
+        var opR = pos[oppIdx][0], opC = pos[oppIdx][1];
+        var iaR = pos[iaIdx][0], iaC = pos[iaIdx][1];
+        var dist = Math.abs(opR - iaR) + Math.abs(opC - iaC);
+        if (dist === 1 && walls[iaIdx] > reservaMin) {
+            // Oponente adjacente — coloca parede atrás dele (na direção contrária)
+            var dirR = opR - iaR, dirC = opC - iaC;
+            var alvoR = opR + dirR, alvoC = opC + dirC;
+            if (alvoR >= 0 && alvoR <= 7 && alvoC >= 0 && alvoC <= 7) {
+                var oriAtras = dirR !== 0 ? 'H' : 'V';
+                if (CerebroIA.canPlace(alvoR, alvoC, oriAtras, pH, pV, pos)) {
+                    return {type:'wall', r:alvoR, c:alvoC, ori:oriAtras};
+                }
+            }
+        }
+
+        // ---- MELHORIA 7: Análise de relógio (skip se G.clock não existe) ----
+        // Implementação futura.
+
+        // ---- MELHORIA 8: Simulação do pior caso (delega) ----
+        // A consolidadaFinal já faz simulação — delega pra ela
+        return CerebroIA.consolidadaFinal(pos, pH, pV, walls, iaIdx);
+    };
+
+    // =====================================================================
+    // AUXILIAR — recuperarZonaMorta
+    // Se o caminho da IA ficou ≥14, tenta melhorar (mas legalmente).
+    // =====================================================================
+    function _recuperarZonaMorta(pos, pH, pV, walls, iaIdx) {
+        var oppIdx = 1 - iaIdx;
+        var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+
+        // Tenta paredes que encurtam o próprio caminho (quebrando bloqueio que
+        // o oponente fez) — não é remover parede dele, é criar atalho.
+        // No Quoridor, paredes só atrapalham. Então "recuperar" é só correr.
+        // Delega pra GPS que já busca o melhor caminho atual.
+        return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    }
+
     // Expõe globalmente
     window.CerebroIA = CerebroIA;
 

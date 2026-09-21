@@ -283,6 +283,43 @@ console.log('  ✅ resetarPerfil() executado — próxima partida sorteia novo p
 console.log('\n=== Bloco D testado ===');
 
 // =====================================================================
+// TESTES DAS TÉCNICAS — Bloco E
+// =====================================================================
+console.log('\n========================================');
+console.log('TESTES DAS TÉCNICAS (Bloco E)');
+console.log('========================================');
+
+var wE = [10, 10];
+
+console.log('\n--- Cenário 1: peões longe ---');
+var pE1 = [[8, 4], [0, 4]];
+validarAcao('etapa1        ', CI.etapa1FimDeJogo(pE1, [], [], wE, 1));
+validarAcao('melhoriasExtra', CI.melhoriasExtra(pE1, [], [], wE, 1));
+
+console.log('\n--- Cenário 2: oponente no meio ---');
+var pE2 = [[4, 4], [4, 4]];
+validarAcao('etapa1        ', CI.etapa1FimDeJogo(pE2, [], [], wE, 1));
+validarAcao('melhoriasExtra', CI.melhoriasExtra(pE2, [], [], wE, 1));
+
+console.log('\n--- Cenário 3: oponente a 2 casas ---');
+var pE3 = [[2, 4], [4, 4]];
+validarAcao('etapa1        ', CI.etapa1FimDeJogo(pE3, [], [], wE, 1));
+validarAcao('melhoriasExtra', CI.melhoriasExtra(pE3, [], [], wE, 1));
+
+console.log('\n--- Cenário 4: IA a 1 da vitória ---');
+var pE4 = [[8, 4], [7, 4]];
+validarAcao('etapa1        ', CI.etapa1FimDeJogo(pE4, [], [], wE, 1));
+validarAcao('melhoriasExtra', CI.melhoriasExtra(pE4, [], [], wE, 1));
+
+console.log('\n--- Cenário 5: ambos com ≤2 paredes (fim de jogo) ---');
+var pE5 = [[3, 4], [5, 4]];
+var wE5 = [2, 2];
+validarAcao('etapa1        ', CI.etapa1FimDeJogo(pE5, [], [], wE5, 1));
+validarAcao('melhoriasExtra', CI.melhoriasExtra(pE5, [], [], wE5, 1));
+
+console.log('\n=== Bloco E testado ===');
+
+// =====================================================================
 // RESULTADO FINAL — junta tudo
 // =====================================================================
 console.log('\n========================================');
