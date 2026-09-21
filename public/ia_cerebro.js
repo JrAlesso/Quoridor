@@ -1624,24 +1624,31 @@
         var oppIdx = 1 - iaIdx;
         var WIN = getWIN();
 
+        // Vitória/derrota imediata
         if (pos[iaIdx][0] === WIN[iaIdx]) return 1000000;
         if (pos[oppIdx][0] === WIN[oppIdx]) return -1000000;
 
         var dMeu = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
         var dOpp = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
 
-        var diff = dOpp - dMeu;
-        var score = diff * 100;
+        // Componentes principais
+        var diff = dOpp - dMeu;                     // positivo = bom pra mim
+        var score = diff * 100;                     // peso alto pra diferença
+
+        // Mobilidade (rotas alternativas)
+        var infoMeu = CerebroIA._contarRotas(iaIdx, pH, pV, pos, 8);
+        var infoOpp = CerebroIA._contarRotas(oppIdx, pH, pV, pos, 8);
+        score += (infoMeu.rotas - infoOpp.rotas) * 15;
 
         // Vantagem de paredes
         score += (walls[iaIdx] - walls[oppIdx]) * 25;
 
-        // Progresso
+        // Progresso (linhas avançadas)
         var progMeu = iaIdx === 0 ? (8 - pos[iaIdx][0]) : pos[iaIdx][0];
         var progOpp = oppIdx === 0 ? (8 - pos[oppIdx][0]) : pos[oppIdx][0];
         score += (progMeu - progOpp) * 30;
 
-        // Ameaças
+        // Ameaças próximas
         if (dOpp <= 2) score -= (3 - dOpp) * 400;
         if (dMeu <= 2) score += (3 - dMeu) * 400;
 
@@ -1685,148 +1692,70 @@
         return acoes;
     }
 
-    // =====================================================================
-    // F.5 — MINIMAX OTIMIZADO (PVS + LMR + Killer + History + Aspiration)
-    // Permite buscar profundidade 8-10 no mesmo tempo que antes buscava 4.
-    // =====================================================================
-
-    // Killer moves: [ply][slot] = ação que causou beta cutoff
-    var _deadline = 0;
-    var _killerMoves = [];
-    // History heuristic: hash da ação -> pontuação acumulada
-    var _historyHeuristic = {};
-
-    function _chaveAcao(acao) {
-        if (acao.type === 'move') return 'm' + acao.r + ',' + acao.c;
-        return 'w' + acao.r + ',' + acao.c + ',' + acao.ori;
-    }
-
-    function _resetHeuristicas() {
-        _killerMoves = [];
-        _historyHeuristic = {};
-        _cacheMinimax = {};
-        _nosVisitados = 0;
-    }
-
-    function _registrarKiller(ply, acao) {
-        if (!_killerMoves[ply]) _killerMoves[ply] = [null, null];
-        var kAtual = _chaveAcao(acao);
-        if (_killerMoves[ply][0] && _chaveAcao(_killerMoves[ply][0]) === kAtual) return;
-        _killerMoves[ply][1] = _killerMoves[ply][0];
-        _killerMoves[ply][0] = { type: acao.type, r: acao.r, c: acao.c, ori: acao.ori };
-    }
-
-    function _registrarHistory(acao, depth) {
-        var k = _chaveAcao(acao);
-        _historyHeuristic[k] = (_historyHeuristic[k] || 0) + depth * depth;
-    }
-
-    function _ordenarAcoes(acoes, ply, pvMove) {
-        for (var i = 0; i < acoes.length; i++) {
-            var a = acoes[i];
-            var bonus = (a._sort || 0);
-            // PV move: prioridade máxima
-            if (pvMove && pvMove.type === a.type && pvMove.r === a.r && pvMove.c === a.c &&
-                (pvMove.ori === undefined || pvMove.ori === a.ori)) {
-                bonus += 10000000;
-            }
-            // Killer moves
-            if (_killerMoves[ply]) {
-                if (_killerMoves[ply][0] && _chaveAcao(_killerMoves[ply][0]) === _chaveAcao(a)) bonus += 100000;
-                if (_killerMoves[ply][1] && _chaveAcao(_killerMoves[ply][1]) === _chaveAcao(a)) bonus += 50000;
-            }
-            // History
-            bonus += _historyHeuristic[_chaveAcao(a)] || 0;
-            a._ordem = bonus;
+    // Minimax com alpha-beta
+    function _minimax(pos, pH, pV, walls, depth, alpha, beta, maximizando, iaIdx) {
+        // GUARDIÃO DE TEMPO: se passou do limite, retorna avaliação simples
+        if (_nosVisitados > 5000) {
+            return _avaliarPos(pos, pH, pV, walls, iaIdx);
         }
-        acoes.sort(function (x, y) { return y._ordem - x._ordem; });
-        return acoes;
-    }
-
-    // Minimax com PVS + alpha-beta + LMR
-    function _minimax(pos, pH, pV, walls, depth, alpha, beta, maximizando, iaIdx, ply) {
-        ply = ply || 0;
         _nosVisitados++;
 
-        // Guardiões de tempo/nós
-        if (_nosVisitados > 8000 || (_deadline > 0 && Date.now() > _deadline)) {
+        var oppIdx = 1 - iaIdx;
+        var WIN = getWIN();
+
+        // Condições de parada
+        if (pos[iaIdx][0] === WIN[iaIdx]) return 1000000 + depth;
+        if (pos[oppIdx][0] === WIN[oppIdx]) return -1000000 - depth;
+
+        if (depth === 0) {
             return _avaliarPos(pos, pH, pV, walls, iaIdx);
         }
 
-        var WIN = getWIN();
-        var oppIdx = 1 - iaIdx;
-
-        if (pos[iaIdx][0] === WIN[iaIdx]) return 1000000 + depth * 100;
-        if (pos[oppIdx][0] === WIN[oppIdx]) return -1000000 - depth * 100;
-        if (depth === 0) return _avaliarPos(pos, pH, pV, walls, iaIdx);
-
         var jogadorAtual = maximizando ? iaIdx : oppIdx;
 
-        // Transposition table
+        // Cache: hash simples do estado
         var hash = jogadorAtual + '|' + depth + '|' +
                    pos[0][0] + ',' + pos[0][1] + '|' +
                    pos[1][0] + ',' + pos[1][1] + '|' +
                    pH.length + '|' + pV.length;
-        if (_cacheMinimax[hash] !== undefined) {
-            var stored = _cacheMinimax[hash];
-            if (stored.depth >= depth) return stored.value;
-        }
+        if (_cacheMinimax[hash] !== undefined) return _cacheMinimax[hash];
 
-        var acoes = _gerarAcoesOrdenadas(pos, pH, pV, walls, jogadorAtual, 6);
+        var acoes = _gerarAcoesOrdenadas(pos, pH, pV, walls, jogadorAtual, 4);
         if (acoes.length === 0) return _avaliarPos(pos, pH, pV, walls, iaIdx);
-        _ordenarAcoes(acoes, ply, null);
 
-        var melhor = maximizando ? -Infinity : Infinity;
-
-        for (var i = 0; i < acoes.length; i++) {
-            var est = _aplicarAcao(pos, pH, pV, walls, acoes[i], jogadorAtual);
-            var val;
-
-            // Late Move Reduction: jogadas menos promissoras → busca rasa
-            var reducao = 0;
-            if (i >= 3 && depth >= 3 && acoes[i].type === 'move') reducao = 1;
-
-            if (i === 0) {
-                // PV move: busca completa
-                val = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1, alpha, beta, !maximizando, iaIdx, ply + 1);
-            } else {
-                // Null window search (PVS)
-                val = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1 - reducao, alpha, alpha + 1, !maximizando, iaIdx, ply + 1);
-
-                // Se falhou na janela estreita, refaz com janela completa
-                if (val > alpha && val < beta) {
-                    val = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1, alpha, beta, !maximizando, iaIdx, ply + 1);
-                }
-            }
-
-            if (maximizando) {
+        var melhor;
+        if (maximizando) {
+            melhor = -Infinity;
+            for (var i = 0; i < acoes.length; i++) {
+                var est = _aplicarAcao(pos, pH, pV, walls, acoes[i], jogadorAtual);
+                var val = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1, alpha, beta, false, iaIdx);
                 if (val > melhor) melhor = val;
                 if (melhor > alpha) alpha = melhor;
-            } else {
+                if (beta <= alpha) break;
+            }
+        } else {
+            melhor = Infinity;
+            for (var i = 0; i < acoes.length; i++) {
+                var est = _aplicarAcao(pos, pH, pV, walls, acoes[i], jogadorAtual);
+                var val = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1, alpha, beta, true, iaIdx);
                 if (val < melhor) melhor = val;
                 if (melhor < beta) beta = melhor;
-            }
-
-            if (beta <= alpha) {
-                // Beta cutoff
-                if (acoes[i].type === 'move') _registrarKiller(ply, acoes[i]);
-                _registrarHistory(acoes[i], depth);
-                break;
+                if (beta <= alpha) break;
             }
         }
 
-        _cacheMinimax[hash] = { value: melhor, depth: depth };
+        _cacheMinimax[hash] = melhor;
         return melhor;
     }
 
     // =====================================================================
-    // TÉCNICA F.2 — minimax com aspiration windows e profundidade 8-10
+    // TÉCNICA F.2 — minimax (a técnica mais forte)
     // =====================================================================
     CerebroIA.minimax = function (pos, pH, pV, walls, iaIdx) {
         var WIN = getWIN();
         var oppIdx = 1 - iaIdx;
 
-        // Vitória imediata
+        // Vitória imediata sempre primeiro
         if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
             var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
             for (var i = 0; i < mv.length; i++) {
@@ -1834,7 +1763,7 @@
             }
         }
 
-        // Bloqueio obrigatório
+        // Bloqueio obrigatório se oponente está a 1
         if (CerebroIA.canWinNext(oppIdx, pH, pV, pos) && walls[iaIdx] > 0) {
             var pObrig = CerebroIA._todasParedesValidas(pos, pH, pV, walls, iaIdx);
             for (var i = 0; i < pObrig.length; i++) {
@@ -1847,55 +1776,37 @@
             }
         }
 
-        _resetHeuristicas();
+        // Limpa cache
+        _cacheMinimax = {};
+        _nosVisitados = 0;
         var t0 = Date.now();
-        var maxTempo = 500;
-        _deadline = t0 + maxTempo;  // deadline global
 
+        // Iterative deepening: começa raso, aprofunda enquanto tiver tempo
         var melhorAcao = null;
         var melhorScore = -Infinity;
-        var lastScore = 0;
+        var maxTempo = 300;  // 300ms por jogada (mais rápido)
 
-        // Iterative deepening: profundidade crescente
-        for (var depth = 2; depth <= 8; depth += 2) {
+        for (var depth = 2; depth <= 4; depth += 2) {
             if (Date.now() - t0 > maxTempo) break;
 
-            // Aspiration window
-            var alpha = -Infinity, beta = Infinity;
-            if (depth >= 4 && lastScore !== 0 && Math.abs(lastScore) < 900000) {
-                alpha = lastScore - 150;
-                beta = lastScore + 150;
-            }
-
-            var acoes = _gerarAcoesOrdenadas(pos, pH, pV, walls, iaIdx, 8);
+            var acoes = _gerarAcoesOrdenadas(pos, pH, pV, walls, iaIdx, 6);
             if (acoes.length === 0) break;
 
-            // Coloca a melhor ação da iteração anterior primeiro
-            _ordenarAcoes(acoes, 0, melhorAcao);
-
-            var bestD = null, scoreD = -Infinity;
-
+            var melhorDepth = null, scoreDepth = -Infinity;
             for (var i = 0; i < acoes.length; i++) {
                 if (Date.now() - t0 > maxTempo) break;
-
                 var est = _aplicarAcao(pos, pH, pV, walls, acoes[i], iaIdx);
-                var score = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1, alpha, beta, false, iaIdx, 1);
-
-                // Aspiration fail: re-search com janela completa
-                if (score <= alpha || score >= beta) {
-                    score = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1, -Infinity, Infinity, false, iaIdx, 1);
-                }
-
-                if (score > scoreD) {
-                    scoreD = score;
-                    bestD = acoes[i];
+                var score = _minimax(est.pos, est.pH, est.pV, est.walls, depth - 1, -Infinity, Infinity, false, iaIdx);
+                if (score > scoreDepth) {
+                    scoreDepth = score;
+                    melhorDepth = acoes[i];
                 }
             }
 
-            if (bestD) {
-                melhorAcao = bestD;
-                melhorScore = scoreD;
-                lastScore = scoreD;
+            if (melhorDepth) {
+                melhorAcao = melhorDepth;
+                melhorScore = scoreDepth;
+                // Se vence, para
                 if (melhorScore > 900000) break;
             }
         }

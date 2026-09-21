@@ -10579,3 +10579,161 @@ async function logoutUser() {
     console.log('IA_EXPERT_MELHORIAS_EXTRA ATIVO');
 })();
 // ===================== FIM IA_EXPERT_MELHORIAS_EXTRA =====================
+
+// =====================================================================
+// FASE E — Integração do CerebroIA (nova IA Expert)
+// =====================================================================
+// Este bloco substitui o scheduleIA para usar a nova IA (CerebroIA)
+// quando disponível. Se CerebroIA não existir ou falhar, delega para
+// a implementação original (as 17 camadas antigas).
+//
+// Para desativar: apague este bloco e o jogo volta a usar a IA antiga.
+// =====================================================================
+(function () {
+    if (typeof window.CerebroIA !== 'object') {
+        console.log('[FaseE] CerebroIA não encontrado — mantendo IA antiga');
+        return;
+    }
+    if (typeof window.scheduleIA !== 'function') {
+        console.log('[FaseE] scheduleIA não encontrado — abortando integração');
+        return;
+    }
+
+    var _scheduleIAOriginal = window.scheduleIA;
+
+    // Substitui scheduleIA
+    window.scheduleIA = function () {
+        // Mesmas guardas da versão original
+        if (G.iaThinking || G.over || !gameActive || matchFinished) return;
+        if (!G.vsIA || G.turn !== 1) return;
+
+        setIAThinking(true);
+        setTimeout(function () {
+            if (G.over || G.turn !== 1 || !gameActive || matchFinished) {
+                setIAThinking(false);
+                return;
+            }
+
+            var acao = null;
+            try {
+                acao = window.CerebroIA.jogar(
+                    G.pos,
+                    G.pH,
+                    G.pV,
+                    [G.walls[0], G.walls[1]],
+                    1
+                );
+            } catch (e) {
+                console.error('[FaseE] Erro em CerebroIA.jogar — usando IA antiga:', e);
+                setIAThinking(false);
+                return _scheduleIAOriginal.apply(this, arguments);
+            }
+
+            if (!acao) {
+                // CerebroIA não conseguiu decidir — delega pro antigo
+                setIAThinking(false);
+                return _scheduleIAOriginal.apply(this, arguments);
+            }
+
+            setIAThinking(false);
+            stopTimer();
+
+            if (acao.type === 'move') {
+                if (typeof doMove === 'function') {
+                    doMove(acao.r, acao.c);
+                } else {
+                    G.pos[1] = [acao.r, acao.c];
+                    checkWin();
+                    if (!G.over) nextTurn();
+                    updateWallIndicators(); draw();
+                }
+            } else if (acao.type === 'wall') {
+                // CerebroIA usa coordenadas 0-indexed.
+                // placeWall do jogo usa 1-indexed (adiciona 1 e depois subtrai)
+                if (typeof placeWall === 'function') {
+                    placeWall(acao.r + 1, acao.c + 1, acao.ori);
+                } else {
+                    G.walls[1]--;
+                    if (acao.ori === 'H') {
+                        G.pH.push([acao.r, acao.c]);
+                        if (G.wallOwnerH) G.wallOwnerH.push(1);
+                    } else {
+                        G.pV.push([acao.r, acao.c]);
+                        if (G.wallOwnerV) G.wallOwnerV.push(1);
+                    }
+                    checkWin();
+                    if (!G.over) nextTurn();
+                    updateWallIndicators(); draw();
+                }
+            } else {
+                // Ação desconhecida — delega
+                return _scheduleIAOriginal.apply(this, arguments);
+            }
+        }, 300);
+    };
+
+    // Envolve resetGame para resetar personalidade no início de cada partida
+    if (typeof window.resetGame === 'function') {
+        var _resetGameOriginal = window.resetGame;
+        window.resetGame = function () {
+            try {
+                if (window.CerebroIA && typeof window.CerebroIA.resetarPersonalidade === 'function') {
+                    window.CerebroIA.resetarPersonalidade();
+                }
+            } catch (e) {
+                console.warn('[FaseE] Erro ao resetar personalidade:', e);
+            }
+            return _resetGameOriginal.apply(this, arguments);
+        };
+    }
+
+    console.log('[FaseE] CerebroIA integrado com sucesso ✅');
+})();
+
+// =====================================================================
+// FASE E.2 — Registro de jogadas do humano para o CerebroIA
+// =====================================================================
+// Envolve doMove e placeWall para que cada jogada do humano seja
+// registrada na memória de padrões do CerebroIA. Assim a IA aprende
+// o estilo do jogador (onde ele coloca paredes) e pune repetições.
+// =====================================================================
+(function () {
+    if (typeof window.CerebroIA !== 'object') return;
+    if (typeof window.CerebroIA._registrarJogada !== 'function') return;
+
+    // Envolve doMove
+    if (typeof window.doMove === 'function') {
+        var _doMoveOriginal = window.doMove;
+        window.doMove = function (r, c) {
+            // Registra ANTES de aplicar (o humano está fazendo essa jogada)
+            // Só registra se for turno do humano (índice 0)
+            try {
+                if (typeof G !== 'undefined' && G.turn === 0 && !G.over) {
+                    window.CerebroIA._registrarJogada(0, { tipo: 'move', r: r, c: c });
+                }
+            } catch (e) {}
+            return _doMoveOriginal.apply(this, arguments);
+        };
+    }
+
+    // Envolve placeWall
+    if (typeof window.placeWall === 'function') {
+        var _placeWallOriginal = window.placeWall;
+        window.placeWall = function (ni, nj, ori) {
+            // placeWall do jogo é 1-indexed (ni, nj). CerebroIA usa 0-indexed.
+            try {
+                if (typeof G !== 'undefined' && G.turn === 0 && !G.over) {
+                    window.CerebroIA._registrarJogada(0, {
+                        tipo: 'wall',
+                        r: ni - 1,  // converte de 1-indexed pra 0-indexed
+                        c: nj - 1,
+                        ori: ori
+                    });
+                }
+            } catch (e) {}
+            return _placeWallOriginal.apply(this, arguments);
+        };
+    }
+
+    console.log('[FaseE.2] Registro de jogadas ativo ✅');
+})();
