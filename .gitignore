@@ -1,20 +1,4 @@
-# Backups
-*.bak
-*.log
-*.zip
-*.tar.gz
-
-# Sensível
-serviceAccountKey.json
-*.key
-*.pem
-.env
-
-# Temporários
-temp/
-tmp/
 node_modules/
-.DS_Store
 public/
-*.pyc
-__pycache__/
+*.backup_*
+*.bak_*
