@@ -1218,38 +1218,140 @@
     }
 
     // =====================================================================
-    // CÉREBRO ORQUESTRADOR
-    // Detecta a fase da partida e chama a técnica certa.
+    // CÉREBRO ORQUESTRADOR COM PERSONALIDADE + ANTI-LOOP
     // =====================================================================
 
-    // Detecção de fase da partida
-    // Retorna string: 'vitoria' | 'endgame' | 'emergencia' | 'perigo' | 'meio' | 'tranquilo'
+    // ---- Personalidade (uma por JOGADOR, não global) ----
+    var _personalidades = [null, null];  // [_personalidade do jogador 0, jogador 1]
+    var _historicoEstados = [[], []];     // histórico por jogador
+
+    function _sortearPersonalidade() {
+        var lista = ['agressivo', 'defensivo', 'equilibrado', 'adaptativo', 'calculista'];
+        return lista[Math.floor(Math.random() * lista.length)];
+    }
+
+    // Retorna a personalidade do jogador iaIdx (sorteia se ainda não tem)
+    CerebroIA.getPersonalidade = function (iaIdx) {
+        iaIdx = iaIdx || 0;
+        if (!_personalidades[iaIdx]) _personalidades[iaIdx] = _sortearPersonalidade();
+        return _personalidades[iaIdx];
+    };
+
+    // Sorteia nova personalidade para AMBOS os jogadores
+    CerebroIA.resetarPersonalidade = function () {
+        _personalidades[0] = _sortearPersonalidade();
+        _personalidades[1] = _sortearPersonalidade();
+        _historicoEstados = [[], []];
+        return _personalidades;
+    };
+
+    // ---- Hash do estado (pra anti-loop) ----
+    function _hashEstado(pos, pH, pV) {
+        return pos[0][0] + ',' + pos[0][1] + '|' +
+               pos[1][0] + ',' + pos[1][1] + '|' +
+               pH.length + '|' + pV.length;
+    }
+
+    function _detectarLoop(pos, pH, pV, iaIdx) {
+        iaIdx = iaIdx || 0;
+        var h = _hashEstado(pos, pH, pV);
+        var hist = _historicoEstados[iaIdx];
+        hist.push(h);
+        if (hist.length > 6) hist.shift();
+
+        // Conta repetições
+        var cont = 0;
+        for (var i = 0; i < hist.length; i++) {
+            if (hist[i] === h) cont++;
+        }
+        return cont >= 3;  // mesmo estado apareceu 3+ vezes
+    }
+
+    // ---- Detecção de fase (com personalidade) ----
     CerebroIA._detectarFase = function (pos, pH, pV, walls, iaIdx) {
         var oppIdx = 1 - iaIdx;
 
-        // 1. Vitória imediata?
+        // 1. Vitória imediata SEMPRE
         if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) return 'vitoria';
 
-        // 2. Endgame (ambos com ≤2 paredes)?
+        // 2. Endgame SEMPRE
         if (walls[0] <= 2 && walls[iaIdx] <= 2) return 'endgame';
 
-        // 3. Oponente ameaça vitória imediata?
+        // 3. Emergência SEMPRE
         if (CerebroIA.canWinNext(oppIdx, pH, pV, pos)) return 'emergencia';
 
         var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+        var personalidade = CerebroIA.getPersonalidade(iaIdx);
 
-        // 4. Perigo (oponente a 2-3 casas)?
-        if (oppD <= 3) return 'perigo';
+        // ---- Limiares por personalidade ----
+        // Agressivo: bloqueia cedo (oponente a 4 já é "perigo")
+        // Defensivo: só bloqueia se oponente MUITO perto (a 2)
+        // Equilibrado: padrão (a 3)
+        // Adaptativo: entre agressivo e defensivo, depende das paredes
+        // Calculista: sempre escolhe técnica mais forte disponível
+        var limiarPerigo = 3;
+        var limiarMeio = 6;
 
-        // 5. Meio (oponente a 4-6 casas)?
-        if (oppD <= 6) return 'meio';
+        if (personalidade === 'agressivo') { limiarPerigo = 4; limiarMeio = 7; }
+        else if (personalidade === 'defensivo') { limiarPerigo = 2; limiarMeio = 4; }
+        else if (personalidade === 'adaptativo') {
+            // Se tem muitas paredes (>7), é agressivo. Se poucas (<4), defensivo.
+            limiarPerigo = walls[iaIdx] > 7 ? 4 : (walls[iaIdx] < 4 ? 2 : 3);
+            limiarMeio = limiarPerigo + 3;
+        } else if (personalidade === 'calculista') {
+            limiarPerigo = 3;
+            limiarMeio = 5;  // entra em modo "ação" mais cedo
+        }
 
-        // 6. Tranquilo (oponente a 7+)
+        if (oppD <= limiarPerigo) return 'perigo';
+        if (oppD <= limiarMeio) return 'meio';
         return 'tranquilo';
     };
 
-    // Mapeamento: fase → nome da técnica
-    CerebroIA.qualTecnica = function (fase) {
+    // ---- Mapeamento fase → técnica ----
+    CerebroIA.qualTecnica = function (fase, iaIdx) {
+        var personalidade = CerebroIA.getPersonalidade(iaIdx);
+
+        // Calculista: sempre usa as técnicas mais poderosas
+        if (personalidade === 'calculista') {
+            switch (fase) {
+                case 'vitoria':    return 'gps';
+                case 'endgame':    return 'etapa1FimDeJogo';
+                case 'emergencia': return 'consolidadaFinal';
+                case 'perigo':     return 'consolidadaFinal';
+                case 'meio':       return 'melhoriasExtra';
+                case 'tranquilo':  return 'gps';
+                default:           return 'consolidadaFinal';
+            }
+        }
+
+        // Agressivo: sempre tenta bloquear quando pode
+        if (personalidade === 'agressivo') {
+            switch (fase) {
+                case 'vitoria':    return 'gps';
+                case 'endgame':    return 'etapa1FimDeJogo';
+                case 'emergencia': return 'melhoriasExtra';
+                case 'perigo':     return 'melhoriasExtra';
+                case 'meio':       return 'etapa2BloqueioDuplo';
+                case 'tranquilo':  return 'etapa3Gargalo';
+                default:           return 'melhoriasExtra';
+            }
+        }
+
+        // Defensivo: foca em correr, só bloqueia no último momento
+        if (personalidade === 'defensivo') {
+            switch (fase) {
+                case 'vitoria':    return 'gps';
+                case 'endgame':    return 'etapa1FimDeJogo';
+                case 'emergencia': return 'consolidadaFinal';
+                case 'perigo':     return 'antiBrecha';
+                case 'meio':       return 'gps';
+                case 'tranquilo':  return 'gps';
+                default:           return 'gps';
+            }
+        }
+
+        // Adaptativo e Equilibrado: padrão
         switch (fase) {
             case 'vitoria':    return 'gps';
             case 'endgame':    return 'etapa1FimDeJogo';
@@ -1261,35 +1363,63 @@
         }
     };
 
-    // Função principal — decide e retorna a ação
+    // ---- Anti-loop: quando detecta repetição, muda de técnica ----
+    function _tecnicaAntiLoop(fase, tecnicaAtual) {
+        var alternativas = {
+            'gps': 'visaoReal',
+            'visaoReal': 'gps',
+            'melhoriasExtra': 'etapa2BloqueioDuplo',
+            'etapa2BloqueioDuplo': 'melhoriasExtra',
+            'etapa3Gargalo': 'strategicV1',
+            'strategicV1': 'etapa3Gargalo',
+            'consolidadaFinal': 'forte',
+            'forte': 'consolidadaFinal'
+        };
+        return alternativas[tecnicaAtual] || tecnicaAtual;
+    }
+
+    // ---- Função principal ----
     CerebroIA.jogar = function (pos, pH, pV, walls, iaIdx) {
         var fase = CerebroIA._detectarFase(pos, pH, pV, walls, iaIdx);
-        var tecnica = CerebroIA.qualTecnica(fase);
+        var tecnica = CerebroIA.qualTecnica(fase, iaIdx);
 
-        // Chama a técnica
-        var acao = null;
-        if (typeof CerebroIA[tecnica] === 'function') {
-            acao = CerebroIA[tecnica](pos, pH, pV, walls, iaIdx);
+        // Anti-loop: se detectou repetição, troca de técnica
+        var loopDetectado = _detectarLoop(pos, pH, pV, iaIdx);
+        if (loopDetectado) {
+            tecnica = _tecnicaAntiLoop(fase, tecnica);
         }
 
-        // Fallback: se a técnica falhou, usa gps
-        if (!acao) {
-            acao = CerebroIA.gps(pos, pH, pV, walls, iaIdx);
-        }
-
-        return acao;
-    };
-
-    // Versão com debug: retorna { acao, fase, tecnica }
-    CerebroIA.jogarDebug = function (pos, pH, pV, walls, iaIdx) {
-        var fase = CerebroIA._detectarFase(pos, pH, pV, walls, iaIdx);
-        var tecnica = CerebroIA.qualTecnica(fase);
         var acao = null;
         if (typeof CerebroIA[tecnica] === 'function') {
             acao = CerebroIA[tecnica](pos, pH, pV, walls, iaIdx);
         }
         if (!acao) acao = CerebroIA.gps(pos, pH, pV, walls, iaIdx);
-        return { acao: acao, fase: fase, tecnica: tecnica };
+        return acao;
+    };
+
+    // ---- Versão com debug ----
+    CerebroIA.jogarDebug = function (pos, pH, pV, walls, iaIdx) {
+        var fase = CerebroIA._detectarFase(pos, pH, pV, walls, iaIdx);
+        var tecnica = CerebroIA.qualTecnica(fase, iaIdx);
+
+        var loopDetectado = _detectarLoop(pos, pH, pV, iaIdx);
+        if (loopDetectado) {
+            tecnica = _tecnicaAntiLoop(fase, tecnica);
+        }
+
+        var acao = null;
+        if (typeof CerebroIA[tecnica] === 'function') {
+            acao = CerebroIA[tecnica](pos, pH, pV, walls, iaIdx);
+        }
+        if (!acao) acao = CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+
+        return {
+            acao: acao,
+            fase: fase,
+            tecnica: tecnica,
+            personalidade: CerebroIA.getPersonalidade(iaIdx),
+            loop: loopDetectado
+        };
     };
 
     // Expõe globalmente
