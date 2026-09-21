@@ -1317,59 +1317,75 @@
     };
 
     // ---- Mapeamento fase → técnica ----
+    // ---- Mapeamento fase → técnica ----
+    // Todas as 18 técnicas são usadas em pelo menos 1 lugar
     CerebroIA.qualTecnica = function (fase, iaIdx) {
         var personalidade = CerebroIA.getPersonalidade(iaIdx);
 
-        // Calculista: sempre usa as técnicas mais poderosas
+        // CALCULISTA — usa as mais completas
         if (personalidade === 'calculista') {
             switch (fase) {
                 case 'vitoria':    return 'gps';
                 case 'endgame':    return 'etapa1FimDeJogo';
                 case 'vantagem':   return 'gps';
                 case 'emergencia': return 'cercoEstrategico';
-                case 'perigo':     return 'cercoEstrategico';
-                case 'meio':       return 'cercoEstrategico';
+                case 'perigo':     return 'consolidadaFinal';
+                case 'meio':       return 'strategicV1';
                 case 'tranquilo':  return 'gps';
                 default:           return 'cercoEstrategico';
             }
         }
 
-        // Agressivo: sempre tenta bloquear quando pode
+        // AGRESSIVO — bloqueia cedo e forte
         if (personalidade === 'agressivo') {
             switch (fase) {
                 case 'vitoria':    return 'gps';
                 case 'endgame':    return 'etapa1FimDeJogo';
                 case 'vantagem':   return 'gps';
-                case 'emergencia': return 'cercoEstrategico';
+                case 'emergencia': return 'invencivel';
                 case 'perigo':     return 'cercoEstrategico';
-                case 'meio':       return 'cercoEstrategico';
+                case 'meio':       return 'etapa2BloqueioDuplo';
                 case 'tranquilo':  return 'gps';
                 default:           return 'cercoEstrategico';
             }
         }
 
-        // Defensivo: foca em correr, só bloqueia no último momento
+        // DEFENSIVO — economiza, só bloqueia no último
         if (personalidade === 'defensivo') {
             switch (fase) {
                 case 'vitoria':    return 'gps';
                 case 'endgame':    return 'etapa1FimDeJogo';
                 case 'vantagem':   return 'gps';
-                case 'emergencia': return 'cercoEstrategico';
-                case 'perigo':     return 'cercoEstrategico';
-                case 'meio':       return 'gps';
+                case 'emergencia': return 'antiBrecha';
+                case 'perigo':     return 'economicaV2';
+                case 'meio':       return 'justa';
                 case 'tranquilo':  return 'gps';
                 default:           return 'gps';
             }
         }
 
-        // Adaptativo e Equilibrado: padrão
+        // ADAPTATIVO — aprende padrões do oponente
+        if (personalidade === 'adaptativo') {
+            switch (fase) {
+                case 'vitoria':    return 'gps';
+                case 'endgame':    return 'etapa1FimDeJogo';
+                case 'vantagem':   return 'gps';
+                case 'emergencia': return 'cercoEstrategico';
+                case 'perigo':     return 'memoriaParedes';
+                case 'meio':       return 'etapa3Gargalo';
+                case 'tranquilo':  return 'visaoReal';
+                default:           return 'cercoEstrategico';
+            }
+        }
+
+        // EQUILIBRADO (padrão) — usa as mais equilibradas
         switch (fase) {
             case 'vitoria':    return 'gps';
             case 'vantagem':   return 'gps';
             case 'endgame':    return 'etapa1FimDeJogo';
             case 'emergencia': return 'cercoEstrategico';
             case 'perigo':     return 'cercoEstrategico';
-            case 'meio':       return 'cercoEstrategico';
+            case 'meio':       return 'forte';
             case 'tranquilo':  return 'gps';
             default:           return 'cercoEstrategico';
         }
@@ -1380,8 +1396,11 @@
         var alternativas = {
             'gps': 'visaoReal',
             'visaoReal': 'gps',
-            'melhoriasExtra': 'etapa2BloqueioDuplo',
-            'etapa2BloqueioDuplo': 'melhoriasExtra',
+            'melhoriasExtra': 'melhoriasExtraV2',
+            'melhoriasExtraV2': 'melhoriasExtra',
+            'economicaV1': 'economicaV2',
+            'economicaV2': 'economicaV1',
+            'etapa2BloqueioDuplo': 'etapa3Gargalo',
             'etapa3Gargalo': 'strategicV1',
             'strategicV1': 'etapa3Gargalo',
             'consolidadaFinal': 'forte',
@@ -1396,6 +1415,18 @@
         if (typeof CerebroIA._usarAbertura === 'function') {
             var acaoAbertura = CerebroIA._usarAbertura(pos, pH, pV, walls, iaIdx);
             if (acaoAbertura) return acaoAbertura;
+        }
+
+        // TÉCNICA cemAberturas — primeiros turnos: detecta padrão do oponente
+        if (walls[0] >= 9 && walls[iaIdx] >= 9 && typeof CerebroIA.cemAberturas === 'function') {
+            var acaoCem = CerebroIA.cemAberturas(pos, pH, pV, walls, iaIdx);
+            if (acaoCem) return acaoCem;
+        }
+
+        // TÉCNICA etapa4PunirPrevisivel — primeiros turnos: pune jogador previsível
+        if (walls[0] >= 8 && walls[iaIdx] >= 8 && typeof CerebroIA.etapa4PunirPrevisivel === 'function') {
+            var acaoE4 = CerebroIA.etapa4PunirPrevisivel(pos, pH, pV, walls, iaIdx);
+            if (acaoE4) return acaoE4;
         }
 
         var fase = CerebroIA._detectarFase(pos, pH, pV, walls, iaIdx);
