@@ -2377,15 +2377,99 @@
     // oponente a VOLTAR. Só age quando oponente está a ≤3 e só executa
     // se o custo pro oponente for ≥3 turnos.
     // =====================================================================
+    // =====================================================================
+    // ANÁLISE DE DUPLA ROTA
+    // Identifica a rota mais curta do oponente E a alternativa secundária.
+    // Retorna { rotaCurta, rotaAlternativa, custoDesvio, rotaCurtaDominante }
+    // =====================================================================
+    CerebroIA._analisarRotas = function (oppIdx, pH, pV, pos) {
+        var rotaCurta = CerebroIA.bfsPath(oppIdx, pH, pV, pos);
+        var distCurta = rotaCurta.dist;
+        var distAlternativa = 99;
+
+        if (distCurta >= 99) {
+            return { rotaCurta: rotaCurta, rotaAlternativa: null, custoDesvio: 0, rotaCurtaDominante: false };
+        }
+
+        // Pega a rota curta e bloqueia virtualmente cada célula dela,
+        // uma por vez, medindo o custo real do desvio
+        var melhorAlternativa = 99;
+        var pathCurta = rotaCurta.path;
+
+        // Limita a análise às primeiras 6 células (mais relevantes)
+        var limite = Math.min(pathCurta.length - 1, 6);
+        for (var i = 1; i < limite; i++) {
+            var cel = pathCurta[i];
+            var r = cel[0], c = cel[1];
+
+            // Bloqueia essa célula temporariamente (não é parede real, só simulação)
+            var bloqueioTemp = 'TEMP_' + r + ',' + c;
+            // Usa BFS alternativa ignorando essa célula via fake walls
+            // Truque: adiciona 2 paredes fictícias que bloqueiam a entrada nessa célula
+
+            // Simples: testa quantas casas o oponente perderia se essa célula
+            // estivesse bloqueada — aproximação: distância sem poder pisar lá
+            // (usando Manhattan como fallback)
+            // Melhor: BFS com célula-banida
+            var distComBloqueio = _bfsComCelulaBanida(oppIdx, pH, pV, pos, r, c);
+            if (distComBloqueio < melhorAlternativa && distComBloqueio > distCurta) {
+                melhorAlternativa = distComBloqueio;
+            }
+        }
+
+        // Se não achou alternativa melhor, usa distCurta + 2 como estimativa
+        if (melhorAlternativa >= 99 || melhorAlternativa <= distCurta) {
+            melhorAlternativa = distCurta + 3;
+        }
+
+        var custoDesvio = melhorAlternativa - distCurta;
+        var rotaCurtaDominante = custoDesvio >= 2;
+
+        return {
+            rotaCurta: rotaCurta,
+            rotaAlternativa: melhorAlternativa,
+            custoDesvio: custoDesvio,
+            rotaCurtaDominante: rotaCurtaDominante
+        };
+    };
+
+    // BFS auxiliar: distância até a meta SEM passar por (rBanido, cBanido)
+    function _bfsComCelulaBanida(player, pH, pV, pos, rBanido, cBanido) {
+        var WIN = getWIN();
+        var goal = WIN[player];
+        var start = pos[player][0] + ',' + pos[player][1];
+        var dist = {}; dist[start] = 0;
+        var q = [[pos[player][0], pos[player][1], 0]];
+        var qi = 0;
+        while (qi < q.length) {
+            var cur = q[qi++];
+            var r = cur[0], c = cur[1], d = cur[2];
+            if (r === goal) return d;
+            var tpos = [pos[0].slice(), pos[1].slice()];
+            tpos[player] = [r, c];
+            var nb = CerebroIA.legalMoves(player, pH, pV, tpos);
+            for (var i = 0; i < nb.length; i++) {
+                var nr = nb[i][0], nc = nb[i][1];
+                // Pula a célula banida (a não ser que seja o goal)
+                if (nr === rBanido && nc === cBanido && nr !== goal) continue;
+                var key = nr + ',' + nc;
+                if (dist[key] !== undefined) continue;
+                dist[key] = d + 1;
+                q.push([nr, nc, d + 1]);
+            }
+        }
+        return 99;
+    }
+
     CerebroIA.cercoEstrategico = function (pos, pH, pV, walls, iaIdx) {
         var WIN = getWIN();
         var oppIdx = 1 - iaIdx;
 
-        // ===== MELHORIA #20: COUNTDOWN DE VITÓRIA =====
-        // Se IA está muito à frente E oponente está longe, só corre
+        // ===== MELHORIA #20: COUNTDOWN DE VITÓRIA (AJUSTADO) =====
+        // Só deixa de bloquear se estiver MUITO à frente (5+) E oponente longe (6+)
         var oppD0 = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
         var meuD0 = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
-        if (meuD0 + 3 < oppD0 && oppD0 >= 3) {
+        if (meuD0 + 5 < oppD0 && oppD0 >= 6) {
             return _melhorMovimento(pos, pH, pV, walls, iaIdx);
         }
 
@@ -2413,19 +2497,28 @@
         var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
         var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
 
-        // MELHORIA 19: RESERVA DINÂMICA
+        // MELHORIA 19: RESERVA DINÂMICA (AJUSTADA)
         var paredesAtuais = walls[iaIdx];
         var limiarGasto;
-        if (paredesAtuais >= 7) limiarGasto = 3;
-        else if (paredesAtuais >= 4) limiarGasto = 2;
-        else limiarGasto = 1;
+        if (paredesAtuais >= 7) limiarGasto = 5;
+        else if (paredesAtuais >= 4) limiarGasto = 4;
+        else limiarGasto = 3;
 
-        if (oppD > limiarGasto || paredesAtuais <= 0) {
+        // ENDGAME URGENTE: se oponente a ≤2, IGNORA reserva — sempre bloqueia
+        var endgameUrgente = (oppD <= 2 && paredesAtuais >= 1);
+
+        if (!endgameUrgente && (oppD > limiarGasto || paredesAtuais <= 0)) {
             return _melhorMovimento(pos, pH, pV, walls, iaIdx);
         }
 
+        // ===== MELHORIA DUPLA ROTA =====
+        // Analisa rota mais curta vs alternativa
+        var analiseRotas = CerebroIA._analisarRotas(oppIdx, pH, pV, pos);
+        var rotaCurtaDominante = analiseRotas.rotaCurtaDominante;
+        var custoDesvio = analiseRotas.custoDesvio;
+
         // 1. Pega a rota atual do oponente
-        var rotaOpp = CerebroIA.bfsPath(oppIdx, pH, pV, pos);
+        var rotaOpp = analiseRotas.rotaCurta;
         var celulasRota = {};
         for (var k = 0; k < rotaOpp.path.length; k++) {
             celulasRota[rotaOpp.path[k][0] + ',' + rotaOpp.path[k][1]] = true;
@@ -2446,6 +2539,11 @@
 
         // ===== MELHORIA #3 + #17: CERCO SIMÉTRICO + BLOQUEIO EM U =====
         var paredesCandidatas = [];
+
+        // BLOQUEIO PREVENTIVO ESTENDIDO:
+        // Se oponente está a ≤6 E a rota curta é 2+ casas melhor que alternativa,
+        // vale a pena bloquear ANTES dele chegar perto
+        var bloqueioPreventivo = rotaCurtaDominante && oppD <= 6 && walls[iaIdx] >= 1;
 
         for (var r = 0; r < 8; r++) {
             for (var c = 0; c < 8; c++) {
@@ -2494,6 +2592,9 @@
                         var evitaAmeaca = !_ameacaEm2Turnos(tHCheck, pV, pos);
 
                         var scoreH = ganhoTotal * 20 + (evitaAmeaca ? 30 : 0) + (paredesUsadas >= 2 ? 25 : 0);
+                        // Bônus por bloquear rota curta dominante
+                        if (rotaCurtaDominante) scoreH += custoDesvio * 15;
+                        if (bloqueioPreventivo) scoreH += 40;
                         if (ganhoTotal >= 3 || (evitaAmeaca && ganhoTotal >= 1)) {
                             paredesCandidatas.push({
                                 r: r, c: c, ori: 'H',
@@ -2547,6 +2648,8 @@
                         var tVCheck = pV.concat([[r, c]]);
                         var evitaAmeacaV = !_ameacaEm2Turnos(pH, tVCheck, pos);
                         var scoreV = ganhoTotalV * 20 + (evitaAmeacaV ? 30 : 0) + (paredesUsadasV >= 2 ? 25 : 0);
+                        if (rotaCurtaDominante) scoreV += custoDesvio * 15;
+                        if (bloqueioPreventivo) scoreV += 40;
 
                         if (ganhoTotalV >= 3 || (evitaAmeacaV && ganhoTotalV >= 1)) {
                             paredesCandidatas.push({
