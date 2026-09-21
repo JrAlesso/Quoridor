@@ -463,29 +463,32 @@
 }
 #btn-close-profile { margin-top: 8px; }
 
-
-
-
-
-/* SAIR discreto no perfil */
-#btn-logout{
-  width:auto!important;
-  min-width:0!important;
-  padding:6px 12px!important;
-  margin:10px auto 0!important;
-  display:block!important;
-  border:1px solid rgba(233,69,96,0.25)!important;
-  border-radius:8px!important;
-  background:transparent!important;
-  color:rgba(233,69,96,0.75)!important;
-  font-weight:600!important;
-  font-size:11px!important;
-  letter-spacing:0.3px!important;
-  box-shadow:none!important;
-  opacity:0.85;
+/* ===== BOTÃO SAIR DISCRETO ===== */
+#btn-logout {
+    width: auto !important;
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+    border-radius: 6px !important;
+    margin: 6px auto 0 !important;
+    display: block !important;
+    opacity: 0.6 !important;
+    letter-spacing: 0.2px !important;
+    background: rgba(233, 69, 96, 0.1) !important;
+    border: 1px solid rgba(233, 69, 96, 0.3) !important;
+    color: #e94560 !important;
 }
-#btn-logout:hover{
-  background:rgba(233,69,96,0.1)!important;
-  opacity:1;
+#btn-logout:hover {
+    background: rgba(233, 69, 96, 0.2) !important;
 }
-#btn-close-profile{margin-top:10px;}
+
+/* ===== ID DO PERFIL NOTÁVEL ===== */
+#profile-userid {
+    font-size: 10px;
+    color: #b8a99a;
+    padding: 4px 8px;
+    background: rgba(255,215,140,0.05);
+    border-radius: 6px;
+    display: inline-block;
+    cursor: pointer;
+    word-break: break-all;
+}
