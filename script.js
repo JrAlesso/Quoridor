@@ -1446,7 +1446,11 @@ function getAccounts() {
       var stats = getStats();
       var name = playerIndex === 0 ? G.p1Name : G.p2Name;
       var data = [];
-      if (playerIndex === 0 && currentUser) {
+
+      // ============================================================
+      // MODO ONLINE (futuro) — progressão de perfil real
+      // ============================================================
+      if (typeof isOnlineMode !== 'undefined' && isOnlineMode) {
         data = [
           { label: 'Nome', value: name },
           { label: 'Título', value: stats.equippedTitle || 'Recruta' },
@@ -1459,19 +1463,70 @@ function getAccounts() {
           { label: 'Pontos (ELO)', value: stats.rankPoints.toFixed(1) },
           { label: 'Estilo de jogo', value: stats.games > 0 ? (stats.totalWalls / stats.games >= 4 ? 'Estrategista' : stats.totalWalls / stats.games >= 2 ? 'Equilibrado' : 'Agressivo') : 'Indefinido' }
         ];
-      } else if (playerIndex === 1 && G.vsIA) {
+      }
+      // ============================================================
+      // MODO LOCAL — vs IA
+      // ============================================================
+      else if (G.vsIA) {
+        if (playerIndex === 0 && currentUser) {
+          var vitoriasIA = stats.expertWins || 0;
+          var proximoIA = null, faltamIA = 0;
+          if (typeof IA_WINS_TITLES !== 'undefined') {
+            for (var i = 0; i < IA_WINS_TITLES.length; i++) {
+              if (vitoriasIA < IA_WINS_TITLES[i].minVsIAWins) {
+                proximoIA = IA_WINS_TITLES[i].title;
+                faltamIA = IA_WINS_TITLES[i].minVsIAWins - vitoriasIA;
+                break;
+              }
+            }
+          }
+          data = [
+            { label: 'Nome', value: name },
+            { label: 'Título atual', value: stats.equippedTitle || 'Recruta' },
+            { label: 'Vitórias vs IA Expert', value: vitoriasIA },
+            { label: 'Próximo título', value: proximoIA ? proximoIA : 'Máximo alcançado' },
+            { label: 'Faltam', value: proximoIA ? faltamIA + ' vitória(s)' : '—' }
+          ];
+        } else {
+          // Peão 1 — a IA
+          var personalidadeIA = 'padrão';
+          try {
+            if (typeof CerebroIA !== 'undefined' && CerebroIA.getPersonalidade) {
+              personalidadeIA = CerebroIA.getPersonalidade(1);
+            }
+          } catch (e) {}
+          data = [
+            { label: 'Nome', value: name },
+            { label: 'Tipo', value: 'Inteligência Artificial' },
+            { label: 'Dificuldade', value: G.nivelIA.toUpperCase() },
+            { label: 'Personalidade', value: personalidadeIA }
+          ];
+        }
+      }
+      // ============================================================
+      // MODO LOCAL — 2 Jogadores
+      // ============================================================
+      else {
+        var partidasLocais = stats.localGames || 0;
+        var proximoLocal = null, faltamLocal = 0;
+        if (typeof LOCAL_GAMES_TITLES !== 'undefined') {
+          for (var i = 0; i < LOCAL_GAMES_TITLES.length; i++) {
+            if (partidasLocais < LOCAL_GAMES_TITLES[i].minLocalGames) {
+              proximoLocal = LOCAL_GAMES_TITLES[i].title;
+              faltamLocal = LOCAL_GAMES_TITLES[i].minLocalGames - partidasLocais;
+              break;
+            }
+          }
+        }
         data = [
           { label: 'Nome', value: name },
-          { label: 'Tipo', value: 'Inteligência Artificial' },
-          { label: 'Dificuldade', value: G.nivelIA.toUpperCase() }
-        ];
-      } else {
-        data = [
-          { label: 'Nome', value: name },
-          { label: 'Tipo', value: 'Jogador Local' },
-          { label: 'Título', value: 'Nenhum' }
+          { label: 'Tipo', value: playerIndex === 0 ? 'Você' : 'Jogador Local' },
+          { label: 'Partidas 2 Jogadores', value: partidasLocais },
+          { label: 'Próximo título', value: proximoLocal ? proximoLocal : 'Máximo alcançado' },
+          { label: 'Faltam', value: proximoLocal ? faltamLocal + ' partida(s)' : '—' }
         ];
       }
+
       for (var i = 0; i < data.length; i++) {
         var item = document.createElement('div');
         item.className = 'inspect-item';
