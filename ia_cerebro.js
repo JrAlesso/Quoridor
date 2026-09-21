@@ -298,6 +298,558 @@
         return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
     };
 
+    // =====================================================================
+    // TÉCNICA 4 — justa
+    // Bloqueio leve. Só age quando o oponente já passou do meio (linha 4).
+    // Senão, corre.
+    // =====================================================================
+    CerebroIA.justa = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+        var oppRow = pos[oppIdx][0];
+
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        // Oponente "passou do meio"? Depende de quem ele é.
+        var passouDoMeio = (iaIdx === 1) ? (oppRow <= 4) : (oppRow >= 4);
+        if (!passouDoMeio || walls[iaIdx] <= 0) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Bloqueia se ganho for significativo (≥2)
+        var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+        var melhor = null, melhorGanho = 1;
+        for (var r = 0; r < 8; r++) {
+            for (var c = 0; c < 8; c++) {
+                if (CerebroIA.canPlace(r, c, 'H', pH, pV, pos)) {
+                    var tH = pH.concat([[r, c]]);
+                    var gH = CerebroIA.bfsDist(oppIdx, tH, pV, pos) - oppD;
+                    if (gH > melhorGanho) { melhorGanho = gH; melhor = {type:'wall', r:r, c:c, ori:'H'}; }
+                }
+                if (CerebroIA.canPlace(r, c, 'V', pH, pV, pos)) {
+                    var tV = pV.concat([[r, c]]);
+                    var gV = CerebroIA.bfsDist(oppIdx, pH, tV, pos) - oppD;
+                    if (gV > melhorGanho) { melhorGanho = gV; melhor = {type:'wall', r:r, c:c, ori:'V'}; }
+                }
+            }
+        }
+        if (melhor) return melhor;
+        return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    };
+
+    // =====================================================================
+    // TÉCNICA 5 — economicaV2
+    // Só considera paredes que TOCAM o caminho real do oponente.
+    // Muito mais seletiva que economicaV1.
+    // =====================================================================
+    CerebroIA.economicaV2 = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        if (walls[iaIdx] <= 0) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        var rotaOpp = CerebroIA.bfsPath(oppIdx, pH, pV, pos);
+        var oppD = rotaOpp.dist;
+
+        // Se oponente está longe (>5), corre
+        if (oppD > 5) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Cria "conjunto" das células do caminho do oponente
+        var celulas = {};
+        for (var k = 0; k < rotaOpp.path.length; k++) {
+            celulas[rotaOpp.path[k][0] + ',' + rotaOpp.path[k][1]] = true;
+        }
+
+        var melhor = null, melhorGanho = 0;
+        var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+
+        for (var r = 0; r < 8; r++) {
+            for (var c = 0; c < 8; c++) {
+                // H: toca se (r,c) ou (r+1,c) estão no caminho do oponente
+                if (CerebroIA.canPlace(r, c, 'H', pH, pV, pos)) {
+                    if (celulas[r + ',' + c] || celulas[(r + 1) + ',' + c]) {
+                        var tH = pH.concat([[r, c]]);
+                        var gH = CerebroIA.bfsDist(oppIdx, tH, pV, pos) - oppD;
+                        var mH = CerebroIA.bfsDist(iaIdx, tH, pV, pos) - meuD;
+                        if (gH >= 2 && mH <= 1 && gH > melhorGanho) {
+                            melhorGanho = gH;
+                            melhor = {type:'wall', r:r, c:c, ori:'H'};
+                        }
+                    }
+                }
+                // V: toca se (r,c) ou (r,c+1) estão no caminho do oponente
+                if (CerebroIA.canPlace(r, c, 'V', pH, pV, pos)) {
+                    if (celulas[r + ',' + c] || celulas[r + ',' + (c + 1)]) {
+                        var tV = pV.concat([[r, c]]);
+                        var gV = CerebroIA.bfsDist(oppIdx, pH, tV, pos) - oppD;
+                        var mV = CerebroIA.bfsDist(iaIdx, pH, tV, pos) - meuD;
+                        if (gV >= 2 && mV <= 1 && gV > melhorGanho) {
+                            melhorGanho = gV;
+                            melhor = {type:'wall', r:r, c:c, ori:'V'};
+                        }
+                    }
+                }
+            }
+        }
+        if (melhor) return melhor;
+        return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    };
+
+    // =====================================================================
+    // TÉCNICA 6 — invencivel
+    // Bloqueio ofensivo com pontuação (caminho + progresso do oponente).
+    // =====================================================================
+    CerebroIA.invencivel = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        if (walls[iaIdx] <= 0) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+        var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+
+        // Pontuação de cada parede candidata
+        var melhor = null, melhorScore = -1e9;
+        for (var r = 0; r < 8; r++) {
+            for (var c = 0; c < 8; c++) {
+                if (CerebroIA.canPlace(r, c, 'H', pH, pV, pos)) {
+                    var tH = pH.concat([[r, c]]);
+                    var nOpp = CerebroIA.bfsDist(oppIdx, tH, pV, pos);
+                    var nMe = CerebroIA.bfsDist(iaIdx, tH, pV, pos);
+                    var score = (nOpp - oppD) * 15 - (nMe - meuD) * 10;
+                    if (score > melhorScore) {
+                        melhorScore = score;
+                        melhor = {type:'wall', r:r, c:c, ori:'H'};
+                    }
+                }
+                if (CerebroIA.canPlace(r, c, 'V', pH, pV, pos)) {
+                    var tV = pV.concat([[r, c]]);
+                    var nOppV = CerebroIA.bfsDist(oppIdx, pH, tV, pos);
+                    var nMeV = CerebroIA.bfsDist(iaIdx, pH, tV, pos);
+                    var scoreV = (nOppV - oppD) * 15 - (nMeV - meuD) * 10;
+                    if (scoreV > melhorScore) {
+                        melhorScore = scoreV;
+                        melhor = {type:'wall', r:r, c:c, ori:'V'};
+                    }
+                }
+            }
+        }
+
+        // Se a melhor parede traz ganho real (≥1) e não me atrasa muito, usa
+        if (melhor && melhorScore >= 5) return melhor;
+        return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    };
+
+    // =====================================================================
+    // TÉCNICA 7 — antiBrecha
+    // Bloqueio preventivo agressivo. Se oponente está a ≤3, sempre bloqueia
+    // a melhor parede. Não economiza.
+    // =====================================================================
+    CerebroIA.antiBrecha = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+
+        // Se oponente está longe (>3), corre
+        if (oppD > 3 || walls[iaIdx] <= 0) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Se oponente está perto (≤3), bloqueia a MELHOR parede sem restrição
+        var melhor = null, melhorGanho = 0;
+        for (var r = 0; r < 8; r++) {
+            for (var c = 0; c < 8; c++) {
+                if (CerebroIA.canPlace(r, c, 'H', pH, pV, pos)) {
+                    var tH = pH.concat([[r, c]]);
+                    var gH = CerebroIA.bfsDist(oppIdx, tH, pV, pos) - oppD;
+                    if (gH > melhorGanho) { melhorGanho = gH; melhor = {type:'wall', r:r, c:c, ori:'H'}; }
+                }
+                if (CerebroIA.canPlace(r, c, 'V', pH, pV, pos)) {
+                    var tV = pV.concat([[r, c]]);
+                    var gV = CerebroIA.bfsDist(oppIdx, pH, tV, pos) - oppD;
+                    if (gV > melhorGanho) { melhorGanho = gV; melhor = {type:'wall', r:r, c:c, ori:'V'}; }
+                }
+            }
+        }
+        if (melhor) return melhor;
+        return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    };
+
+    // =====================================================================
+    // TÉCNICA 8 — etapa2BloqueioDuplo
+    // Simula: minha parede → resposta do oponente → situação resultante.
+    // Só usa se, após a resposta dele, o bloqueio ainda vale.
+    // =====================================================================
+    CerebroIA.etapa2BloqueioDuplo = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        if (walls[iaIdx] <= 0) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+        // Só simula se oponente está próximo (≤4)
+        if (oppD > 4) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Simula melhor resposta do oponente após uma jogada hipotética
+        function melhorRespostaOponente(nPos, npH, npV) {
+            var mv = CerebroIA.legalMoves(oppIdx, npH, npV, nPos);
+            var melhor = 999;
+            for (var i = 0; i < mv.length; i++) {
+                var tpos = [nPos[0].slice(), nPos[1].slice()];
+                tpos[oppIdx] = [mv[i][0], mv[i][1]];
+                var d = CerebroIA.bfsDist(oppIdx, npH, npV, tpos);
+                if (d < melhor) melhor = d;
+            }
+            return melhor;
+        }
+
+        var melhor = null, melhorScore = 0;
+        for (var r = 0; r < 8; r++) {
+            for (var c = 0; c < 8; c++) {
+                var ori = null;
+                if (CerebroIA.canPlace(r, c, 'H', pH, pV, pos)) ori = 'H';
+                else if (CerebroIA.canPlace(r, c, 'V', pH, pV, pos)) ori = 'V';
+                if (!ori) continue;
+
+                var tH = ori === 'H' ? pH.concat([[r, c]]) : pH.slice();
+                var tV = ori === 'V' ? pV.concat([[r, c]]) : pV.slice();
+
+                // Distância do oponente após meu bloqueio + melhor resposta dele
+                var distAposBloqueio = CerebroIA.bfsDist(oppIdx, tH, tV, pos);
+                var respOp = melhorRespostaOponente(pos, tH, tV);
+                var score = (distAposBloqueio - oppD) * 10 + (respOp - oppD) * 5;
+
+                if (score > melhorScore) {
+                    melhorScore = score;
+                    melhor = {type:'wall', r:r, c:c, ori:ori};
+                }
+            }
+        }
+
+        // Só usa se o bloqueio resultante é forte (score ≥ 20)
+        if (melhor && melhorScore >= 20) return melhor;
+        return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    };
+
+    // =====================================================================
+    // TÉCNICA 9 — etapa3Gargalo
+    // Encontra parede que fecha MAIS caminhos de uma vez.
+    // =====================================================================
+    CerebroIA.etapa3Gargalo = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        if (walls[iaIdx] <= 0) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        var rotaOpp = CerebroIA.bfsPath(oppIdx, pH, pV, pos);
+        var oppD = rotaOpp.dist;
+        if (oppD > 5) return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+
+        // Cria conjunto de células no caminho do oponente
+        var celulas = {};
+        for (var k = 0; k < rotaOpp.path.length; k++) {
+            celulas[rotaOpp.path[k][0] + ',' + rotaOpp.path[k][1]] = true;
+        }
+
+        // Para cada parede, conta quantas células do caminho ela toca
+        var melhor = null, melhorCobertura = 0, melhorGanho = 0;
+        for (var r = 0; r < 8; r++) {
+            for (var c = 0; c < 8; c++) {
+                if (CerebroIA.canPlace(r, c, 'H', pH, pV, pos)) {
+                    var cob = 0;
+                    if (celulas[r + ',' + c]) cob++;
+                    if (celulas[(r + 1) + ',' + c]) cob++;
+                    var tH = pH.concat([[r, c]]);
+                    var gH = CerebroIA.bfsDist(oppIdx, tH, pV, pos) - oppD;
+                    if (gH > 0 && (cob > melhorCobertura || (cob === melhorCobertura && gH > melhorGanho))) {
+                        melhorCobertura = cob;
+                        melhorGanho = gH;
+                        melhor = {type:'wall', r:r, c:c, ori:'H'};
+                    }
+                }
+                if (CerebroIA.canPlace(r, c, 'V', pH, pV, pos)) {
+                    var cobV = 0;
+                    if (celulas[r + ',' + c]) cobV++;
+                    if (celulas[r + ',' + (c + 1)]) cobV++;
+                    var tV = pV.concat([[r, c]]);
+                    var gV = CerebroIA.bfsDist(oppIdx, pH, tV, pos) - oppD;
+                    if (gV > 0 && (cobV > melhorCobertura || (cobV === melhorCobertura && gV > melhorGanho))) {
+                        melhorCobertura = cobV;
+                        melhorGanho = gV;
+                        melhor = {type:'wall', r:r, c:c, ori:'V'};
+                    }
+                }
+            }
+        }
+        if (melhor) return melhor;
+        return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    };
+
+    // =====================================================================
+    // TÉCNICA 10 — strategicV1
+    // Avaliação estratégica: diferença + ameaça + mobilidade.
+    // =====================================================================
+    CerebroIA.strategicV1 = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        if (walls[iaIdx] <= 0) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        var d0 = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+        var d1 = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+
+        // Bônus de ameaça: se oponente está a 2-3, é urgente
+        var threatBonus = (d0 <= 3) ? (4 - d0) * 300 : 0;
+
+        var melhor = null, melhorScore = -1e9;
+        for (var r = 0; r < 8; r++) {
+            for (var c = 0; c < 8; c++) {
+                if (CerebroIA.canPlace(r, c, 'H', pH, pV, pos)) {
+                    var tH = pH.concat([[r, c]]);
+                    var nOpp = CerebroIA.bfsDist(oppIdx, tH, pV, pos);
+                    var nMe = CerebroIA.bfsDist(iaIdx, tH, pV, pos);
+                    var mobOpp = CerebroIA.legalMoves(oppIdx, tH, pV, pos).length;
+                    var score = (nOpp - d0) * 20 - (nMe - d1) * 12 + threatBonus - mobOpp * 8;
+                    if (score > melhorScore) {
+                        melhorScore = score;
+                        melhor = {type:'wall', r:r, c:c, ori:'H'};
+                    }
+                }
+                if (CerebroIA.canPlace(r, c, 'V', pH, pV, pos)) {
+                    var tV = pV.concat([[r, c]]);
+                    var nOppV = CerebroIA.bfsDist(oppIdx, pH, tV, pos);
+                    var nMeV = CerebroIA.bfsDist(iaIdx, pH, tV, pos);
+                    var mobOppV = CerebroIA.legalMoves(oppIdx, pH, tV, pos).length;
+                    var scoreV = (nOppV - d0) * 20 - (nMeV - d1) * 12 + threatBonus - mobOppV * 8;
+                    if (scoreV > melhorScore) {
+                        melhorScore = scoreV;
+                        melhor = {type:'wall', r:r, c:c, ori:'V'};
+                    }
+                }
+            }
+        }
+        if (melhor && melhorScore >= 10) return melhor;
+        return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    };
+
+    // =====================================================================
+    // TÉCNICA 11 — forte
+    // Minimax raso com previsão da resposta do oponente.
+    // =====================================================================
+    CerebroIA.forte = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        // Avaliação da posição
+        function avaliar(ppos, ppH, ppV, pw) {
+            var d0 = CerebroIA.bfsDist(oppIdx, ppH, ppV, ppos);
+            var d1 = CerebroIA.bfsDist(iaIdx, ppH, ppV, ppos);
+            var score = (d0 - d1) * 100;
+            score += (pw[iaIdx] - pw[oppIdx]) * 25;
+            if (d0 <= 2) score += (3 - d0) * 800;
+            return score;
+        }
+
+        // Melhor resposta do oponente (1 ply)
+        function melhorRespostaOp(nPos, npH, npV) {
+            var mv = CerebroIA.legalMoves(oppIdx, npH, npV, nPos);
+            var piorPraMim = 1e9;
+            for (var i = 0; i < mv.length; i++) {
+                var tp = [nPos[0].slice(), nPos[1].slice()];
+                tp[oppIdx] = [mv[i][0], mv[i][1]];
+                var v = avaliar(tp, npH, npV, walls);
+                if (v < piorPraMim) piorPraMim = v;
+            }
+            return piorPraMim;
+        }
+
+        var melhor = null, melhorScore = -1e9;
+
+        // Testa movimentos
+        var moves = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+        for (var i = 0; i < moves.length; i++) {
+            var nPos = [pos[0].slice(), pos[1].slice()];
+            nPos[iaIdx] = [moves[i][0], moves[i][1]];
+            var score = melhorRespostaOp(nPos, pH, pV);
+            if (score > melhorScore) {
+                melhorScore = score;
+                melhor = {type:'move', r: moves[i][0], c: moves[i][1]};
+            }
+        }
+
+        // Testa paredes (só se oponente próximo)
+        var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+        if (walls[iaIdx] > 0 && oppD <= 4) {
+            for (var r = 0; r < 8; r++) {
+                for (var c = 0; c < 8; c++) {
+                    var ori = null;
+                    if (CerebroIA.canPlace(r, c, 'H', pH, pV, pos)) ori = 'H';
+                    else if (CerebroIA.canPlace(r, c, 'V', pH, pV, pos)) ori = 'V';
+                    if (!ori) continue;
+                    var tH = ori === 'H' ? pH.concat([[r, c]]) : pH.slice();
+                    var tV = ori === 'V' ? pV.concat([[r, c]]) : pV.slice();
+                    var nw = walls.slice(); nw[iaIdx]--;
+                    var sc = melhorRespostaOp(pos, tH, tV);
+                    if (sc > melhorScore) {
+                        melhorScore = sc;
+                        melhor = {type:'wall', r:r, c:c, ori:ori};
+                    }
+                }
+            }
+        }
+        if (melhor) return melhor;
+        return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    };
+
+    // =====================================================================
+    // TÉCNICA 12 — consolidadaFinal
+    // BFS + mapa de calor + previsão de 2 jogadas.
+    // A versão mais completa — base da IA Expert atual.
+    // =====================================================================
+    CerebroIA.consolidadaFinal = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+
+        // 1. Bloqueio obrigatório (oponente a 1)
+        if (CerebroIA.canWinNext(oppIdx, pH, pV, pos) && walls[iaIdx] > 0) {
+            for (var r = 0; r < 8; r++) {
+                for (var c = 0; c < 8; c++) {
+                    if (CerebroIA.canPlace(r, c, 'H', pH, pV, pos)) {
+                        var tH = pH.concat([[r, c]]);
+                        if (!CerebroIA.canWinNext(oppIdx, tH, pV, pos)) {
+                            return {type:'wall', r:r, c:c, ori:'H'};
+                        }
+                    }
+                    if (CerebroIA.canPlace(r, c, 'V', pH, pV, pos)) {
+                        var tV = pV.concat([[r, c]]);
+                        if (!CerebroIA.canWinNext(oppIdx, pH, tV, pos)) {
+                            return {type:'wall', r:r, c:c, ori:'V'};
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Previsão 2 jogadas: se oponente chega a ≤2 em 2 turnos, bloqueia
+        if (oppD <= 4 && walls[iaIdx] > 0) {
+            var rotaOpp = CerebroIA.bfsPath(oppIdx, pH, pV, pos);
+            var celulas = {};
+            for (var k = 0; k < rotaOpp.path.length; k++) {
+                celulas[rotaOpp.path[k][0] + ',' + rotaOpp.path[k][1]] = true;
+            }
+            var melhor = null, melhorGanho = 0;
+            var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+            for (var r = 0; r < 8; r++) {
+                for (var c = 0; c < 8; c++) {
+                    if (CerebroIA.canPlace(r, c, 'H', pH, pV, pos)) {
+                        if (celulas[r + ',' + c] || celulas[(r + 1) + ',' + c]) {
+                            var tH2 = pH.concat([[r, c]]);
+                            var gH = CerebroIA.bfsDist(oppIdx, tH2, pV, pos) - oppD;
+                            var mH = CerebroIA.bfsDist(iaIdx, tH2, pV, pos) - meuD;
+                            if (gH >= 2 && mH <= 1 && gH > melhorGanho) {
+                                melhorGanho = gH;
+                                melhor = {type:'wall', r:r, c:c, ori:'H'};
+                            }
+                        }
+                    }
+                    if (CerebroIA.canPlace(r, c, 'V', pH, pV, pos)) {
+                        if (celulas[r + ',' + c] || celulas[r + ',' + (c + 1)]) {
+                            var tV2 = pV.concat([[r, c]]);
+                            var gV = CerebroIA.bfsDist(oppIdx, pH, tV2, pos) - oppD;
+                            var mV = CerebroIA.bfsDist(iaIdx, pH, tV2, pos) - meuD;
+                            if (gV >= 2 && mV <= 1 && gV > melhorGanho) {
+                                melhorGanho = gV;
+                                melhor = {type:'wall', r:r, c:c, ori:'V'};
+                            }
+                        }
+                    }
+                }
+            }
+            if (melhor) return melhor;
+        }
+
+        // 3. Fallback: corre pelo caminho mínimo
+        return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    };
+
     // Expõe globalmente
     window.CerebroIA = CerebroIA;
 

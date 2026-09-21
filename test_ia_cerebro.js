@@ -148,9 +148,96 @@ console.log('\n=== Bloco A testado ===');
 
 
 // =====================================================================
+// TESTES DAS TÉCNICAS — Bloco B
+// =====================================================================
+console.log('\n========================================');
+console.log('TESTES DAS TÉCNICAS (Bloco B)');
+console.log('========================================');
+
+// ---- Cenário 1: peões longe, tabuleiro limpo ----
+console.log('\n--- Cenário 1: peões longe ---');
+var pB1 = [[8, 4], [0, 4]];
+var wB1 = [10, 10];
+validarAcao('justa         ', CI.justa(pB1, [], [], wB1, 1));
+validarAcao('economicaV2   ', CI.economicaV2(pB1, [], [], wB1, 1));
+validarAcao('invencivel    ', CI.invencivel(pB1, [], [], wB1, 1));
+validarAcao('antiBrecha    ', CI.antiBrecha(pB1, [], [], wB1, 1));
+
+// ---- Cenário 2: oponente no meio (linha 4) ----
+console.log('\n--- Cenário 2: oponente no meio ---');
+var pB2 = [[4, 4], [4, 4]];
+validarAcao('justa         ', CI.justa(pB2, [], [], wB1, 1));
+validarAcao('economicaV2   ', CI.economicaV2(pB2, [], [], wB1, 1));
+validarAcao('invencivel    ', CI.invencivel(pB2, [], [], wB1, 1));
+validarAcao('antiBrecha    ', CI.antiBrecha(pB2, [], [], wB1, 1));
+
+// ---- Cenário 3: oponente a 2 casas da vitória ----
+console.log('\n--- Cenário 3: oponente a 2 casas ---');
+var pB3 = [[2, 4], [4, 4]];
+validarAcao('justa         ', CI.justa(pB3, [], [], wB1, 1));
+validarAcao('economicaV2   ', CI.economicaV2(pB3, [], [], wB1, 1));
+validarAcao('invencivel    ', CI.invencivel(pB3, [], [], wB1, 1));
+validarAcao('antiBrecha    ', CI.antiBrecha(pB3, [], [], wB1, 1));
+
+// ---- Cenário 4: IA a 1 da vitória ----
+console.log('\n--- Cenário 4: IA a 1 da vitória ---');
+var pB4 = [[8, 4], [1, 4]];
+validarAcao('justa         ', CI.justa(pB4, [], [], wB1, 1));
+validarAcao('economicaV2   ', CI.economicaV2(pB4, [], [], wB1, 1));
+validarAcao('invencivel    ', CI.invencivel(pB4, [], [], wB1, 1));
+validarAcao('antiBrecha    ', CI.antiBrecha(pB4, [], [], wB1, 1));
+
+console.log('\n=== Bloco B testado ===');
+
+
+// =====================================================================
+// TESTES DAS TÉCNICAS — Bloco C
+// =====================================================================
+console.log('\n========================================');
+console.log('TESTES DAS TÉCNICAS (Bloco C)');
+console.log('========================================');
+
+var wC = [10, 10];
+
+console.log('\n--- Cenário 1: peões longe ---');
+var pC1 = [[8, 4], [0, 4]];
+validarAcao('etapa2        ', CI.etapa2BloqueioDuplo(pC1, [], [], wC, 1));
+validarAcao('etapa3        ', CI.etapa3Gargalo(pC1, [], [], wC, 1));
+validarAcao('strategicV1   ', CI.strategicV1(pC1, [], [], wC, 1));
+validarAcao('forte         ', CI.forte(pC1, [], [], wC, 1));
+validarAcao('consolidada   ', CI.consolidadaFinal(pC1, [], [], wC, 1));
+
+console.log('\n--- Cenário 2: oponente no meio ---');
+var pC2 = [[4, 4], [4, 4]];
+validarAcao('etapa2        ', CI.etapa2BloqueioDuplo(pC2, [], [], wC, 1));
+validarAcao('etapa3        ', CI.etapa3Gargalo(pC2, [], [], wC, 1));
+validarAcao('strategicV1   ', CI.strategicV1(pC2, [], [], wC, 1));
+validarAcao('forte         ', CI.forte(pC2, [], [], wC, 1));
+validarAcao('consolidada   ', CI.consolidadaFinal(pC2, [], [], wC, 1));
+
+console.log('\n--- Cenário 3: oponente a 2 casas ---');
+var pC3 = [[2, 4], [4, 4]];
+validarAcao('etapa2        ', CI.etapa2BloqueioDuplo(pC3, [], [], wC, 1));
+validarAcao('etapa3        ', CI.etapa3Gargalo(pC3, [], [], wC, 1));
+validarAcao('strategicV1   ', CI.strategicV1(pC3, [], [], wC, 1));
+validarAcao('forte         ', CI.forte(pC3, [], [], wC, 1));
+validarAcao('consolidada   ', CI.consolidadaFinal(pC3, [], [], wC, 1));
+
+console.log('\n--- Cenário 4: IA a 1 da vitória ---');
+var pC4 = [[8, 4], [7, 4]];
+validarAcao('etapa2        ', CI.etapa2BloqueioDuplo(pC4, [], [], wC, 1));
+validarAcao('etapa3        ', CI.etapa3Gargalo(pC4, [], [], wC, 1));
+validarAcao('strategicV1   ', CI.strategicV1(pC4, [], [], wC, 1));
+validarAcao('forte         ', CI.forte(pC4, [], [], wC, 1));
+validarAcao('consolidada   ', CI.consolidadaFinal(pC4, [], [], wC, 1));
+
+console.log('\n=== Bloco C testado ===');
+
+// =====================================================================
 // RESULTADO FINAL — junta tudo
 // =====================================================================
 console.log('\n========================================');
 console.log('RESULTADO TOTAL: ' + pass + ' passaram, ' + fail + ' falharam');
 console.log('========================================');
 process.exit(fail > 0 ? 1 : 0);
+
