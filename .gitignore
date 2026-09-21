@@ -1,4 +1,48 @@
+# ===== Dependências =====
 node_modules/
-public/
+functions/node_modules/
+
+# ===== Lixo do Firebase =====
+.firebase/
+firebase-debug.log
+firestore-debug.log
+
+# ===== Android / Capacitor build =====
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/capacitor-cordova-android-plugins/
+
+# ===== Lixo do sistema =====
+core
+*.tmp
+.DS_Store
+Thumbs.db
+
+# ===== Backups manuais (do passado) =====
 *.backup_*
+*.backup
+*.bak
 *.bak_*
+*.antes_*
+*.antes
+*.quebrado_*
+_arquivo_morto/
+_backup_pre_limpeza_*/
+backup_*/
+backup_*.zip
+
+# ===== Arquivos de log/temporários =====
+*.log
+*.cache
+.n/
+
+# ===== Zips de backup =====
+*.zip
+
+# ===== Exceções importantes (NÃO ignorar) =====
+!public/
+!public/**
+!package.json
+!package-lock.json

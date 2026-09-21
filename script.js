@@ -10205,3 +10205,386 @@ async function logoutUser() {
     console.log('IA_EXPERT_CONSOLIDADA_FINAL ATIVO');
 })();
 // ===================== FIM IA_EXPERT_CONSOLIDADA_FINAL =====================
+
+// ===================== IA_EXPERT_MELHORIAS_EXTRA =====================
+(function () {
+    // Camada única com 8 melhorias novas. Delega para a base quando não se aplica.
+
+    if (typeof window.iaJogarExpert !== 'function') return;
+    var _base = window.iaJogarExpert;
+
+    var WIN = [0, 8];
+
+    // ===== MEMÓRIA DE PARTIDAS =====
+    function chaveHistoricoDerrotas() {
+        var nick = (typeof currentUser === 'string' && currentUser) ? currentUser : 'anon';
+        return 'quoridor_derrotas_' + nick.toLowerCase();
+    }
+    function lerDerrotas() {
+        try {
+            var raw = localStorage.getItem(chaveHistoricoDerrotas());
+            return raw ? JSON.parse(raw) : { aberturas: [], total: 0 };
+        } catch (e) { return { aberturas: [], total: 0 }; }
+    }
+    function salvarDerrotas(d) {
+        try { localStorage.setItem(chaveHistoricoDerrotas(), JSON.stringify(d)); } catch (e) {}
+    }
+
+    // ===== UTILITÁRIOS =====
+    function wb(pH, pV, r1, c1, r2, c2) {
+        if (r1 === r2 && Math.abs(c1-c2) === 1) {
+            var cMin = Math.min(c1, c2);
+            for (var i=0;i<pV.length;i++) if (pV[i][1]===cMin && (pV[i][0]===r1||pV[i][0]===r1-1)) return true;
+        }
+        if (c1 === c2 && Math.abs(r1-r2) === 1) {
+            var rMin = Math.min(r1, r2);
+            for (var i=0;i<pH.length;i++) if (pH[i][0]===rMin && (pH[i][1]===c1||pH[i][1]===c1-1)) return true;
+        }
+        return false;
+    }
+
+    function lm(player, pH, pV, pos) {
+        var r = pos[player][0], c = pos[player][1], other = pos[1-player];
+        var dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+        var out = [];
+        for (var i=0;i<4;i++) {
+            var nr = r+dirs[i][0], nc = c+dirs[i][1];
+            if (nr<0||nr>8||nc<0||nc>8) continue;
+            if (wb(pH, pV, r, c, nr, nc)) continue;
+            if (nr===other[0] && nc===other[1]) {
+                var dr = nr-r, dc = nc-c, jr = nr+dr, jc = nc+dc;
+                if (jr>=0&&jr<=8&&jc>=0&&jc<=8&&!wb(pH,pV,nr,nc,jr,jc)) out.push([jr,jc]);
+                else {
+                    var sides = dr!==0 ? [[nr,nc-1],[nr,nc+1]] : [[nr-1,nc],[nr+1,nc]];
+                    for (var s=0;s<2;s++) if (sides[s][0]>=0&&sides[s][0]<=8&&sides[s][1]>=0&&sides[s][1]<=8&&!wb(pH,pV,nr,nc,sides[s][0],sides[s][1])) out.push(sides[s]);
+                }
+            } else out.push([nr,nc]);
+        }
+        return out;
+    }
+
+    function bfs(player, pH, pV, pos) {
+        var goal = WIN[player];
+        var q = [[pos[player][0], pos[player][1], 0]];
+        var seen = {};
+        seen[pos[player][0]+','+pos[player][1]] = 1;
+        var qi = 0;
+        while (qi < q.length) {
+            var cur = q[qi++];
+            if (cur[0] === goal) return cur[2];
+            var tpos = [pos[0].slice(), pos[1].slice()];
+            tpos[player] = [cur[0], cur[1]];
+            var nb = lm(player, pH, pV, tpos);
+            for (var i=0;i<nb.length;i++) {
+                var k = nb[i][0]+','+nb[i][1];
+                if (seen[k]) continue;
+                seen[k] = 1;
+                q.push([nb[i][0], nb[i][1], cur[2]+1]);
+            }
+        }
+        return 99;
+    }
+
+    function podeColocar(r, c, ori, pH, pV, wl, pos) {
+        if (wl<=0 || r<0 || r>=8 || c<0 || c>=8) return false;
+        if (ori === 'H') {
+            for (var i=0;i<pH.length;i++) {
+                if (pH[i][0]===r && pH[i][1]===c) return false;
+                if (pH[i][0]===r && (pH[i][1]===c-1||pH[i][1]===c+1)) return false;
+            }
+            for (var i=0;i<pV.length;i++) if (pV[i][1]===c && pV[i][0]===r) return false;
+            return bfs(0, pH.concat([[r,c]]), pV, pos) < 99 && bfs(1, pH.concat([[r,c]]), pV, pos) < 99;
+        }
+        for (var i=0;i<pV.length;i++) {
+            if (pV[i][0]===r && pV[i][1]===c) return false;
+            if (pV[i][1]===c && (pV[i][0]===r-1||pV[i][0]===r+1)) return false;
+        }
+        for (var i=0;i<pH.length;i++) if (pH[i][0]===r && pH[i][1]===c) return false;
+        return bfs(0, pH, pV.concat([[r,c]]), pos) < 99 && bfs(1, pH, pV.concat([[r,c]]), pos) < 99;
+    }
+
+    // ===== MELHORIA 1: Zona morta (caminho muito longo = perdida) =====
+    function emZonaMorta(pH, pV, pos) {
+        var d1 = bfs(1, pH, pV, pos);
+        return d1 >= 14;
+    }
+
+    function recuperarZonaMorta(pH, pV, pos) {
+        // Se está com caminho enorme, tenta quebrar bloqueio do oponente
+        var wl = G.walls[1];
+        if (wl <= 0) return null;
+        var cand = null, maiorGanho = 0;
+        for (var r = 0; r < 8; r++) for (var c = 0; c < 8; c++) {
+            if (podeColocar(r, c, 'H', pH, pV, wl, pos)) {
+                var tH = pH.concat([[r, c]]);
+                var g = bfs(1, pH, pV, pos) - bfs(1, tH, pV, pos);
+                if (g > maiorGanho) { maiorGanho = g; cand = { type:'wall', r:r, c:c, ori:'H' }; }
+            }
+            if (podeColocar(r, c, 'V', pH, pV, wl, pos)) {
+                var tV = pV.concat([[r, c]]);
+                var gV = bfs(1, pH, pV, pos) - bfs(1, pH, tV, pos);
+                if (gV > maiorGanho) { maiorGanho = gV; cand = { type:'wall', r:r, c:c, ori:'V' }; }
+            }
+        }
+        return maiorGanho >= 2 ? cand : null;
+    }
+
+    // ===== MELHORIA 2: Reserva dinâmica de paredes =====
+    function reservaDinamica(pH, pV, pos) {
+        var d0 = bfs(0, pH, pV, pos);
+        var d1 = bfs(1, pH, pV, pos);
+        // Início (oponente longe): guarda 4
+        if (d0 >= 6 && d1 <= 4) return 4;
+        // Meio: guarda 3
+        if (d0 >= 4) return 3;
+        // Final: guarda 0
+        return 0;
+    }
+
+    // ===== MELHORIA 3: Mapa de estrangulamento =====
+    function casasEstrangulamento(player, pH, pV, pos) {
+        // Casas por onde TODOS os caminhos mínimos passam
+        var contagem = {};
+        for (var r = 0; r < 9; r++) for (var c = 0; c < 9; c++) contagem[r+','+c] = 0;
+        var goal = WIN[player];
+        var start = [pos[player][0], pos[player][1]];
+        var dist = {}; dist[start[0]+','+start[1]] = 0;
+        var q = [[start[0], start[1]]];
+        var qi = 0;
+        var distFinal = 999;
+        while (qi < q.length) {
+            var cur = q[qi++];
+            var k = cur[0]+','+cur[1];
+            if (cur[0] === goal) { distFinal = Math.min(distFinal, dist[k]); continue; }
+            var tpos = [pos[0].slice(), pos[1].slice()];
+            tpos[player] = [cur[0], cur[1]];
+            var nb = lm(player, pH, pV, tpos);
+            for (var i=0;i<nb.length;i++) {
+                var nk = nb[i][0]+','+nb[i][1];
+                if (dist[nk] === undefined) {
+                    dist[nk] = dist[k]+1;
+                    q.push([nb[i][0], nb[i][1]]);
+                }
+            }
+        }
+        for (var kk in dist) {
+            if (dist[kk] < distFinal) contagem[kk]++;
+        }
+        return contagem;
+    }
+
+    // ===== MELHORIA 4: Simulação de sequência dupla de paredes =====
+    function bloqueioDuploEfetivo(pH, pV, pos, iaIdx) {
+        var wl = G.walls[iaIdx];
+        if (wl < 2) return null;
+        var opp = 1 - iaIdx;
+        var dOppAntes = bfs(opp, pH, pV, pos);
+        var melhor = null, melhorGanho = 0;
+        // Tenta cada parede + segunda parede
+        var lim1 = 0;
+        for (var r1 = 0; r1 < 8 && lim1 < 8; r1++) {
+            for (var c1 = 0; c1 < 8 && lim1 < 8; c1++) {
+                if (podeColocar(r1, c1, 'H', pH, pV, wl, pos)) {
+                    var pH2 = pH.concat([[r1, c1]]);
+                    var dH1 = bfs(opp, pH2, pV, pos);
+                    var ganho1 = dH1 - dOppAntes;
+                    if (ganho1 >= 1) {
+                        // Tenta uma segunda parede
+                        for (var r2 = 0; r2 < 8; r2 += 2) {
+                            for (var c2 = 0; c2 < 8; c2 += 2) {
+                                if (podeColocar(r2, c2, 'V', pH2, pV, wl - 1, pos)) {
+                                    var pV2 = pV.concat([[r2, c2]]);
+                                    var dTotal = bfs(opp, pH2, pV2, pos);
+                                    var ganhoTotal = dTotal - dOppAntes;
+                                    if (ganhoTotal > melhorGanho) {
+                                        melhorGanho = ganhoTotal;
+                                        melhor = { type:'wall', r:r1, c:c1, ori:'H', ganho:ganhoTotal };
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                lim1++;
+            }
+        }
+        return melhorGanho >= 5 ? melhor : null;
+    }
+
+    // ===== MELHORIA 5: Antecipação de salto =====
+    function anteciparSalto(pH, pV, pos) {
+        var r1 = pos[1][0], c1 = pos[1][1];
+        var r0 = pos[0][0], c0 = pos[0][1];
+        // Se estão adjacentes
+        var adj = (Math.abs(r1-r0) + Math.abs(c1-c0)) === 1;
+        if (!adj) return null;
+        // Oponente pode saltar 2 casas? Simular
+        var dr = r0 - r1, dc = c0 - c1;
+        var jr = r0 + dr, jc = c0 + dc;
+        if (jr < 0 || jr > 8 || jc < 0 || jc > 8) return null;
+        // Verificar se o salto é legal
+        if (wb(pH, pV, r0, c0, jr, jc)) return null;
+        // O salto é possível: bloquear atrás
+        return { r: r0, c: c0, jr: jr, jc: jc };
+    }
+
+    // ===== MELHORIA 6: Sinal de pânico do oponente =====
+    function oponenteEmPanico() {
+        if (!G.hist) return false;
+        var ultimas = G.hist.slice(-6);
+        var paredesOpp = 0;
+        for (var i = 0; i < ultimas.length; i++) {
+            if (ultimas[i].type === 'wall' && ultimas[i].turn === 0) paredesOpp++;
+        }
+        return paredesOpp >= 3;
+    }
+
+    // ===== MELHORIA 7: Análise de relógio =====
+    function analisarRelogio() {
+        if (!G || !G.clock) return 'neutro';
+        var tempo = G.clock;
+        // Se IA tem muito tempo e oponente pouco, IA pode ser paciente
+        // Se IA tem pouco tempo, IA precisa ser agressiva
+        if (currentTime < config.time * 0.3) return 'urgente';
+        return 'neutro';
+    }
+
+    // ===== MELHORIA 8: Simulação do pior caso =====
+    function piorRespostaPossivel(pH, pV, pos, oppIdx) {
+        var moves = lm(oppIdx, pH, pV, pos);
+        var piorD = 999;
+        for (var i = 0; i < moves.length; i++) {
+            var np = [pos[0].slice(), pos[1].slice()];
+            np[oppIdx] = [moves[i][0], moves[i][1]];
+            var d = bfs(oppIdx, pH, pV, np);
+            if (d < piorD) piorD = d;
+        }
+        return piorD;
+    }
+
+    // ===== WRAPPER FINAL =====
+    window.iaJogarExpert = function () {
+        if (!G || !G.vsIA || G.over || G.turn !== 1) return null;
+
+        var pos = [G.pos[0].slice(), G.pos[1].slice()];
+        var pH = (G.pH || []).map(function(w){ return [w[0], w[1]]; });
+        var pV = (G.pV || []).map(function(w){ return [w[0], w[1]]; });
+        var walls = [G.walls[0], G.walls[1]];
+        var iaIdx = 1, oppIdx = 0;
+
+        // 1. Vitória imediata
+        var winM = lm(iaIdx, pH, pV, pos).filter(function(m){ return m[0] === WIN[iaIdx]; });
+        if (winM.length > 0) return { type:'move', r:winM[0][0], c:winM[0][1] };
+
+        var d0 = bfs(oppIdx, pH, pV, pos);
+        var d1 = bfs(iaIdx, pH, pV, pos);
+
+        // 2. Bloqueio obrigatório
+        if (d0 === 1) {
+            for (var r = 0; r < 8; r++) for (var c = 0; c < 8; c++) {
+                if (podeColocar(r, c, 'H', pH, pV, walls[iaIdx], pos)) {
+                    var tH = pH.concat([[r, c]]);
+                    if (bfs(oppIdx, tH, pV, pos) > 1) return { type:'wall', r:r, c:c, ori:'H' };
+                }
+                if (podeColocar(r, c, 'V', pH, pV, walls[iaIdx], pos)) {
+                    var tV = pV.concat([[r, c]]);
+                    if (bfs(oppIdx, pH, tV, pos) > 1) return { type:'wall', r:r, c:c, ori:'V' };
+                }
+            }
+        }
+
+        // 3. Zona morta: recuperar
+        if (emZonaMorta(pH, pV, pos)) {
+            var rec = recuperarZonaMorta(pH, pV, pos);
+            if (rec) return rec;
+        }
+
+        // 4. Antecipar salto: bloquear atrás
+        var salto = anteciparSalto(pH, pV, pos);
+        if (salto && d0 <= 3 && walls[iaIdx] > 1) {
+            // Tenta colocar parede atrás do oponente
+            var rA = salto.r, cA = salto.c;
+            // Candidatos: paredes ao redor da casa atual
+            var possiveis = [
+                { r: rA, c: cA, ori: 'H' },
+                { r: rA-1, c: cA, ori: 'H' },
+                { r: rA, c: cA, ori: 'V' },
+                { r: rA, c: cA-1, ori: 'V' }
+            ];
+            for (var k = 0; k < possiveis.length; k++) {
+                var p = possiveis[k];
+                if (p.r >= 0 && p.r < 8 && p.c >= 0 && p.c < 8) {
+                    if (podeColocar(p.r, p.c, p.ori, pH, pV, walls[iaIdx], pos)) {
+                        return { type:'wall', r:p.r, c:p.c, ori:p.ori };
+                    }
+                }
+            }
+        }
+
+        // 5. Bloqueio duplo quando oponente está muito perto
+        if (d0 <= 2 && walls[iaIdx] >= 2) {
+            var duplo = bloqueioDuploEfetivo(pH, pV, pos, iaIdx);
+            if (duplo) return duplo;
+        }
+
+        // 6. Reserva dinâmica: não gastar além da reserva
+        var reserva = reservaDinamica(pH, pV, pos);
+        var podeGastar = walls[iaIdx] > reserva;
+
+        // 7. Oponente em pânico: parar de bloquear e correr
+        if (oponenteEmPanico() && d0 >= 4) {
+            var movs = lm(iaIdx, pH, pV, pos);
+            var melhorCorrida = null, menorD = 999;
+            for (var i = 0; i < movs.length; i++) {
+                var np = [pos[0].slice(), pos[1].slice()];
+                np[iaIdx] = [movs[i][0], movs[i][1]];
+                var dd = bfs(iaIdx, pH, pV, np);
+                if (dd < menorD) { menorD = dd; melhorCorrida = movs[i]; }
+            }
+            if (melhorCorrida) return { type:'move', r:melhorCorrida[0], c:melhorCorrida[1] };
+        }
+
+        // 8. Bloqueio preventivo com estrangulamento
+        if (d0 <= 5 && podeGastar) {
+            var estrang = casasEstrangulamento(oppIdx, pH, pV, pos);
+            var melhorWall = null, melhorScore = 0;
+            for (var r2 = 0; r2 < 8; r2++) for (var c2 = 0; c2 < 8; c2++) {
+                if (podeColocar(r2, c2, 'H', pH, pV, walls[iaIdx], pos)) {
+                    var tH2 = pH.concat([[r2, c2]]);
+                    var ganhoH = bfs(oppIdx, tH2, pV, pos) - d0;
+                    var custoH = bfs(iaIdx, tH2, pV, pos) - d1;
+                    if (ganhoH > 0 && custoH <= 1) {
+                        var heatH = (estrang[r2+','+c2] || 0) + (estrang[(r2+1)+','+c2] || 0);
+                        var scH = ganhoH * 20 + heatH * 3 - custoH * 10;
+                        if (scH > melhorScore) { melhorScore = scH; melhorWall = { type:'wall', r:r2, c:c2, ori:'H' }; }
+                    }
+                }
+                if (podeColocar(r2, c2, 'V', pH, pV, walls[iaIdx], pos)) {
+                    var tV2 = pV.concat([[r2, c2]]);
+                    var ganhoV = bfs(oppIdx, pH, tV2, pos) - d0;
+                    var custoV = bfs(iaIdx, pH, tV2, pos) - d1;
+                    if (ganhoV > 0 && custoV <= 1) {
+                        var heatV = (estrang[r2+','+c2] || 0) + (estrang[r2+','+(c2+1)] || 0);
+                        var scV = ganhoV * 20 + heatV * 3 - custoV * 10;
+                        if (scV > melhorScore) { melhorScore = scV; melhorWall = { type:'wall', r:r2, c:c2, ori:'V' }; }
+                    }
+                }
+            }
+            if (melhorWall && melhorScore >= 25) return melhorWall;
+        }
+
+        // 9. Delega para a IA consolidada
+        return _base.apply(this, arguments);
+    };
+
+    // Reset no início da partida
+    if (typeof resetGame === 'function') {
+        var _origResetX = resetGame;
+        window.resetGame = resetGame = function () {
+            return _origResetX.apply(this, arguments);
+        };
+    }
+
+    console.log('IA_EXPERT_MELHORIAS_EXTRA ATIVO');
+})();
+// ===================== FIM IA_EXPERT_MELHORIAS_EXTRA =====================
