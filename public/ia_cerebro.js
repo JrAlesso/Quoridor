@@ -1429,20 +1429,19 @@
             if (acaoE4) return acaoE4;
         }
 
-        var fase = CerebroIA._detectarFase(pos, pH, pV, walls, iaIdx);
-        var tecnica = CerebroIA.qualTecnica(fase, iaIdx);
-
-        // Anti-loop: se detectou repetição, troca de técnica
-        var loopDetectado = _detectarLoop(pos, pH, pV, iaIdx);
-        if (loopDetectado) {
-            tecnica = _tecnicaAntiLoop(fase, tecnica);
+        // ===== ENSEMBLE =====
+        // Consulta TODAS as 19 técnicas, avalia propostas, escolhe a melhor.
+        // O modo corrida (atras/frente/equilibrado) filtra e bonifica.
+        if (typeof CerebroIA._ensembleDecidir === 'function') {
+            var resultado = CerebroIA._ensembleDecidir(pos, pH, pV, walls, iaIdx);
+            if (resultado && resultado.acao) return resultado.acao;
         }
 
+        // Fallback: se ensemble falhar, usa lógica antiga
+        var fase = CerebroIA._detectarFase(pos, pH, pV, walls, iaIdx);
+        var tecnica = CerebroIA.qualTecnica(fase, iaIdx);
         var acao = null;
-        if (tecnica === 'minimax' && typeof CerebroIA.minimaxComVariacao === 'function') {
-            // Fase tranquila/meio → variação. Perigo/emergência → determinístico.
-            acao = CerebroIA.minimaxComVariacao(pos, pH, pV, walls, iaIdx, fase);
-        } else if (typeof CerebroIA[tecnica] === 'function') {
+        if (typeof CerebroIA[tecnica] === 'function') {
             acao = CerebroIA[tecnica](pos, pH, pV, walls, iaIdx);
         }
         if (!acao) acao = CerebroIA.gps(pos, pH, pV, walls, iaIdx);
@@ -2377,6 +2376,115 @@
     // oponente a VOLTAR. Só age quando oponente está a ≤3 e só executa
     // se o custo pro oponente for ≥3 turnos.
     // =====================================================================
+    // =====================================================================
+    // ENSEMBLE — Cérebro que consulta TODAS as 19 técnicas
+    // Cada uma propõe uma jogada. Avalia com minimax raso. Escolhe a melhor.
+    // =====================================================================
+
+    // Lista oficial das 19 técnicas especialistas
+    var _ESPECIALISTAS = [
+        'gps', 'visaoReal',
+        'economicaV1', 'justa', 'economicaV2',
+        'invencivel', 'antiBrecha',
+        'etapa2BloqueioDuplo', 'etapa3Gargalo',
+        'strategicV1', 'forte', 'consolidadaFinal',
+        'etapa1FimDeJogo', 'melhoriasExtra', 'melhoriasExtraV2',
+        'memoriaParedes', 'cercoEstrategico', 'minimax', 'milPerfis'
+    ];
+
+    // Avalia uma proposta de jogada com minimax raso (depth 2)
+    function _avaliarProposta(proposta, pos, pH, pV, walls, iaIdx) {
+        if (!proposta) return -Infinity;
+        try {
+            var est = _aplicarAcao(pos, pH, pV, walls, proposta, iaIdx);
+            _resetHeuristicas();
+            _deadline = Date.now() + 100;  // 100ms por proposta
+            var score = _minimax(est.pos, est.pH, est.pV, est.walls, 2, -Infinity, Infinity, false, iaIdx, 1);
+            return score;
+        } catch (e) {
+            return -Infinity;
+        }
+    }
+
+    // Detecta o modo corrida (quem está mais perto de vencer)
+    // Retorna 'atras', 'frente' ou 'equilibrado'
+    CerebroIA._detectarCorrida = function (pos, pH, pV, iaIdx) {
+        var oppIdx = 1 - iaIdx;
+        var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+        var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+        var diff = meuD - oppD;
+
+        if (diff <= -2) return 'atras';       // IA está atrás na corrida
+        if (diff >= 2) return 'frente';       // IA está na frente
+        return 'equilibrado';                 // empate técnico
+    };
+
+    // Decide qual ação usar consultando TODAS as técnicas
+    CerebroIA._ensembleDecidir = function (pos, pH, pV, walls, iaIdx) {
+        var corrida = CerebroIA._detectarCorrida(pos, pH, pV, iaIdx);
+
+        // Filtra técnicas relevantes conforme modo corrida
+        // 'atras' → exclui técnicas puramente corredoras
+        // 'frente' → exclui técnicas puramente bloqueadoras
+        var tecnicasParaRodar = [];
+        for (var i = 0; i < _ESPECIALISTAS.length; i++) {
+            var t = _ESPECIALISTAS[i];
+
+            // No modo ATRÁS: só bloqueadores (não pode correr)
+            if (corrida === 'atras') {
+                if (t === 'gps' || t === 'visaoReal') continue;
+            }
+            // No modo FRENTE: prioriza corredores (mas ainda aceita bloqueios fracos)
+            // (não exclui nenhum, só dá bônus depois)
+
+            tecnicasParaRodar.push(t);
+        }
+
+        // Consulta cada técnica
+        var propostas = [];
+        for (var i = 0; i < tecnicasParaRodar.length; i++) {
+            var t = tecnicasParaRodar[i];
+            var fn = CerebroIA[t];
+            if (typeof fn !== 'function') continue;
+
+            try {
+                var acao = fn(pos, pH, pV, walls, iaIdx);
+                if (acao) {
+                    propostas.push({ tecnica: t, acao: acao });
+                }
+            } catch (e) { /* ignora técnica com erro */ }
+        }
+
+        if (propostas.length === 0) {
+            return { acao: CerebroIA.gps(pos, pH, pV, walls, iaIdx), tecnica: 'gps_fallback', corrida: corrida };
+        }
+
+        // Avalia cada proposta com minimax raso
+        var melhor = null;
+        var melhorScore = -Infinity;
+        for (var i = 0; i < propostas.length; i++) {
+            var p = propostas[i];
+            var score = _avaliarProposta(p.acao, pos, pH, pV, walls, iaIdx);
+
+            // Ajuste por modo corrida
+            if (corrida === 'frente' && p.acao.type === 'move') score += 200;
+            if (corrida === 'atras' && p.acao.type === 'wall') score += 200;
+
+            p.score = score;
+            if (score > melhorScore) {
+                melhorScore = score;
+                melhor = p;
+            }
+        }
+
+        return {
+            acao: melhor.acao,
+            tecnica: melhor.tecnica,
+            corrida: corrida,
+            totalPropostas: propostas.length
+        };
+    };
+
     // =====================================================================
     // ANÁLISE DE DUPLA ROTA
     // Identifica a rota mais curta do oponente E a alternativa secundária.
