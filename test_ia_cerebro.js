@@ -320,6 +320,57 @@ validarAcao('melhoriasExtra', CI.melhoriasExtra(pE5, [], [], wE5, 1));
 console.log('\n=== Bloco E testado ===');
 
 // =====================================================================
+// TESTES DO CÉREBRO ORQUESTRADOR
+// =====================================================================
+console.log('\n========================================');
+console.log('TESTES DO CÉREBRO (Fase C.8)');
+console.log('========================================');
+
+function testarCerebro(nome, pos, pH, pV, walls, iaIdx, faseEsperada, tecnicaEsperada) {
+    var r = CI.jogarDebug(pos, pH, pV, walls, iaIdx);
+    var okFase = r.fase === faseEsperada;
+    var okTecnica = r.tecnica === tecnicaEsperada;
+    var okAcao = r.acao !== null;
+
+    var status = (okFase && okTecnica && okAcao) ? '✅' : '❌';
+    console.log('  ' + status + ' ' + nome);
+    console.log('     fase:    ' + r.fase + (okFase ? '' : ' (esperado: ' + faseEsperada + ')'));
+    console.log('     tecnica: ' + r.tecnica + (okTecnica ? '' : ' (esperado: ' + tecnicaEsperada + ')'));
+    console.log('     acao:    ' + JSON.stringify(r.acao));
+
+    if (okFase && okTecnica && okAcao) pass++;
+    else fail++;
+}
+
+// Cenário 1: peões longe → tranquilo
+testarCerebro('Cenário 1: peões longe',
+    [[8, 4], [0, 4]], [], [], [10, 10], 1,
+    'tranquilo', 'gps');
+
+// Cenário 2: oponente a 5 casas da meta → meio
+// Peão 0 em (5,4) → 5 casas da linha 0. IA em (4,4).
+testarCerebro('Cenário 2: oponente a 5 casas',
+    [[5, 4], [4, 4]], [], [], [10, 10], 1,
+    'meio', 'etapa3Gargalo');
+
+// Cenário 3: oponente a 3 casas → perigo
+testarCerebro('Cenário 3: oponente a 3 casas',
+    [[3, 4], [4, 4]], [], [], [10, 10], 1,
+    'perigo', 'melhoriasExtra');
+
+// Cenário 4: IA a 1 da vitória → vitoria
+testarCerebro('Cenário 4: IA a 1 da vitória',
+    [[8, 4], [7, 4]], [], [], [10, 10], 1,
+    'vitoria', 'gps');
+
+// Cenário 5: endgame (ambos ≤2 paredes)
+testarCerebro('Cenário 5: endgame (ambos ≤2 paredes)',
+    [[3, 4], [5, 4]], [], [], [2, 2], 1,
+    'endgame', 'etapa1FimDeJogo');
+
+console.log('\n=== Cérebro testado ===');
+
+// =====================================================================
 // RESULTADO FINAL — junta tudo
 // =====================================================================
 console.log('\n========================================');

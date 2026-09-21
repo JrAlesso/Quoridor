@@ -1217,6 +1217,81 @@
         return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
     }
 
+    // =====================================================================
+    // CÉREBRO ORQUESTRADOR
+    // Detecta a fase da partida e chama a técnica certa.
+    // =====================================================================
+
+    // Detecção de fase da partida
+    // Retorna string: 'vitoria' | 'endgame' | 'emergencia' | 'perigo' | 'meio' | 'tranquilo'
+    CerebroIA._detectarFase = function (pos, pH, pV, walls, iaIdx) {
+        var oppIdx = 1 - iaIdx;
+
+        // 1. Vitória imediata?
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) return 'vitoria';
+
+        // 2. Endgame (ambos com ≤2 paredes)?
+        if (walls[0] <= 2 && walls[iaIdx] <= 2) return 'endgame';
+
+        // 3. Oponente ameaça vitória imediata?
+        if (CerebroIA.canWinNext(oppIdx, pH, pV, pos)) return 'emergencia';
+
+        var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+
+        // 4. Perigo (oponente a 2-3 casas)?
+        if (oppD <= 3) return 'perigo';
+
+        // 5. Meio (oponente a 4-6 casas)?
+        if (oppD <= 6) return 'meio';
+
+        // 6. Tranquilo (oponente a 7+)
+        return 'tranquilo';
+    };
+
+    // Mapeamento: fase → nome da técnica
+    CerebroIA.qualTecnica = function (fase) {
+        switch (fase) {
+            case 'vitoria':    return 'gps';
+            case 'endgame':    return 'etapa1FimDeJogo';
+            case 'emergencia': return 'consolidadaFinal';
+            case 'perigo':     return 'melhoriasExtra';
+            case 'meio':       return 'etapa3Gargalo';
+            case 'tranquilo':  return 'gps';
+            default:           return 'consolidadaFinal';
+        }
+    };
+
+    // Função principal — decide e retorna a ação
+    CerebroIA.jogar = function (pos, pH, pV, walls, iaIdx) {
+        var fase = CerebroIA._detectarFase(pos, pH, pV, walls, iaIdx);
+        var tecnica = CerebroIA.qualTecnica(fase);
+
+        // Chama a técnica
+        var acao = null;
+        if (typeof CerebroIA[tecnica] === 'function') {
+            acao = CerebroIA[tecnica](pos, pH, pV, walls, iaIdx);
+        }
+
+        // Fallback: se a técnica falhou, usa gps
+        if (!acao) {
+            acao = CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        return acao;
+    };
+
+    // Versão com debug: retorna { acao, fase, tecnica }
+    CerebroIA.jogarDebug = function (pos, pH, pV, walls, iaIdx) {
+        var fase = CerebroIA._detectarFase(pos, pH, pV, walls, iaIdx);
+        var tecnica = CerebroIA.qualTecnica(fase);
+        var acao = null;
+        if (typeof CerebroIA[tecnica] === 'function') {
+            acao = CerebroIA[tecnica](pos, pH, pV, walls, iaIdx);
+        }
+        if (!acao) acao = CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        return { acao: acao, fase: fase, tecnica: tecnica };
+    };
+
     // Expõe globalmente
     window.CerebroIA = CerebroIA;
 
