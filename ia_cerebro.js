@@ -2381,6 +2381,14 @@
         var WIN = getWIN();
         var oppIdx = 1 - iaIdx;
 
+        // ===== MELHORIA #20: COUNTDOWN DE VITÓRIA =====
+        // Se IA está muito à frente E oponente está longe, só corre
+        var oppD0 = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+        var meuD0 = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+        if (meuD0 + 3 < oppD0 && oppD0 >= 3) {
+            return _melhorMovimento(pos, pH, pV, walls, iaIdx);
+        }
+
         // Vitória imediata sempre
         if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
             var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
@@ -2406,9 +2414,6 @@
         var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
 
         // MELHORIA 19: RESERVA DINÂMICA
-        // Início (7-10 paredes): gasta com oponente a ≤3
-        // Meio (4-6 paredes): gasta com oponente a ≤2
-        // Fim (1-3 paredes): gasta só se oponente a ≤1
         var paredesAtuais = walls[iaIdx];
         var limiarGasto;
         if (paredesAtuais >= 7) limiarGasto = 3;
@@ -2419,71 +2424,136 @@
             return _melhorMovimento(pos, pH, pV, walls, iaIdx);
         }
 
-        // Oponente próximo (≤3) — busca o melhor cerco em L
-        var posicaoOpp = pos[oppIdx];
-
         // 1. Pega a rota atual do oponente
         var rotaOpp = CerebroIA.bfsPath(oppIdx, pH, pV, pos);
-
-        // 2. Candidatos: paredes que tocam a rota do oponente
-        var paredesCandidatas = [];
         var celulasRota = {};
         for (var k = 0; k < rotaOpp.path.length; k++) {
             celulasRota[rotaOpp.path[k][0] + ',' + rotaOpp.path[k][1]] = true;
         }
 
+        // ===== MELHORIA #15: BLOQUEIO PREDITIVO =====
+        // Antes de qualquer decisão, verifica se oponente pode chegar a 1 em 2 turnos
+        function _ameacaEm2Turnos(tpH, tpV, tPos) {
+            var moves1 = CerebroIA.legalMoves(oppIdx, tpH, tpV, tPos);
+            for (var i = 0; i < moves1.length; i++) {
+                var pos1 = [tPos[0].slice(), tPos[1].slice()];
+                pos1[oppIdx] = [moves1[i][0], moves1[i][1]];
+                if (moves1[i][0] === WIN[oppIdx]) return true;
+                if (CerebroIA.bfsDist(oppIdx, tpH, tpV, pos1) <= 1) return true;
+            }
+            return false;
+        }
+
+        // ===== MELHORIA #3 + #17: CERCO SIMÉTRICO + BLOQUEIO EM U =====
+        var paredesCandidatas = [];
+
         for (var r = 0; r < 8; r++) {
             for (var c = 0; c < 8; c++) {
-                // H (horizontal) — bloqueia passagem vertical
+                // ---- H (horizontal) ----
                 if (CerebroIA.canPlace(r, c, 'H', pH, pV, pos)) {
                     if (celulasRota[r + ',' + c] || celulasRota[(r + 1) + ',' + c]) {
                         var tH = pH.concat([[r, c]]);
                         var novaDist = CerebroIA.bfsDist(oppIdx, tH, pV, pos);
                         var ganho = novaDist - oppD;
-                        // Simula 2ª parede em L: horizontal + vertical adjacente
+
                         var ganhoTotal = ganho;
+                        var paredesUsadas = 1;
+
+                        // MELHORIA #3: busca 2ª parede SIMÉTRICA (mesma linha, c±1)
                         if (ganho >= 1) {
-                            // Tenta adicionar uma vertical adjacente que aumente ainda mais
-                            for (var c2 = 0; c2 < 8; c2++) {
-                                if (CerebroIA.canPlace(r, c2, 'V', tH, pV, pos)) {
-                                    var tV = pV.concat([[r, c2]]);
-                                    var novaDist2 = CerebroIA.bfsDist(oppIdx, tH, tV, pos);
+                            var simetricas = [c - 1, c + 1];
+                            for (var s = 0; s < 2; s++) {
+                                var cs = simetricas[s];
+                                if (cs >= 0 && cs <= 7 && CerebroIA.canPlace(r, cs, 'H', tH, pV, pos)) {
+                                    var tH2 = tH.concat([[r, cs]]);
+                                    var novaDist2 = CerebroIA.bfsDist(oppIdx, tH2, pV, pos);
                                     var g2 = novaDist2 - oppD;
-                                    if (g2 > ganhoTotal) ganhoTotal = g2;
+                                    if (g2 > ganhoTotal) {
+                                        ganhoTotal = g2;
+                                        paredesUsadas = 2;
+                                    }
+                                }
+                            }
+                            // Se simétricas não bastaram, tenta V adjacente (U)
+                            if (paredesUsadas === 1) {
+                                for (var c2 = 0; c2 < 8; c2++) {
+                                    if (CerebroIA.canPlace(r, c2, 'V', tH, pV, pos)) {
+                                        var tV = pV.concat([[r, c2]]);
+                                        var g3 = CerebroIA.bfsDist(oppIdx, tH, tV, pos) - oppD;
+                                        if (g3 > ganhoTotal + 2) {
+                                            ganhoTotal = g3;
+                                            paredesUsadas = 2;
+                                        }
+                                    }
                                 }
                             }
                         }
-                        if (ganhoTotal >= 3) {
+
+                        // MELHORIA #15: bônus se evita ameaça em 2 turnos
+                        var tHCheck = pH.concat([[r, c]]);
+                        var evitaAmeaca = !_ameacaEm2Turnos(tHCheck, pV, pos);
+
+                        var scoreH = ganhoTotal * 20 + (evitaAmeaca ? 30 : 0) + (paredesUsadas >= 2 ? 25 : 0);
+                        if (ganhoTotal >= 3 || (evitaAmeaca && ganhoTotal >= 1)) {
                             paredesCandidatas.push({
                                 r: r, c: c, ori: 'H',
                                 ganho: ganhoTotal,
-                                score: ganhoTotal * 20
+                                score: scoreH,
+                                paredes: paredesUsadas
                             });
                         }
                     }
                 }
-                // V (vertical)
+
+                // ---- V (vertical) ----
                 if (CerebroIA.canPlace(r, c, 'V', pH, pV, pos)) {
                     if (celulasRota[r + ',' + c] || celulasRota[r + ',' + (c + 1)]) {
                         var tV2 = pV.concat([[r, c]]);
                         var novaDistV = CerebroIA.bfsDist(oppIdx, pH, tV2, pos);
                         var ganhoV = novaDistV - oppD;
                         var ganhoTotalV = ganhoV;
+                        var paredesUsadasV = 1;
+
+                        // Simétricas verticais (mesma coluna, r±1)
                         if (ganhoV >= 1) {
-                            for (var c3 = 0; c3 < 8; c3++) {
-                                if (CerebroIA.canPlace(r, c3, 'H', pH, tV2, pos)) {
-                                    var tH3 = pH.concat([[r, c3]]);
-                                    var novaDist3 = CerebroIA.bfsDist(oppIdx, tH3, tV2, pos);
-                                    var g3 = novaDist3 - oppD;
-                                    if (g3 > ganhoTotalV) ganhoTotalV = g3;
+                            var simetricasV = [r - 1, r + 1];
+                            for (var sv = 0; sv < 2; sv++) {
+                                var rs = simetricasV[sv];
+                                if (rs >= 0 && rs <= 7 && CerebroIA.canPlace(rs, c, 'V', pH, tV2, pos)) {
+                                    var tV3 = tV2.concat([[rs, c]]);
+                                    var novaDist3 = CerebroIA.bfsDist(oppIdx, pH, tV3, pos);
+                                    var g3v = novaDist3 - oppD;
+                                    if (g3v > ganhoTotalV) {
+                                        ganhoTotalV = g3v;
+                                        paredesUsadasV = 2;
+                                    }
+                                }
+                            }
+                            // Tenta H adjacente (U)
+                            if (paredesUsadasV === 1) {
+                                for (var r3 = 0; r3 < 8; r3++) {
+                                    if (CerebroIA.canPlace(r3, c, 'H', pH, tV2, pos)) {
+                                        var tH3 = pH.concat([[r3, c]]);
+                                        var gH3 = CerebroIA.bfsDist(oppIdx, tH3, tV2, pos) - oppD;
+                                        if (gH3 > ganhoTotalV + 2) {
+                                            ganhoTotalV = gH3;
+                                            paredesUsadasV = 2;
+                                        }
+                                    }
                                 }
                             }
                         }
-                        if (ganhoTotalV >= 3) {
+
+                        var tVCheck = pV.concat([[r, c]]);
+                        var evitaAmeacaV = !_ameacaEm2Turnos(pH, tVCheck, pos);
+                        var scoreV = ganhoTotalV * 20 + (evitaAmeacaV ? 30 : 0) + (paredesUsadasV >= 2 ? 25 : 0);
+
+                        if (ganhoTotalV >= 3 || (evitaAmeacaV && ganhoTotalV >= 1)) {
                             paredesCandidatas.push({
                                 r: r, c: c, ori: 'V',
                                 ganho: ganhoTotalV,
-                                score: ganhoTotalV * 20
+                                score: scoreV,
+                                paredes: paredesUsadasV
                             });
                         }
                     }
@@ -2496,38 +2566,11 @@
 
         if (paredesCandidatas.length > 0) {
             var melhor = paredesCandidatas[0];
-            // Verifica se não me atrapalha muito
             var tH4 = melhor.ori === 'H' ? pH.concat([[melhor.r, melhor.c]]) : pH.slice();
             var tV4 = melhor.ori === 'V' ? pV.concat([[melhor.r, melhor.c]]) : pV.slice();
             var meuDepois = CerebroIA.bfsDist(iaIdx, tH4, tV4, pos);
             if (meuDepois <= meuD + 1) {
                 return { type: 'wall', r: melhor.r, c: melhor.c, ori: melhor.ori };
-            }
-        }
-
-        // MELHORIA 4: ANTI-BRECHA
-        // Se a melhor parede NÃO reduz rotas significativamente, tenta 2ª parede
-        if (paredesCandidatas.length > 0 && walls[iaIdx] >= 2) {
-            var melhor = paredesCandidatas[0];
-            var rotasAntes = CerebroIA._contarRotas(oppIdx, pH, pV, pos, 10).rotas;
-            var tH = melhor.ori === 'H' ? pH.concat([[melhor.r, melhor.c]]) : pH.slice();
-            var tV = melhor.ori === 'V' ? pV.concat([[melhor.r, melhor.c]]) : pV.slice();
-            var rotasDepois = CerebroIA._contarRotas(oppIdx, tH, tV, pos, 10).rotas;
-
-            // Se ainda tem 3+ rotas, tenta achar 2ª parede
-            if (rotasDepois >= 3) {
-                for (var i = 1; i < Math.min(paredesCandidatas.length, 8); i++) {
-                    var w2 = paredesCandidatas[i];
-                    var tH2 = w2.ori === 'H' ? tH.concat([[w2.r, w2.c]]) : tH.slice();
-                    var tV2 = w2.ori === 'V' ? tV.concat([[w2.r, w2.c]]) : tV.slice();
-                    var rotasFinal = CerebroIA._contarRotas(oppIdx, tH2, tV2, pos, 10).rotas;
-                    // Só aceita 2ª parede se reduz drasticamente
-                    if (rotasFinal <= rotasDepois - 2) {
-                        // 2ª parede é muito efetiva — vale o gasto
-                        // Mas continua usando 1ª (prudente) e deixa 2ª pra próximo turno
-                        break;
-                    }
-                }
             }
         }
 
