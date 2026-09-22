@@ -1433,6 +1433,21 @@
 
     // ---- Função principal ----
     CerebroIA.jogar = function (pos, pH, pV, walls, iaIdx) {
+        // REGRA DE OURO: sem paredes, só corre pelo caminho mais curto
+        // (não faz sentido chamar cerco, ensemble ou qualquer bloqueio)
+        if (walls[iaIdx] <= 0) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Vitória imediata sempre primeiro
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var WIN = getWIN();
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
         // F.7 — Tenta usar livro de aberturas primeiro (primeiros 3 turnos)
         if (typeof CerebroIA._usarAbertura === 'function') {
             var acaoAbertura = CerebroIA._usarAbertura(pos, pH, pV, walls, iaIdx);
@@ -2605,6 +2620,12 @@
     // JOGAR ASYNC — versão assíncrona do jogar (não trava a thread)
     // =====================================================================
     CerebroIA.jogarAsync = function (pos, pH, pV, walls, iaIdx, callback) {
+        // REGRA DE OURO: sem paredes, só corre pelo caminho mais curto
+        if (walls[iaIdx] <= 0) {
+            callback(CerebroIA.gps(pos, pH, pV, walls, iaIdx));
+            return;
+        }
+
         // Livro de aberturas (rápido, síncrono)
         if (typeof CerebroIA._usarAbertura === 'function') {
             var acaoAbertura = CerebroIA._usarAbertura(pos, pH, pV, walls, iaIdx);
@@ -2727,6 +2748,9 @@
     }
 
     CerebroIA.cercoEstrategico = function (pos, pH, pV, walls, iaIdx) {
+        // Sem paredes: não pode fazer cerco
+        if (walls[iaIdx] <= 0) return null;
+
         var WIN = getWIN();
         var oppIdx = 1 - iaIdx;
 
