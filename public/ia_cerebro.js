@@ -21,6 +21,95 @@
 })();
 
 // =====================================================================
+// CACHE DE BFS E MOVIMENTOS — acelera minimax sem nerfar
+// =====================================================================
+(function () {
+    var _CACHE_MAX = 50000;  // limite pra não explodir memória
+
+    // Cache de distância BFS
+    var _bfsCache = {};
+    var _bfsCacheSize = 0;
+
+    // Cache de movimentos legais
+    var _movesCache = {};
+    var _movesCacheSize = 0;
+
+    function hashEstado(player, pos, pH, pV) {
+        // Constrói chave única para o estado
+        var key = player + '|' + pos[0][0] + ',' + pos[0][1] + '|' + pos[1][0] + ',' + pos[1][1] + '|';
+        // Adiciona paredes em ordem consistente
+        var h = 0;
+        for (var i = 0; i < pH.length; i++) {
+            h = (h * 31 + pH[i][0] * 9 + pH[i][1]) | 0;
+        }
+        h = (h * 31 + pH.length) | 0;
+        for (var i = 0; i < pV.length; i++) {
+            h = (h * 31 + pV[i][0] * 9 + pV[i][1]) | 0;
+        }
+        h = (h * 31 + pV.length) | 0;
+        return key + h;
+    }
+
+    // API pública de limpeza (chamada no início de cada turno)
+    self._limparCaches = function () {
+        _bfsCache = {};
+        _bfsCacheSize = 0;
+        _movesCache = {};
+        _movesCacheSize = 0;
+    };
+
+    // Envelopa o CerebroIA depois que ele estiver pronto
+    // (vamos usar um getter no self.CerebroIA)
+    setTimeout(function () {
+        var CI = self.CerebroIA;
+        if (!CI) return;
+
+        // Envelopa bfsDist
+        var _bfsDistOriginal = CI.bfsDist;
+        CI.bfsDist = function (player, pH, pV, pos) {
+            var key = hashEstado(player, pos, pH, pV);
+            if (_bfsCache[key] !== undefined) return _bfsCache[key];
+            var result = _bfsDistOriginal(player, pH, pV, pos);
+            if (_bfsCacheSize < _CACHE_MAX) {
+                _bfsCache[key] = result;
+                _bfsCacheSize++;
+            }
+            return result;
+        };
+
+        // Envelopa legalMoves
+        var _legalMovesOriginal = CI.legalMoves;
+        CI.legalMoves = function (player, pH, pV, pos) {
+            var key = hashEstado(player, pos, pH, pV) + '|moves';
+            if (_movesCache[key] !== undefined) {
+                return _movesCache[key].slice();
+            }
+            var result = _legalMovesOriginal(player, pH, pV, pos);
+            if (_movesCacheSize < _CACHE_MAX) {
+                _movesCache[key] = result.slice();
+                _movesCacheSize++;
+            }
+            return result;
+        };
+
+        // Envelopa bfsPath (chama bfsDist + parent tracking)
+        var _bfsPathOriginal = CI.bfsPath;
+        CI.bfsPath = function (player, pH, pV, pos) {
+            var key = hashEstado(player, pos, pH, pV) + '|path';
+            if (_bfsCache[key] !== undefined) return _bfsCache[key];
+            var result = _bfsPathOriginal(player, pH, pV, pos);
+            if (_bfsCacheSize < _CACHE_MAX) {
+                _bfsCache[key] = result;
+                _bfsCacheSize++;
+            }
+            return result;
+        };
+
+        console.log('[Cache] BFS + legalMoves + bfsPath cacheados ✅');
+    }, 0);
+})();
+
+// =====================================================================
 // ia_cerebro.js
 // =====================================================================
 // Nova IA Expert — "1 cérebro com 17 técnicas"
@@ -1264,6 +1353,8 @@
         _personalidades[0] = _sortearPersonalidade();
         _personalidades[1] = _sortearPersonalidade();
         _historicoEstados = [[], []];
+        // Limpa caches de busca (a cada partida nova)
+        try { if (typeof self._limparCaches === 'function') self._limparCaches(); } catch(e) {}
         // NÃO apaga memória de padrões (persiste entre partidas — é o objetivo)
         try { if (typeof _resetHeuristicas === 'function') _resetHeuristicas(); } catch(e) {}
         try { if (typeof CerebroIA._resetAbertura === 'function') CerebroIA._resetAbertura(); } catch(e) {}
@@ -2358,12 +2449,46 @@
         return _aberturaSorteada;
     };
 
+    // Feature 1: Sorteia abertura ADAPTATIVA baseada no oponente
+    CerebroIA._sortearAberturaAdaptativa = function (pos, iaIdx) {
+        var oppIdx = 1 - iaIdx;
+        var oppCol = pos[oppIdx][1];
+        
+        var candidatas = [];
+        for (var i = 0; i < _LIVRO_ABERTURAS.length; i++) {
+            var ab = _LIVRO_ABERTURAS[i];
+            if (ab.length === 0) continue;
+            var prim = ab[0];
+            
+            if (prim.type !== 'move') {
+                // Parede: mantém se oponente está no centro
+                if (oppCol >= 3 && oppCol <= 5) candidatas.push(ab);
+                continue;
+            }
+            
+            // Movimento: prefere aberturas que afastem do oponente
+            var afastamento = Math.abs(prim.c - oppCol);
+            if (afastamento >= 2) candidatas.push(ab);
+        }
+        
+        if (candidatas.length === 0) candidatas = _LIVRO_ABERTURAS.slice();
+        
+        var idx = Math.floor(Math.random() * candidatas.length);
+        _aberturaSorteada = candidatas[idx];
+        _indiceAbertura = 0;
+        return _aberturaSorteada;
+    };
+
     // Verifica se a abertura atual ainda tem ação a fazer
     // Retorna ação válida se sim, null se não
     CerebroIA._usarAbertura = function (pos, pH, pV, walls, iaIdx) {
-        // Se não tem abertura sorteada, sorteia
+        // Se não tem abertura sorteada, sorteia (com adaptação)
         if (!_aberturaSorteada) {
-            CerebroIA._sortearAbertura();
+            if (typeof CerebroIA._sortearAberturaAdaptativa === 'function') {
+                CerebroIA._sortearAberturaAdaptativa(pos, iaIdx);
+            } else {
+                CerebroIA._sortearAbertura();
+            }
         }
 
         // Se já usou todas as ações da abertura, retorna null
@@ -2992,3 +3117,77 @@
 
     console.log('CerebroIA carregado — esqueleto OK');
 })();
+
+// =====================================================================
+// CACHE SÍNCRONO — aplica no final quando CerebroIA já está definido
+// (não usa setTimeout, funciona em ambientes de teste também)
+// =====================================================================
+(function () {
+    var _CACHE_MAX = 50000;
+    var _bfsCache = {}, _bfsCacheSize = 0;
+    var _movesCache = {}, _movesCacheSize = 0;
+    var _pathCache = {}, _pathCacheSize = 0;
+
+    function hashEstado(player, pos, pH, pV) {
+        var key = player + '|' + pos[0][0] + ',' + pos[0][1] + '|' + pos[1][0] + ',' + pos[1][1] + '|';
+        var h = 0;
+        for (var i = 0; i < pH.length; i++) h = (h * 31 + pH[i][0] * 9 + pH[i][1]) | 0;
+        h = (h * 31 + pH.length) | 0;
+        for (var i = 0; i < pV.length; i++) h = (h * 31 + pV[i][0] * 9 + pV[i][1]) | 0;
+        h = (h * 31 + pV.length) | 0;
+        return key + h;
+    }
+
+    function _limparCaches() {
+        _bfsCache = {}; _bfsCacheSize = 0;
+        _movesCache = {}; _movesCacheSize = 0;
+        _pathCache = {}; _pathCacheSize = 0;
+    }
+
+    var escopo = (typeof self !== 'undefined') ? self : window;
+    var CI = escopo.CerebroIA;
+
+    if (!CI) {
+        console.warn('[Cache] CerebroIA não encontrado — cache desativado');
+        return;
+    }
+
+    // Envelopa bfsDist
+    var _bfsDistOriginal = CI.bfsDist;
+    CI.bfsDist = function (player, pH, pV, pos) {
+        var key = hashEstado(player, pos, pH, pV);
+        var cached = _bfsCache[key];
+        if (cached !== undefined) return cached;
+        var result = _bfsDistOriginal(player, pH, pV, pos);
+        if (_bfsCacheSize < _CACHE_MAX) { _bfsCache[key] = result; _bfsCacheSize++; }
+        return result;
+    };
+
+    // Envelopa legalMoves
+    var _legalMovesOriginal = CI.legalMoves;
+    CI.legalMoves = function (player, pH, pV, pos) {
+        var key = hashEstado(player, pos, pH, pV) + '|m';
+        var cached = _movesCache[key];
+        if (cached !== undefined) return cached.slice();
+        var result = _legalMovesOriginal(player, pH, pV, pos);
+        if (_movesCacheSize < _CACHE_MAX) { _movesCache[key] = result.slice(); _movesCacheSize++; }
+        return result;
+    };
+
+    // Envelopa bfsPath
+    var _bfsPathOriginal = CI.bfsPath;
+    CI.bfsPath = function (player, pH, pV, pos) {
+        var key = hashEstado(player, pos, pH, pV) + '|p';
+        var cached = _pathCache[key];
+        if (cached !== undefined) return cached;
+        var result = _bfsPathOriginal(player, pH, pV, pos);
+        if (_pathCacheSize < _CACHE_MAX) { _pathCache[key] = result; _pathCacheSize++; }
+        return result;
+    };
+
+    escopo._limparCaches = _limparCaches;
+    CI._limparCaches = _limparCaches;
+
+    console.log('[Cache] Aplicado com sucesso ✅');
+})();
+
