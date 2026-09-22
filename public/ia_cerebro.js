@@ -1,4 +1,26 @@
 // =====================================================================
+// WORKER SHIM — permite rodar em Web Worker (sem window/document)
+// =====================================================================
+(function () {
+    if (typeof window === 'undefined') {
+        // Ambiente Web Worker
+        self.window = self;
+        // Stubs para APIs que não existem em worker
+        if (typeof self.localStorage === 'undefined') {
+            self.localStorage = {
+                _data: {},
+                getItem: function (k) { return this._data[k] || null; },
+                setItem: function (k, v) { this._data[k] = String(v); },
+                removeItem: function (k) { delete this._data[k]; }
+            };
+        }
+        if (typeof self.currentUser === 'undefined') {
+            self.currentUser = null;
+        }
+    }
+})();
+
+// =====================================================================
 // ia_cerebro.js
 // =====================================================================
 // Nova IA Expert — "1 cérebro com 17 técnicas"
@@ -2398,7 +2420,7 @@
         try {
             var est = _aplicarAcao(pos, pH, pV, walls, proposta, iaIdx);
             _resetHeuristicas();
-            _deadline = Date.now() + 100;  // 100ms por proposta
+            _deadline = Date.now() + 50;  // 50ms por proposta (mantém animação suave)
             var score = _minimax(est.pos, est.pH, est.pV, est.walls, 2, -Infinity, Infinity, false, iaIdx, 1);
             return score;
         } catch (e) {
@@ -2424,19 +2446,18 @@
         var corrida = CerebroIA._detectarCorrida(pos, pH, pV, iaIdx);
 
         // Filtra técnicas relevantes conforme modo corrida
-        // 'atras' → exclui técnicas puramente corredoras
-        // 'frente' → exclui técnicas puramente bloqueadoras
         var tecnicasParaRodar = [];
         for (var i = 0; i < _ESPECIALISTAS.length; i++) {
             var t = _ESPECIALISTAS[i];
-
-            // No modo ATRÁS: só bloqueadores (não pode correr)
             if (corrida === 'atras') {
-                if (t === 'gps' || t === 'visaoReal') continue;
+                if (t === 'gps' || t === 'visaoReal' || t === 'milPerfis') continue;
             }
-            // No modo FRENTE: prioriza corredores (mas ainda aceita bloqueios fracos)
-            // (não exclui nenhum, só dá bônus depois)
-
+            if (corrida === 'frente') {
+                if (t === 'etapa2BloqueioDuplo' || t === 'etapa3Gargalo' ||
+                    t === 'antiBrecha' || t === 'invencivel' ||
+                    t === 'economicaV1' || t === 'economicaV2' ||
+                    t === 'justa') continue;
+            }
             tecnicasParaRodar.push(t);
         }
 
@@ -2465,11 +2486,13 @@
         for (var i = 0; i < propostas.length; i++) {
             var p = propostas[i];
             var score = _avaliarProposta(p.acao, pos, pH, pV, walls, iaIdx);
-
-            // Ajuste por modo corrida
-            if (corrida === 'frente' && p.acao.type === 'move') score += 200;
-            if (corrida === 'atras' && p.acao.type === 'wall') score += 200;
-
+            if (corrida === 'frente') {
+                if (p.acao.type === 'move') score += 500;
+                else score -= 300;
+            } else if (corrida === 'atras') {
+                if (p.acao.type === 'wall') score += 500;
+                else score -= 300;
+            }
             p.score = score;
             if (score > melhorScore) {
                 melhorScore = score;
@@ -2483,6 +2506,140 @@
             corrida: corrida,
             totalPropostas: propostas.length
         };
+    };
+
+    // =====================================================================
+    // ENSEMBLE ASYNC — roda em chunks para não travar a thread principal
+    // Devolve controle ao navegador entre chunks, mantendo animações suaves
+    // =====================================================================
+    CerebroIA._ensembleDecidirAsync = function (pos, pH, pV, walls, iaIdx, callback) {
+        var corrida = CerebroIA._detectarCorrida(pos, pH, pV, iaIdx);
+
+        // Filtra técnicas conforme modo corrida
+        var tecnicasParaRodar = [];
+        for (var i = 0; i < _ESPECIALISTAS.length; i++) {
+            var t = _ESPECIALISTAS[i];
+            // CORREÇÃO 2: filtro FORTE por modo corrida
+            if (corrida === 'atras') {
+                // ATRÁS: exclui puramente corredoras
+                if (t === 'gps' || t === 'visaoReal' || t === 'milPerfis') continue;
+            }
+            if (corrida === 'frente') {
+                // FRENTE: exclui bloqueadores puros (mas mantém cerco que é misto)
+                if (t === 'etapa2BloqueioDuplo' || t === 'etapa3Gargalo' ||
+                    t === 'antiBrecha' || t === 'invencivel' ||
+                    t === 'economicaV1' || t === 'economicaV2' ||
+                    t === 'justa') continue;
+            }
+            tecnicasParaRodar.push(t);
+        }
+
+        var propostas = [];
+        var CHUNK_TECNICAS = 1;   // roda 1 técnica por vez para manter animação suave
+
+        function coletarPropostas(inicio) {
+            var fim = Math.min(inicio + CHUNK_TECNICAS, tecnicasParaRodar.length);
+            for (var i = inicio; i < fim; i++) {
+                var t = tecnicasParaRodar[i];
+                var fn = CerebroIA[t];
+                if (typeof fn !== 'function') continue;
+                try {
+                    var acao = fn(pos, pH, pV, walls, iaIdx);
+                    if (acao) propostas.push({ tecnica: t, acao: acao });
+                } catch (e) { /* ignora erros */ }
+            }
+            if (fim < tecnicasParaRodar.length) {
+                setTimeout(function () { coletarPropostas(fim); }, 16);  // 16ms = 60fps
+            } else {
+                avaliarPropostas(0);
+            }
+        }
+
+        function avaliarPropostas(inicio) {
+            if (propostas.length === 0) {
+                callback({
+                    acao: CerebroIA.gps(pos, pH, pV, walls, iaIdx),
+                    tecnica: 'gps_fallback',
+                    corrida: corrida
+                });
+                return;
+            }
+
+            var CHUNK_AVALIAR = 1;   // avalia 1 proposta por vez
+            var fim = Math.min(inicio + CHUNK_AVALIAR, propostas.length);
+
+            for (var i = inicio; i < fim; i++) {
+                var p = propostas[i];
+                var score = _avaliarProposta(p.acao, pos, pH, pV, walls, iaIdx);
+                // CORREÇÃO 3: score forte conforme corrida
+                if (corrida === 'frente') {
+                    if (p.acao.type === 'move') score += 500;
+                    else score -= 300;
+                } else if (corrida === 'atras') {
+                    if (p.acao.type === 'wall') score += 500;
+                    else score -= 300;
+                }
+                p.score = score;
+            }
+
+            if (fim < propostas.length) {
+                setTimeout(function () { avaliarPropostas(fim); }, 16);  // 16ms = 60fps
+            } else {
+                var melhor = propostas[0];
+                for (var j = 1; j < propostas.length; j++) {
+                    if (propostas[j].score > melhor.score) melhor = propostas[j];
+                }
+                callback({
+                    acao: melhor.acao,
+                    tecnica: melhor.tecnica,
+                    corrida: corrida,
+                    totalPropostas: propostas.length
+                });
+            }
+        }
+
+        coletarPropostas(0);
+    };
+
+    // =====================================================================
+    // JOGAR ASYNC — versão assíncrona do jogar (não trava a thread)
+    // =====================================================================
+    CerebroIA.jogarAsync = function (pos, pH, pV, walls, iaIdx, callback) {
+        // Livro de aberturas (rápido, síncrono)
+        if (typeof CerebroIA._usarAbertura === 'function') {
+            var acaoAbertura = CerebroIA._usarAbertura(pos, pH, pV, walls, iaIdx);
+            if (acaoAbertura) { callback(acaoAbertura); return; }
+        }
+
+        // Vitória imediata (rápido)
+        var WIN = getWIN();
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) { callback({type:'move', r:mv[i][0], c:mv[i][1]}); return; }
+            }
+        }
+
+        // Bloqueio obrigatório (rápido)
+        var oppIdx = 1 - iaIdx;
+        if (CerebroIA.canWinNext(oppIdx, pH, pV, pos) && walls[iaIdx] > 0) {
+            var pObrig = CerebroIA._todasParedesValidas(pos, pH, pV, walls, iaIdx);
+            for (var i = 0; i < pObrig.length; i++) {
+                var w = pObrig[i];
+                var tH = w.ori === 'H' ? pH.concat([[w.r, w.c]]) : pH.slice();
+                var tV = w.ori === 'V' ? pV.concat([[w.r, w.c]]) : pV.slice();
+                if (!CerebroIA.canWinNext(oppIdx, tH, tV, pos)) {
+                    callback({type:'wall', r:w.r, c:w.c, ori:w.ori});
+                    return;
+                }
+            }
+        }
+
+        // Ensemble async (pesado — roda em chunks)
+        CerebroIA._ensembleDecidirAsync(pos, pH, pV, walls, iaIdx, function (resultado) {
+            if (resultado && resultado.acao) callback(resultado.acao);
+            else callback(CerebroIA.gps(pos, pH, pV, walls, iaIdx));
+        });
     };
 
     // =====================================================================

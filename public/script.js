@@ -10639,6 +10639,103 @@ async function logoutUser() {
 // ===================== FIM IA_EXPERT_MELHORIAS_EXTRA =====================
 
 // =====================================================================
+// WORKER DO CEREBROIA — roda a IA em thread separada (UI livre)
+// =====================================================================
+var _iaWorker = null;
+var _iaWorkerPronto = false;
+var _iaWorkerCallback = null;
+var _iaWorkerIdCounter = 0;
+var _iaWorkerFallbackTimer = null;
+
+(function () {
+    if (typeof Worker === 'undefined') {
+        console.warn('[Worker] Web Workers não suportados neste navegador');
+        return;
+    }
+
+    try {
+        _iaWorker = new Worker('ia_worker.js');
+
+        _iaWorker.onmessage = function (e) {
+            var dados = e.data;
+            if (!dados) return;
+
+            if (dados.tipo === 'pronto') {
+                _iaWorkerPronto = true;
+                console.log('[Worker] CerebroIA pronto ✅');
+                return;
+            }
+
+            if (dados.tipo === 'jogada') {
+                if (_iaWorkerFallbackTimer) {
+                    clearTimeout(_iaWorkerFallbackTimer);
+                    _iaWorkerFallbackTimer = null;
+                }
+                if (_iaWorkerCallback) {
+                    var cb = _iaWorkerCallback;
+                    _iaWorkerCallback = null;
+                    cb(dados.acao);
+                }
+            } else if (dados.tipo === 'erro') {
+                console.error('[Worker] Erro:', dados.mensagem);
+                if (_iaWorkerCallback) {
+                    var cb2 = _iaWorkerCallback;
+                    _iaWorkerCallback = null;
+                    cb2(null);
+                }
+            }
+        };
+
+        _iaWorker.onerror = function (err) {
+            console.error('[Worker] Erro geral:', err);
+        };
+    } catch (e) {
+        console.warn('[Worker] Falha ao criar Worker:', e);
+    }
+})();
+
+function _enviarParaWorker(pos, pH, pV, walls, iaIdx, callback) {
+    // Fallback: se worker não estiver disponível, usa o antigo jogarAsync
+    if (!_iaWorker || !_iaWorkerPronto) {
+        if (window.CerebroIA && typeof window.CerebroIA.jogarAsync === 'function') {
+            window.CerebroIA.jogarAsync(pos, pH, pV, walls, iaIdx, callback);
+        } else {
+            callback(null);
+        }
+        return;
+    }
+
+    _iaWorkerIdCounter++;
+    var id = _iaWorkerIdCounter;
+    _iaWorkerCallback = callback;
+
+    // Fallback de segurança: se o worker demorar >30s, delega pra jogarAsync
+    if (_iaWorkerFallbackTimer) clearTimeout(_iaWorkerFallbackTimer);
+    _iaWorkerFallbackTimer = setTimeout(function () {
+        console.warn('[Worker] Timeout — usando fallback jogarAsync');
+        if (_iaWorkerCallback) {
+            var cb = _iaWorkerCallback;
+            _iaWorkerCallback = null;
+            if (window.CerebroIA && typeof window.CerebroIA.jogarAsync === 'function') {
+                window.CerebroIA.jogarAsync(pos, pH, pV, walls, iaIdx, cb);
+            } else {
+                cb(null);
+            }
+        }
+    }, 30000);
+
+    _iaWorker.postMessage({
+        tipo: 'jogar',
+        pos: pos,
+        pH: pH,
+        pV: pV,
+        walls: walls,
+        iaIdx: iaIdx,
+        id: id
+    });
+}
+
+// =====================================================================
 // FASE E — Integração do CerebroIA (nova IA Expert)
 // =====================================================================
 // Este bloco substitui o scheduleIA para usar a nova IA (CerebroIA)
@@ -10664,6 +10761,8 @@ async function logoutUser() {
         // Mesmas guardas da versão original
         if (G.iaThinking || G.over || !gameActive || matchFinished) return;
         if (!G.vsIA || G.turn !== 1) return;
+        var _self = this;
+        var _args = arguments;
 
         setIAThinking(true);
         setTimeout(function () {
@@ -10672,61 +10771,45 @@ async function logoutUser() {
                 return;
             }
 
-            var acao = null;
-            try {
-                acao = window.CerebroIA.jogar(
-                    G.pos,
-                    G.pH,
-                    G.pV,
-                    [G.walls[0], G.walls[1]],
-                    1
-                );
-            } catch (e) {
-                console.error('[FaseE] Erro em CerebroIA.jogar — usando IA antiga:', e);
-                setIAThinking(false);
-                return _scheduleIAOriginal.apply(this, arguments);
-            }
-
-            if (!acao) {
-                // CerebroIA não conseguiu decidir — delega pro antigo
-                setIAThinking(false);
-                return _scheduleIAOriginal.apply(this, arguments);
-            }
-
-            setIAThinking(false);
-            stopTimer();
-
-            if (acao.type === 'move') {
-                if (typeof doMove === 'function') {
-                    doMove(acao.r, acao.c);
-                } else {
-                    G.pos[1] = [acao.r, acao.c];
-                    checkWin();
-                    if (!G.over) nextTurn();
-                    updateWallIndicators(); draw();
+            // Envia estado pro Worker (thread separada — UI livre)
+            _enviarParaWorker(G.pos, G.pH, G.pV, [G.walls[0], G.walls[1]], 1, function (acao) {
+                if (!acao) {
+                    setIAThinking(false);
+                    return _scheduleIAOriginal.apply(_self, _args);
                 }
-            } else if (acao.type === 'wall') {
-                // CerebroIA usa coordenadas 0-indexed.
-                // placeWall do jogo usa 1-indexed (adiciona 1 e depois subtrai)
-                if (typeof placeWall === 'function') {
-                    placeWall(acao.r + 1, acao.c + 1, acao.ori);
-                } else {
-                    G.walls[1]--;
-                    if (acao.ori === 'H') {
-                        G.pH.push([acao.r, acao.c]);
-                        if (G.wallOwnerH) G.wallOwnerH.push(1);
+
+                setIAThinking(false);
+                stopTimer();
+
+                if (acao.type === 'move') {
+                    if (typeof doMove === 'function') {
+                        doMove(acao.r, acao.c);
                     } else {
-                        G.pV.push([acao.r, acao.c]);
-                        if (G.wallOwnerV) G.wallOwnerV.push(1);
+                        G.pos[1] = [acao.r, acao.c];
+                        checkWin();
+                        if (!G.over) nextTurn();
+                        updateWallIndicators(); draw();
                     }
-                    checkWin();
-                    if (!G.over) nextTurn();
-                    updateWallIndicators(); draw();
+                } else if (acao.type === 'wall') {
+                    if (typeof placeWall === 'function') {
+                        placeWall(acao.r + 1, acao.c + 1, acao.ori);
+                    } else {
+                        G.walls[1]--;
+                        if (acao.ori === 'H') {
+                            G.pH.push([acao.r, acao.c]);
+                            if (G.wallOwnerH) G.wallOwnerH.push(1);
+                        } else {
+                            G.pV.push([acao.r, acao.c]);
+                            if (G.wallOwnerV) G.wallOwnerV.push(1);
+                        }
+                        checkWin();
+                        if (!G.over) nextTurn();
+                        updateWallIndicators(); draw();
+                    }
+                } else {
+                    return _scheduleIAOriginal.apply(_self, _args);
                 }
-            } else {
-                // Ação desconhecida — delega
-                return _scheduleIAOriginal.apply(this, arguments);
-            }
+            });
         }, 300);
     };
 
