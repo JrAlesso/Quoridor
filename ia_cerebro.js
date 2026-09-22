@@ -1584,10 +1584,68 @@
     };
 
     CerebroIA.jogar = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
         // REGRA DE OURO: sem paredes, só corre pelo caminho mais curto
-        // (não faz sentido chamar cerco, ensemble ou qualquer bloqueio)
         if (walls[iaIdx] <= 0) {
             return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Vitória imediata SEMPRE primeiro
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mvV = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mvV.length; i++) {
+                if (mvV[i][0] === WIN[iaIdx]) return { type: 'move', r: mvV[i][0], c: mvV[i][1] };
+            }
+        }
+
+        // ===== REGRA DURA 1: EMERGÊNCIA (oppD === 1) =====
+        // Se oponente pode vencer no próximo turno, FORÇA bloqueio
+        // Ignora ensemble, modo corrida, TUDO. Só bloqueia.
+        var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+        if (oppD === 1) {
+            var paredesObrig = CerebroIA._todasParedesValidas(pos, pH, pV, walls, iaIdx);
+            var melhorBloqueio = null;
+            var maiorAtraso = -1;
+            for (var i = 0; i < paredesObrig.length; i++) {
+                var w = paredesObrig[i];
+                var tH = w.ori === 'H' ? pH.concat([[w.r, w.c]]) : pH.slice();
+                var tV = w.ori === 'V' ? pV.concat([[w.r, w.c]]) : pV.slice();
+                // Rejeita paredes que NÃO impedem a vitória
+                if (CerebroIA.canWinNext(oppIdx, tH, tV, pos)) continue;
+                var novoD = CerebroIA.bfsDist(oppIdx, tH, tV, pos);
+                if (novoD > maiorAtraso) {
+                    maiorAtraso = novoD;
+                    melhorBloqueio = { type: 'wall', r: w.r, c: w.c, ori: w.ori };
+                }
+            }
+            if (melhorBloqueio) return melhorBloqueio;
+        }
+
+        // ===== REGRA DURA 2: PERIGO (oppD === 2) =====
+        // Se oponente está a 2 casas, força cerco em L
+        // (não deixa ensemble escolher movimento se ainda tem paredes)
+        if (oppD === 2 && walls[iaIdx] >= 1) {
+            // Chama cerco — ele já faz L/U simétrico
+            var cerco = CerebroIA.cercoEstrategico(pos, pH, pV, walls, iaIdx);
+            if (cerco && cerco.type === 'wall') return cerco;
+
+            // Se cerco não achou, tenta qualquer parede que atrase ≥2
+            var paredesPerigo = CerebroIA._todasParedesValidas(pos, pH, pV, walls, iaIdx);
+            var melhorP = null, maiorA = 1;  // exige atraso ≥2
+            for (var i = 0; i < paredesPerigo.length; i++) {
+                var wp = paredesPerigo[i];
+                var tHp = wp.ori === 'H' ? pH.concat([[wp.r, wp.c]]) : pH.slice();
+                var tVp = wp.ori === 'V' ? pV.concat([[wp.r, wp.c]]) : pV.slice();
+                if (CerebroIA.canWinNext(oppIdx, tHp, tVp, pos)) continue;
+                var novoDp = CerebroIA.bfsDist(oppIdx, tHp, tVp, pos) - oppD;
+                if (novoDp > maiorA) {
+                    maiorA = novoDp;
+                    melhorP = { type: 'wall', r: wp.r, c: wp.c, ori: wp.ori };
+                }
+            }
+            if (melhorP) return melhorP;
         }
 
         // Vitória imediata sempre primeiro
@@ -2679,6 +2737,19 @@
 
         if (propostas.length === 0) {
             return { acao: CerebroIA.gps(pos, pH, pV, walls, iaIdx), tecnica: 'gps_fallback', corrida: corrida };
+        }
+
+        // REGRA DURA: em perigo/emergência, rejeita propostas de movimento
+        // (a menos que a IA possa vencer agora ou não tenha paredes)
+        var oppIdxEns = 1 - iaIdx;
+        var oppDEns = CerebroIA.bfsDist(oppIdxEns, pH, pV, pos);
+        var iaPodeVencer = CerebroIA.canWinNext(iaIdx, pH, pV, pos);
+        if (oppDEns <= 2 && walls[iaIdx] > 0 && !iaPodeVencer) {
+            var propostasParede = [];
+            for (var j = 0; j < propostas.length; j++) {
+                if (propostas[j].acao.type === 'wall') propostasParede.push(propostas[j]);
+            }
+            if (propostasParede.length > 0) propostas = propostasParede;
         }
 
         // Avalia cada proposta com minimax raso
