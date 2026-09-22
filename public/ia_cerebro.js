@@ -1358,6 +1358,7 @@
         // NÃO apaga memória de padrões (persiste entre partidas — é o objetivo)
         try { if (typeof _resetHeuristicas === 'function') _resetHeuristicas(); } catch(e) {}
         try { if (typeof CerebroIA._resetAbertura === 'function') CerebroIA._resetAbertura(); } catch(e) {}
+        try { if (typeof CerebroIA._resetarAmigdala === 'function') CerebroIA._resetarAmigdala(); } catch(e) {}
         return _personalidades;
     };
 
@@ -1523,6 +1524,65 @@
     }
 
     // ---- Função principal ----
+
+    // =====================================================================
+    // NEURÔNIO 20 — AMÍGDALA (Trend Detection)
+    // Detecta perda persistente da corrida e ativa modo pânico.
+    // Só age quando ≥60% dos últimos turnos estava atrás.
+    // =====================================================================
+    var _historicoCorrida = [[], []];  // [histórico do jogador 0, do jogador 1]
+
+    CerebroIA._registrarCorrida = function (iaIdx, corrida) {
+        var hist = _historicoCorrida[iaIdx];
+        hist.push(corrida);
+        if (hist.length > 8) hist.shift();
+    };
+
+    CerebroIA._resetarAmigdala = function () {
+        _historicoCorrida = [[], []];
+    };
+
+    CerebroIA._detectarPanico = function (iaIdx) {
+        var hist = _historicoCorrida[iaIdx];
+        if (hist.length < 5) return false;
+        var atras = 0;
+        for (var i = 0; i < hist.length; i++) {
+            if (hist[i] === 'atras') atras++;
+        }
+        return (atras / hist.length) >= 0.6;
+    };
+
+    // Amígdala — neurônio 20
+    // Em modo pânico: prioriza cerco agressivo (L/U)
+    CerebroIA.amigdala = function (pos, pH, pV, walls, iaIdx) {
+        // Sem pânico → sem interferência
+        if (!CerebroIA._detectarPanico(iaIdx)) return null;
+
+        var oppIdx = 1 - iaIdx;
+        var WIN = getWIN();
+
+        // Vitória imediata sempre primeiro
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        // Sem paredes → corre
+        if (walls[iaIdx] <= 0) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Modo pânico: usa cercoEstrategico com "força total"
+        // (ele já faz cerco em L/U e simétrico)
+        var cerco = CerebroIA.cercoEstrategico(pos, pH, pV, walls, iaIdx);
+        if (cerco) return cerco;
+
+        // Se cerco falhar, delega pro gps (corre)
+        return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    };
+
     CerebroIA.jogar = function (pos, pH, pV, walls, iaIdx) {
         // REGRA DE OURO: sem paredes, só corre pelo caminho mais curto
         // (não faz sentido chamar cerco, ensemble ou qualquer bloqueio)
@@ -2551,7 +2611,8 @@
         'etapa2BloqueioDuplo', 'etapa3Gargalo',
         'strategicV1', 'forte', 'consolidadaFinal',
         'etapa1FimDeJogo', 'melhoriasExtra', 'melhoriasExtraV2',
-        'memoriaParedes', 'cercoEstrategico', 'minimax', 'milPerfis'
+        'memoriaParedes', 'cercoEstrategico', 'minimax', 'milPerfis',
+        'amigdala'
     ];
 
     // Avalia uma proposta de jogada com minimax raso (depth 2)
