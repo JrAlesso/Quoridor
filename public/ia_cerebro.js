@@ -1381,7 +1381,7 @@
         for (var i = 0; i < hist.length; i++) {
             if (hist[i] === h) cont++;
         }
-        return cont >= 3;  // mesmo estado apareceu 3+ vezes
+        return cont >= 2;  // mesmo estado apareceu 2+ vezes (era 3)
     }
 
     // ---- Detecção de fase (com personalidade) ----
@@ -1646,6 +1646,36 @@
                 }
             }
             if (melhorP) return melhorP;
+        }
+
+        // ===== REGRA DURA 3: PRÉ-BLOQUEIO (oppD === 3) =====
+        // Se oponente está a 3 casas:
+        //   - Se IA vence em ≤ 3 turnos → corre (gps)
+        //   - Senão → pré-bloqueia com parede que atrase ≥ 2
+        if (oppD === 3 && walls[iaIdx] >= 1) {
+            var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+            // Se IA está muito perto de vencer, corre
+            if (meuD <= 3) {
+                return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+            }
+
+            // Senão: pré-bloqueio
+            var paredesTri = CerebroIA._todasParedesValidas(pos, pH, pV, walls, iaIdx);
+            var melhorT = null, maiorAt = 1;
+            for (var i = 0; i < paredesTri.length; i++) {
+                var wt = paredesTri[i];
+                var tHt = wt.ori === 'H' ? pH.concat([[wt.r, wt.c]]) : pH.slice();
+                var tVt = wt.ori === 'V' ? pV.concat([[wt.r, wt.c]]) : pV.slice();
+                if (CerebroIA.canWinNext(oppIdx, tHt, tVt, pos)) continue;
+                var novoDt = CerebroIA.bfsDist(oppIdx, tHt, tVt, pos) - oppD;
+                if (novoDt > maiorAt) {
+                    maiorAt = novoDt;
+                    melhorT = { type: 'wall', r: wt.r, c: wt.c, ori: wt.ori };
+                }
+            }
+            if (melhorT) return melhorT;
+            // Se nenhuma parede atrasa ≥2, corre
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
         }
 
         // Vitória imediata sempre primeiro
@@ -2739,12 +2769,14 @@
             return { acao: CerebroIA.gps(pos, pH, pV, walls, iaIdx), tecnica: 'gps_fallback', corrida: corrida };
         }
 
-        // REGRA DURA: em perigo/emergência, rejeita propostas de movimento
+        // REGRA DURA: em perigo/emergência/pré-bloqueio, rejeita movimento
         // (a menos que a IA possa vencer agora ou não tenha paredes)
         var oppIdxEns = 1 - iaIdx;
         var oppDEns = CerebroIA.bfsDist(oppIdxEns, pH, pV, pos);
         var iaPodeVencer = CerebroIA.canWinNext(iaIdx, pH, pV, pos);
-        if (oppDEns <= 2 && walls[iaIdx] > 0 && !iaPodeVencer) {
+        var meuDEns = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+        var bloquearTotal = (oppDEns <= 2) || (oppDEns === 3 && meuDEns > 3);
+        if (bloquearTotal && walls[iaIdx] > 0 && !iaPodeVencer) {
             var propostasParede = [];
             for (var j = 0; j < propostas.length; j++) {
                 if (propostas[j].acao.type === 'wall') propostasParede.push(propostas[j]);

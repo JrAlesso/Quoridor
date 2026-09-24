@@ -1358,6 +1358,7 @@
         // NÃO apaga memória de padrões (persiste entre partidas — é o objetivo)
         try { if (typeof _resetHeuristicas === 'function') _resetHeuristicas(); } catch(e) {}
         try { if (typeof CerebroIA._resetAbertura === 'function') CerebroIA._resetAbertura(); } catch(e) {}
+        try { if (typeof CerebroIA._resetarAmigdala === 'function') CerebroIA._resetarAmigdala(); } catch(e) {}
         return _personalidades;
     };
 
@@ -1380,7 +1381,7 @@
         for (var i = 0; i < hist.length; i++) {
             if (hist[i] === h) cont++;
         }
-        return cont >= 3;  // mesmo estado apareceu 3+ vezes
+        return cont >= 2;  // mesmo estado apareceu 2+ vezes (era 3)
     }
 
     // ---- Detecção de fase (com personalidade) ----
@@ -1523,10 +1524,157 @@
     }
 
     // ---- Função principal ----
-    CerebroIA.jogar = function (pos, pH, pV, walls, iaIdx) {
-        // REGRA DE OURO: sem paredes, só corre pelo caminho mais curto
-        // (não faz sentido chamar cerco, ensemble ou qualquer bloqueio)
+
+    // =====================================================================
+    // NEURÔNIO 20 — AMÍGDALA (Trend Detection)
+    // Detecta perda persistente da corrida e ativa modo pânico.
+    // Só age quando ≥60% dos últimos turnos estava atrás.
+    // =====================================================================
+    var _historicoCorrida = [[], []];  // [histórico do jogador 0, do jogador 1]
+
+    CerebroIA._registrarCorrida = function (iaIdx, corrida) {
+        var hist = _historicoCorrida[iaIdx];
+        hist.push(corrida);
+        if (hist.length > 8) hist.shift();
+    };
+
+    CerebroIA._resetarAmigdala = function () {
+        _historicoCorrida = [[], []];
+    };
+
+    CerebroIA._detectarPanico = function (iaIdx) {
+        var hist = _historicoCorrida[iaIdx];
+        if (hist.length < 5) return false;
+        var atras = 0;
+        for (var i = 0; i < hist.length; i++) {
+            if (hist[i] === 'atras') atras++;
+        }
+        return (atras / hist.length) >= 0.6;
+    };
+
+    // Amígdala — neurônio 20
+    // Em modo pânico: prioriza cerco agressivo (L/U)
+    CerebroIA.amigdala = function (pos, pH, pV, walls, iaIdx) {
+        // Sem pânico → sem interferência
+        if (!CerebroIA._detectarPanico(iaIdx)) return null;
+
+        var oppIdx = 1 - iaIdx;
+        var WIN = getWIN();
+
+        // Vitória imediata sempre primeiro
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mv = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mv.length; i++) {
+                if (mv[i][0] === WIN[iaIdx]) return { type: 'move', r: mv[i][0], c: mv[i][1] };
+            }
+        }
+
+        // Sem paredes → corre
         if (walls[iaIdx] <= 0) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Modo pânico: usa cercoEstrategico com "força total"
+        // (ele já faz cerco em L/U e simétrico)
+        var cerco = CerebroIA.cercoEstrategico(pos, pH, pV, walls, iaIdx);
+        if (cerco) return cerco;
+
+        // Se cerco falhar, delega pro gps (corre)
+        return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+    };
+
+    CerebroIA.jogar = function (pos, pH, pV, walls, iaIdx) {
+        var WIN = getWIN();
+        var oppIdx = 1 - iaIdx;
+
+        // REGRA DE OURO: sem paredes, só corre pelo caminho mais curto
+        if (walls[iaIdx] <= 0) {
+            return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+        }
+
+        // Vitória imediata SEMPRE primeiro
+        if (CerebroIA.canWinNext(iaIdx, pH, pV, pos)) {
+            var mvV = CerebroIA.legalMoves(iaIdx, pH, pV, pos);
+            for (var i = 0; i < mvV.length; i++) {
+                if (mvV[i][0] === WIN[iaIdx]) return { type: 'move', r: mvV[i][0], c: mvV[i][1] };
+            }
+        }
+
+        // ===== REGRA DURA 1: EMERGÊNCIA (oppD === 1) =====
+        // Se oponente pode vencer no próximo turno, FORÇA bloqueio
+        // Ignora ensemble, modo corrida, TUDO. Só bloqueia.
+        var oppD = CerebroIA.bfsDist(oppIdx, pH, pV, pos);
+        if (oppD === 1) {
+            var paredesObrig = CerebroIA._todasParedesValidas(pos, pH, pV, walls, iaIdx);
+            var melhorBloqueio = null;
+            var maiorAtraso = -1;
+            for (var i = 0; i < paredesObrig.length; i++) {
+                var w = paredesObrig[i];
+                var tH = w.ori === 'H' ? pH.concat([[w.r, w.c]]) : pH.slice();
+                var tV = w.ori === 'V' ? pV.concat([[w.r, w.c]]) : pV.slice();
+                // Rejeita paredes que NÃO impedem a vitória
+                if (CerebroIA.canWinNext(oppIdx, tH, tV, pos)) continue;
+                var novoD = CerebroIA.bfsDist(oppIdx, tH, tV, pos);
+                if (novoD > maiorAtraso) {
+                    maiorAtraso = novoD;
+                    melhorBloqueio = { type: 'wall', r: w.r, c: w.c, ori: w.ori };
+                }
+            }
+            if (melhorBloqueio) return melhorBloqueio;
+        }
+
+        // ===== REGRA DURA 2: PERIGO (oppD === 2) =====
+        // Se oponente está a 2 casas, força cerco em L
+        // (não deixa ensemble escolher movimento se ainda tem paredes)
+        if (oppD === 2 && walls[iaIdx] >= 1) {
+            // Chama cerco — ele já faz L/U simétrico
+            var cerco = CerebroIA.cercoEstrategico(pos, pH, pV, walls, iaIdx);
+            if (cerco && cerco.type === 'wall') return cerco;
+
+            // Se cerco não achou, tenta qualquer parede que atrase ≥2
+            var paredesPerigo = CerebroIA._todasParedesValidas(pos, pH, pV, walls, iaIdx);
+            var melhorP = null, maiorA = 1;  // exige atraso ≥2
+            for (var i = 0; i < paredesPerigo.length; i++) {
+                var wp = paredesPerigo[i];
+                var tHp = wp.ori === 'H' ? pH.concat([[wp.r, wp.c]]) : pH.slice();
+                var tVp = wp.ori === 'V' ? pV.concat([[wp.r, wp.c]]) : pV.slice();
+                if (CerebroIA.canWinNext(oppIdx, tHp, tVp, pos)) continue;
+                var novoDp = CerebroIA.bfsDist(oppIdx, tHp, tVp, pos) - oppD;
+                if (novoDp > maiorA) {
+                    maiorA = novoDp;
+                    melhorP = { type: 'wall', r: wp.r, c: wp.c, ori: wp.ori };
+                }
+            }
+            if (melhorP) return melhorP;
+        }
+
+        // ===== REGRA DURA 3: PRÉ-BLOQUEIO (oppD === 3) =====
+        // Se oponente está a 3 casas:
+        //   - Se IA vence em ≤ 3 turnos → corre (gps)
+        //   - Senão → pré-bloqueia com parede que atrase ≥ 2
+        if (oppD === 3 && walls[iaIdx] >= 1) {
+            var meuD = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+            // Se IA está muito perto de vencer, corre
+            if (meuD <= 3) {
+                return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
+            }
+
+            // Senão: pré-bloqueio
+            var paredesTri = CerebroIA._todasParedesValidas(pos, pH, pV, walls, iaIdx);
+            var melhorT = null, maiorAt = 1;
+            for (var i = 0; i < paredesTri.length; i++) {
+                var wt = paredesTri[i];
+                var tHt = wt.ori === 'H' ? pH.concat([[wt.r, wt.c]]) : pH.slice();
+                var tVt = wt.ori === 'V' ? pV.concat([[wt.r, wt.c]]) : pV.slice();
+                if (CerebroIA.canWinNext(oppIdx, tHt, tVt, pos)) continue;
+                var novoDt = CerebroIA.bfsDist(oppIdx, tHt, tVt, pos) - oppD;
+                if (novoDt > maiorAt) {
+                    maiorAt = novoDt;
+                    melhorT = { type: 'wall', r: wt.r, c: wt.c, ori: wt.ori };
+                }
+            }
+            if (melhorT) return melhorT;
+            // Se nenhuma parede atrasa ≥2, corre
             return CerebroIA.gps(pos, pH, pV, walls, iaIdx);
         }
 
@@ -2551,7 +2699,8 @@
         'etapa2BloqueioDuplo', 'etapa3Gargalo',
         'strategicV1', 'forte', 'consolidadaFinal',
         'etapa1FimDeJogo', 'melhoriasExtra', 'melhoriasExtraV2',
-        'memoriaParedes', 'cercoEstrategico', 'minimax', 'milPerfis'
+        'memoriaParedes', 'cercoEstrategico', 'minimax', 'milPerfis',
+        'amigdala'
     ];
 
     // Avalia uma proposta de jogada com minimax raso (depth 2)
@@ -2618,6 +2767,21 @@
 
         if (propostas.length === 0) {
             return { acao: CerebroIA.gps(pos, pH, pV, walls, iaIdx), tecnica: 'gps_fallback', corrida: corrida };
+        }
+
+        // REGRA DURA: em perigo/emergência/pré-bloqueio, rejeita movimento
+        // (a menos que a IA possa vencer agora ou não tenha paredes)
+        var oppIdxEns = 1 - iaIdx;
+        var oppDEns = CerebroIA.bfsDist(oppIdxEns, pH, pV, pos);
+        var iaPodeVencer = CerebroIA.canWinNext(iaIdx, pH, pV, pos);
+        var meuDEns = CerebroIA.bfsDist(iaIdx, pH, pV, pos);
+        var bloquearTotal = (oppDEns <= 2) || (oppDEns === 3 && meuDEns > 3);
+        if (bloquearTotal && walls[iaIdx] > 0 && !iaPodeVencer) {
+            var propostasParede = [];
+            for (var j = 0; j < propostas.length; j++) {
+                if (propostas[j].acao.type === 'wall') propostasParede.push(propostas[j]);
+            }
+            if (propostasParede.length > 0) propostas = propostasParede;
         }
 
         // Avalia cada proposta com minimax raso
