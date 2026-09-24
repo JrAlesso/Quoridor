@@ -3524,6 +3524,19 @@ function getAccounts() {
       document.getElementById('sala-id-input').value = '';
       listarSalasAbertas();
     });
+      // Handlers dos botões de sala
+      document.getElementById('btn-criar-sala').addEventListener('click', function() {
+        if (!currentUser) { alert('Faça login primeiro.'); return; }
+        var nomeSala = (document.getElementById('sala-nome-input').value || '').trim() || currentUser;
+        var senhaSala = (document.getElementById('sala-senha-input').value || '').trim();
+        criarSala(nomeSala, senhaSala);
+      });
+      document.getElementById('btn-entrar-id').addEventListener('click', function() {
+        if (!currentUser) { alert('Faça login primeiro.'); return; }
+        var idSala = (document.getElementById('sala-id-input').value || '').trim();
+        if (!idSala) { alert('Digite o ID da sala.'); return; }
+        entrarSalaComSenha(idSala, currentUser);
+      });
     document.getElementById('btn-ranking').addEventListener('click', function(){ alert('Classificação em breve!'); });
     document.getElementById('btn-titulos').addEventListener('click', openTitles);
     document.getElementById('btn-medalhas').addEventListener('click', openMedals);
