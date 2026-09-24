@@ -10953,3 +10953,26 @@ function _enviarParaWorker(pos, pH, pV, walls, iaIdx, callback) {
 
     console.log('[FaseE.2] Registro de jogadas ativo ✅');
 })();
+
+// =====================================================================
+// DEBUG TEMPORÁRIO — captura erros e mostra na tela
+// =====================================================================
+(function() {
+  // Captura erros não tratados
+  window.addEventListener('error', function(e) {
+    alert('❌ ERRO:\n' + e.message + '\n\nLinha: ' + e.lineno + '\nArquivo: ' + e.filename);
+  });
+
+  // Confirma que carregou
+  setTimeout(function() {
+    var debug = [];
+    debug.push('✅ Script.js carregado');
+    debug.push('criarSala: ' + typeof criarSala);
+    debug.push('entrarSalaComSenha: ' + typeof entrarSalaComSenha);
+    debug.push('btn-criar-sala: ' + (document.getElementById('btn-criar-sala') ? 'existe' : 'NAO EXISTE'));
+    debug.push('btn-online: ' + (document.getElementById('btn-online') ? 'existe' : 'NAO EXISTE'));
+    debug.push('sala-overlay: ' + (document.getElementById('sala-overlay') ? 'existe' : 'NAO EXISTE'));
+    debug.push('firebase: ' + typeof firebase);
+    alert(debug.join('\n'));
+  }, 1500);
+})();
