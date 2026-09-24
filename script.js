@@ -1800,7 +1800,12 @@ function getAccounts() {
       G.p1Name = data.jogador1 || G.p1Name;
       G.p2Name = data.jogador2 || G.p2Name || 'Aguardando...';
       if (data.posicoes && data.posicoes.length === 2) {
-        G.pos = [[data.posicoes[0][0], data.posicoes[0][1]], [data.posicoes[1][0], data.posicoes[1][1]]];
+        // Aceita formato novo (objeto) e antigo (array)
+        if (data.posicoes[0].r !== undefined) {
+          G.pos = [[data.posicoes[0].r, data.posicoes[0].c], [data.posicoes[1].r, data.posicoes[1].c]];
+        } else {
+          G.pos = [[data.posicoes[0][0], data.posicoes[0][1]], [data.posicoes[1][0], data.posicoes[1][1]]];
+        }
       }
       var pw = paredesFirestoreParaLocal(data.paredesH, data.paredesV);
       G.pH = pw.pH; G.pV = pw.pV; G.wallOwnerH = pw.owH; G.wallOwnerV = pw.owV;
@@ -1834,7 +1839,7 @@ function getAccounts() {
         jogador2: '',
         status: 'esperando',
         turno: 0,
-        posicoes: [[8,4],[0,4]],
+        posicoes: [{r:8,c:4},{r:0,c:4}],
         paredesH: [],
         paredesV: [],
         paredesRestantes: [10,10],
@@ -1971,7 +1976,7 @@ function getAccounts() {
       if (!euSouJogadorDaVez()) return;
       var salaRef = db.collection('salas').doc(salaAtual);
       var paredes = paredesLocalParaFirestore();
-      var posicoes = [[G.pos[0][0], G.pos[0][1]], [G.pos[1][0], G.pos[1][1]]];
+      var posicoes = [{r: G.pos[0][0], c: G.pos[0][1]}, {r: G.pos[1][0], c: G.pos[1][1]}];
       var paredesRestantes = [G.walls[0], G.walls[1]];
       var turno = G.turn;
       var update = {
