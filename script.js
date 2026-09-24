@@ -3218,6 +3218,8 @@ function getAccounts() {
     }
     function doMove(r,c) {
       if (!gameActive || G.over || matchFinished) return;
+        // ONLINE: só joga na sua vez
+        if (isOnlineMode && !euSouJogadorDaVez()) return;
       if (G.turn === 0) seriesStats.userMoves++;
       G.hist.push({type:'move', turn:G.turn, from:G.pos[G.turn].slice()});
       G.pos[G.turn] = [r,c]; G.sel = null; G.moves = [];
@@ -3232,6 +3234,8 @@ function getAccounts() {
     }
     function placeWall(ni,nj,ori) {
       if (!gameActive || G.over || matchFinished) return;
+        // ONLINE: só joga na sua vez
+        if (isOnlineMode && !euSouJogadorDaVez()) return;
       var r = ni-1, c = nj-1;
       if (!canPlace(r,c,ori)) { st('Posição inválida!'); return; }
       if (G.turn === 0) seriesStats.userWalls++;
@@ -3381,6 +3385,11 @@ function getAccounts() {
     function handleTap(e) {
       e.preventDefault();
       if (!gameActive || G.over || matchFinished || G.iaThinking || (G.vsIA && G.turn === 1)) return;
+        // ONLINE: só joga na sua vez
+        if (isOnlineMode && !euSouJogadorDaVez()) {
+          if (typeof st === 'function') st('Aguarde a vez do oponente...');
+          return;
+        }
       var xy = getEventXY(e); var px = xy[0], py = xy[1];
       if (G.mode === 'H') { var n = nearestNode(px, py, G.validH, PAT*0.65); if (n) placeWall(n[0], n[1], 'H'); return; }
       if (G.mode === 'V') { var n = nearestNode(px, py, G.validV, PAT*0.65); if (n) placeWall(n[0], n[1], 'V'); return; }
@@ -10958,43 +10967,3 @@ function _enviarParaWorker(pos, pH, pV, walls, iaIdx, callback) {
 
     console.log('[FaseE.2] Registro de jogadas ativo ✅');
 })();
-
-// =====================================================================
-// DEBUG TEMPORÁRIO — captura erros e mostra na tela
-// =====================================================================
-(function() {
-  // Captura erros não tratados
-  window.addEventListener('error', function(e) {
-    alert('❌ ERRO:\n' + e.message + '\n\nLinha: ' + e.lineno + '\nArquivo: ' + e.filename);
-  });
-
-  // Confirma que carregou
-  setTimeout(function() {
-    var debug = [];
-    debug.push('✅ Script.js carregado');
-    debug.push('criarSala: ' + typeof criarSala);
-    debug.push('entrarSalaComSenha: ' + typeof entrarSalaComSenha);
-    debug.push('btn-criar-sala: ' + (document.getElementById('btn-criar-sala') ? 'existe' : 'NAO EXISTE'));
-    debug.push('btn-online: ' + (document.getElementById('btn-online') ? 'existe' : 'NAO EXISTE'));
-    debug.push('sala-overlay: ' + (document.getElementById('sala-overlay') ? 'existe' : 'NAO EXISTE'));
-    debug.push('firebase: ' + typeof firebase);
-    alert(debug.join('\n'));
-  }, 1500);
-})();
-
-// =====================================================================
-// DEBUG GLOBAL — captura todos os cliques (TEMPORÁRIO)
-// =====================================================================
-document.addEventListener('click', function(e) {
-  var alvo = e.target;
-  var id = alvo.id || '(sem id)';
-  var tag = alvo.tagName;
-  
-  // Só mostra pra botões e elementos com id
-  if (tag === 'BUTTON' || alvo.closest('button')) {
-    var btn = alvo.closest('button') || alvo;
-    alert('🎯 Clique capturado: ' + btn.id + ' | texto: ' + (btn.textContent || '').substring(0, 20));
-  }
-}, true);  // true = captura em fase de captura (antes de outros handlers)
-
-console.log('[TraceGlobal] Listener global de cliques ativo');
