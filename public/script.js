@@ -3047,6 +3047,52 @@ function getAccounts() {
           if (winner !== -1) {
               var stats = getStats();
 
+              // ============================================================
+              // MODO ONLINE — progressão de perfil REAL
+              // ============================================================
+              if (typeof isOnlineMode !== 'undefined' && isOnlineMode) {
+                var _euVenci = (winner === 0 && G.p1Name === currentUser) || (winner === 1 && G.p2Name === currentUser);
+                var _meuElo = stats.rankPoints || 0;
+                var _pontosBase = _euVenci ? 25 : -15;
+                var _xpGanho = _euVenci ? 80 : 20;
+
+                stats.games++;
+                if (_euVenci) {
+                  stats.wins++;
+                  stats.streak = (stats.streak || 0) + 1;
+                  stats.maxStreak = Math.max(stats.maxStreak || 0, stats.streak);
+                } else {
+                  stats.losses++;
+                  stats.streak = 0;
+                }
+                stats.rankPoints = Math.max(0, _meuElo + _pontosBase);
+                stats.rankPoints = Math.round(stats.rankPoints * 100) / 100;
+                stats.maxRankPoints = Math.max(stats.maxRankPoints || 0, stats.rankPoints);
+                stats.xp = (stats.xp || 0) + _xpGanho;
+                while (stats.level < 100 && stats.xp >= xpParaProximoNivel(stats.level)) {
+                  stats.xp -= xpParaProximoNivel(stats.level);
+                  stats.level++;
+                }
+                stats.totalWalls += seriesStats.userWalls;
+                stats.totalTurns += seriesStats.userMoves;
+
+                if (!stats.history) stats.history = [];
+                stats.history.unshift({
+                  date: Date.now(),
+                  mode: 'Online',
+                  result: _euVenci ? 'Vitória' : 'Derrota',
+                  points: _pontosBase,
+                  walls: seriesStats.userWalls,
+                  moves: seriesStats.userMoves,
+                  rounds: config.rounds,
+                  time: config.time,
+                  xp: _xpGanho
+                });
+                if (stats.history.length > 100) stats.history.pop();
+                saveStats(stats);
+                if (currentUser && typeof updateRankDisplay === 'function') updateRankDisplay(currentUser);
+              }
+
               // Detectar títulos locais ANTES de atualizar
               var titulosAntes = [];
               if (!G.vsIA && typeof LOCAL_GAMES_TITLES !== 'undefined') {
@@ -3101,6 +3147,22 @@ function getAccounts() {
                 tipo: 'fim',
                 html: '◈ FIM DE JOGO!<span class="sub">' + vencedorFinal + ' venceu (' + scores[0] + ' x ' + scores[1] + ')</span>'
               });
+
+              // MODO ONLINE: card com ganho de ELO/XP
+              if (typeof isOnlineMode !== 'undefined' && isOnlineMode) {
+                var _euVenciCard = (winner === 0 && G.p1Name === currentUser) || (winner === 1 && G.p2Name === currentUser);
+                var _eloDelta = _euVenciCard ? '+25' : '-15';
+                var _xpCard = _euVenciCard ? '+80' : '+20';
+                var _corElo = _euVenciCard ? '#10b981' : '#e94560';
+                cardsSeq.push({
+                  tipo: 'online',
+                  html: '<div style="padding:12px;margin-top:10px;border-radius:12px;background:rgba(212,163,115,0.1);border:2px solid rgba(212,163,115,0.3);text-align:center">' +
+                        '<div style="font-size:11px;color:#b8a99a;margin-bottom:6px;letter-spacing:1px">PARTIDA RANQUEADA</div>' +
+                        '<div style="font-size:16px;font-weight:900;color:' + _corElo + '">' + _eloDelta + ' ELO</div>' +
+                        '<div style="font-size:14px;font-weight:700;color:#facc15;margin-top:4px">' + _xpCard + ' XP</div>' +
+                        '</div>'
+                });
+              }
               for (var i = 0; i < titulosNovos.length; i++) {
                 cardsSeq.push({
                   tipo: 'titulo',
