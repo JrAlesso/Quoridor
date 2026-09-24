@@ -10981,3 +10981,20 @@ function _enviarParaWorker(pos, pH, pV, walls, iaIdx, callback) {
     alert(debug.join('\n'));
   }, 1500);
 })();
+
+// =====================================================================
+// DEBUG GLOBAL — captura todos os cliques (TEMPORÁRIO)
+// =====================================================================
+document.addEventListener('click', function(e) {
+  var alvo = e.target;
+  var id = alvo.id || '(sem id)';
+  var tag = alvo.tagName;
+  
+  // Só mostra pra botões e elementos com id
+  if (tag === 'BUTTON' || alvo.closest('button')) {
+    var btn = alvo.closest('button') || alvo;
+    alert('🎯 Clique capturado: ' + btn.id + ' | texto: ' + (btn.textContent || '').substring(0, 20));
+  }
+}, true);  // true = captura em fase de captura (antes de outros handlers)
+
+console.log('[TraceGlobal] Listener global de cliques ativo');
