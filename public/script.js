@@ -1451,18 +1451,73 @@ function getAccounts() {
       // MODO ONLINE (futuro) — progressão de perfil real
       // ============================================================
       if (typeof isOnlineMode !== 'undefined' && isOnlineMode) {
-        data = [
-          { label: 'Nome', value: name },
-          { label: 'Título', value: stats.equippedTitle || 'Recruta' },
-          { label: 'Patente', value: getRank(stats.rankPoints) },
-          { label: 'Nível', value: stats.level || 1 },
-          { label: 'Partidas', value: stats.games },
-          { label: 'Vitórias', value: stats.wins },
-          { label: 'Derrotas', value: stats.losses },
-          { label: 'Taxa de vitórias', value: (stats.games > 0 ? ((stats.wins / stats.games) * 100).toFixed(1) + '%' : '0%') },
-          { label: 'Pontos (ELO)', value: stats.rankPoints.toFixed(1) },
-          { label: 'Estilo de jogo', value: stats.games > 0 ? (stats.totalWalls / stats.games >= 4 ? 'Estrategista' : stats.totalWalls / stats.games >= 2 ? 'Equilibrado' : 'Agressivo') : 'Indefinido' }
-        ];
+        var _souP1 = (currentUser === G.p1Name);
+        var _clicouEmMim = (playerIndex === 0 && _souP1) || (playerIndex === 1 && !_souP1);
+
+        if (_clicouEmMim) {
+          data = [
+            { label: 'Nome', value: name },
+            { label: 'Título', value: stats.equippedTitle || 'Recruta' },
+            { label: 'Patente', value: getRank(stats.rankPoints) },
+            { label: 'Nível', value: stats.level || 1 },
+            { label: 'Partidas', value: stats.games || 0 },
+            { label: 'Vitórias', value: stats.wins || 0 },
+            { label: 'Derrotas', value: stats.losses || 0 },
+            { label: 'Taxa de vitórias', value: (stats.games > 0 ? ((stats.wins / stats.games) * 100).toFixed(1) + '%' : '0%') },
+            { label: 'Pontos (ELO)', value: (stats.rankPoints || 0).toFixed(1) }
+          ];
+        } else {
+          var _renderAsync = function(arr) {
+            content.innerHTML = '';
+            for (var _i = 0; _i < arr.length; _i++) {
+              var _it = document.createElement('div');
+              _it.className = 'inspect-item';
+              _it.innerHTML = '<span class="label">' + arr[_i].label + '</span><span class="value">' + arr[_i].value + '</span>';
+              content.appendChild(_it);
+            }
+          };
+
+          _renderAsync([
+            { label: 'Nome', value: name },
+            { label: 'Status', value: '⏳ Carregando...' }
+          ]);
+
+          db.collection('usernames').doc(name.toLowerCase()).get().then(function(nickDoc) {
+            if (!nickDoc.exists) {
+              _renderAsync([
+                { label: 'Nome', value: name },
+                { label: 'Status', value: '❌ Usuário não encontrado' }
+              ]);
+              return null;
+            }
+            return db.collection('users').doc(nickDoc.data().uid).get();
+          }).then(function(userDoc) {
+            if (!userDoc || !userDoc.exists) return;
+            var o = (userDoc.data().stats) || {};
+            _renderAsync([
+              { label: 'Nome', value: name },
+              { label: 'Título', value: o.equippedTitle || 'Recruta' },
+              { label: 'Patente', value: getRank(o.rankPoints) },
+              { label: 'Nível', value: o.level || 1 },
+              { label: 'Partidas', value: o.games || 0 },
+              { label: 'Vitórias', value: o.wins || 0 },
+              { label: 'Derrotas', value: o.losses || 0 },
+              { label: 'Taxa de vitórias', value: (o.games > 0 ? ((o.wins / o.games) * 100).toFixed(1) + '%' : '0%') },
+              { label: 'Pontos (ELO)', value: (o.rankPoints || 0).toFixed(1) }
+            ]);
+          }).catch(function(e) {
+            console.error('[Inspect] Erro:', e);
+            _renderAsync([
+              { label: 'Nome', value: name },
+              { label: 'Status', value: '❌ Erro ao carregar' }
+            ]);
+          });
+
+          var inspectCardAsync = document.getElementById('inspect-card');
+          inspectCardAsync.classList.remove('rotated');
+          document.getElementById('inspect-overlay').classList.add('show');
+          return;
+        }
       }
       // ============================================================
       // MODO LOCAL — vs IA
@@ -1762,6 +1817,7 @@ function getAccounts() {
     }
 
     function limparOnline() {
+      if (window._hbInterval) { clearInterval(window._hbInterval); window._hbInterval = null; }
       if (salaUnsubscribe) { try { salaUnsubscribe(); } catch(e) {} salaUnsubscribe = null; }
       if (filaUnsubscribe) { try { filaUnsubscribe(); } catch(e) {} filaUnsubscribe = null; }
       if (listaSalasUnsubscribe) { try { listaSalasUnsubscribe(); } catch(e) {} listaSalasUnsubscribe = null; }
@@ -1845,6 +1901,8 @@ function getAccounts() {
         paredesRestantes: [10,10],
         vencedor: '',
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          lastSeen1: Date.now(),
+          lastSeen2: 0,
         senha: senha || ''
       };
       salaRef.set(dados).then(function() {
@@ -1898,7 +1956,7 @@ function getAccounts() {
           document.getElementById('sala-status').textContent = '❌ Sala cheia.';
           return;
         }
-        salaRef.update({ jogador2: nomeJogador, status: 'em_andamento' })
+        salaRef.update({ jogador2: nomeJogador, status: 'em_andamento', lastSeen2: Date.now() })
           .then(function() { return salaRef.get(); })
           .then(function(doc2) {
             document.getElementById('sala-overlay').classList.remove('show');
@@ -1950,13 +2008,24 @@ function getAccounts() {
           }
         });
       });
-      if (salaUnsubscribe) salaUnsubscribe();
+        if (salaUnsubscribe) salaUnsubscribe();
+        
+        // HEARTBEAT: atualiza lastSeen a cada 10s
+        var _souP1 = (nomeJogador === G.p1Name);
+        if (window._hbInterval) clearInterval(window._hbInterval);
+        window._hbInterval = setInterval(function() {
+          if (!salaAtual || !isOnlineMode) return;
+          var upd = {};
+          upd[_souP1 ? 'lastSeen1' : 'lastSeen2'] = Date.now();
+          db.collection('salas').doc(salaAtual).update(upd).catch(function(){});
+        }, 10000);
       salaUnsubscribe = db.collection('salas').doc(salald).onSnapshot(function(doc) {
         if (!doc.exists) return;
         var novoData = doc.data();
         if (novoData.status === 'finalizada') {
           if (!G.over) {
             G.over = true;
+              if (window._hbInterval) clearInterval(window._hbInterval);
             var vencedor = novoData.vencedor === G.p1Name ? 0 : (novoData.vencedor === G.p2Name ? 1 : -1);
             if (vencedor !== -1 && typeof showWinOverlay === 'function') {
               showWinOverlay('🏆 ' + novoData.vencedor + ' venceu!', vencedor);
@@ -1964,12 +2033,48 @@ function getAccounts() {
           }
           return;
         }
-        aplicarEstadoSala(novoData);
+          // DETECÇÃO DE DESCONEXÃO (30s sem sinal = W.O.)
+          var _lsOpp = _souP1 ? novoData.lastSeen2 : novoData.lastSeen1;
+          if (_lsOpp && _lsOpp > 0 && (Date.now() - _lsOpp > 30000)) {
+            var _meuIdx = _souP1 ? 0 : 1;
+            db.collection('salas').doc(salald).update({
+              status: 'finalizada',
+              vencedor: nomeJogador
+            }).catch(function(){});
+            if (!G.over) {
+              G.over = true;
+              if (window._hbInterval) clearInterval(window._hbInterval);
+              if (typeof showWinOverlay === 'function') {
+                showWinOverlay('🏆 Vitória por W.O.!<span class="sub">Oponente desconectou</span>', _meuIdx);
+              }
+            }
+            return;
+          }
+          aplicarEstadoSala(novoData);
         if (euSouJogadorDaVez() && !G.over && typeof selectPawn === 'function') {
           selectPawn(G.pos[G.turn][0], G.pos[G.turn][1]);
         }
       });
     }
+
+
+      // DESISTIR da partida online
+      function desistirPartida() {
+        if (!isOnlineMode || !salaAtual || !G.online) return;
+        if (!confirm('Tem certeza que deseja desistir? Você perderá a partida.')) return;
+        var _souP1 = (currentUser === G.p1Name);
+        var _vencNome = _souP1 ? G.p2Name : G.p1Name;
+        if (window._hbInterval) clearInterval(window._hbInterval);
+        db.collection('salas').doc(salaAtual).update({
+          status: 'finalizada',
+          vencedor: _vencNome
+        }).then(function() {
+          if (typeof limparOnline === 'function') limparOnline();
+          if (typeof goToLobby === 'function') goToLobby();
+        }).catch(function(e) {
+          alert('Erro ao desistir: ' + e.message);
+        });
+      }
 
     function enviarJogadaOnline(jogada) {
       if (!salaAtual || !isOnlineMode) return;
@@ -3665,6 +3770,8 @@ function getAccounts() {
       }
     });
     document.getElementById('btnUndo').addEventListener('click', undo);
+    var _btnDes = document.getElementById('btnDesistir');
+    if (_btnDes) _btnDes.addEventListener('click', desistirPartida);
     document.getElementById('btnReset').addEventListener('click', function() {
       stopTimer(); if (autoResetTimer) clearTimeout(autoResetTimer); if (autoResetTimer2) clearTimeout(autoResetTimer2);
       document.getElementById('win-overlay').classList.remove('show');
@@ -3692,6 +3799,10 @@ function getAccounts() {
     function updateUndoButtonVisibility() {
       var btnUndo = document.getElementById('btnUndo');
       if (btnUndo) btnUndo.style.display = G.vsIA ? 'none' : 'block';
+      var _bDes = document.getElementById('btnDesistir');
+      if (_bDes) _bDes.style.display = isOnlineMode ? 'block' : 'none';
+      var _bDes = document.getElementById('btnDesistir');
+      if (_bDes) _bDes.style.display = isOnlineMode ? 'block' : 'none';
     }
 
     window.addEventListener('load', function() {
